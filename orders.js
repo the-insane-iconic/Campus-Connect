@@ -8,58 +8,7 @@
 /* ─── CONSTANTS & SEED DATA ──────────────────────────────── */
 const STORAGE_KEY = 'unimall_v1';
 
-const INITIAL_DEMO_ORDERS = [
-  {
-    id: 'UM1024',
-    customerName: 'Ansh Sharma',
-    storeName: 'Campus Café',
-    storeIcon: '☕',
-    items: [
-      { productId: 'p01', name: 'Cold Brew Coffee', price: 120, qty: 1, emoji: '☕' },
-      { productId: 'p03', name: 'Classic Chips Snack Pack', price: 30, qty: 1, emoji: '🥔' }
-    ],
-    subtotal: 150,
-    deliveryFee: 0,
-    total: 150,
-    fulfillmentType: 'pickup',
-    deliveryInfo: null,
-    pickupLocation: 'Ground floor, near main entrance',
-    otp: '4829',
-    status: 'ready', // 'placed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
-    statusHistory: [
-      { status: 'placed', time: new Date(Date.now() - 10 * 60 * 1000).toISOString(), label: 'Order Placed' },
-      { status: 'preparing', time: new Date(Date.now() - 5 * 60 * 1000).toISOString(), label: 'Store Preparing Order' },
-      { status: 'ready', time: new Date(Date.now() - 1 * 60 * 1000).toISOString(), label: 'Ready for Pickup' }
-    ],
-    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'UM1019',
-    customerName: 'Ansh Sharma',
-    storeName: 'Book Corner',
-    storeIcon: '📓',
-    items: [
-      { productId: 'p07', name: 'A4 Spiral Notebook', price: 65, qty: 2, emoji: '📓' },
-      { productId: 'p08', name: 'Gel Pen Set (Pack of 5)', price: 110, qty: 1, emoji: '🖊️' }
-    ],
-    subtotal: 240,
-    deliveryFee: 0,
-    total: 240,
-    fulfillmentType: 'pickup',
-    deliveryInfo: null,
-    pickupLocation: 'Ground floor, Stationery Hub counter',
-    otp: '5912',
-    status: 'delivered',
-    deliveredAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      { status: 'placed', time: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), label: 'Order Placed & Paid' },
-      { status: 'preparing', time: new Date(Date.now() - 25.5 * 60 * 60 * 1000).toISOString(), label: 'Packed & Ready' },
-      { status: 'ready', time: new Date(Date.now() - 25.2 * 60 * 60 * 1000).toISOString(), label: 'Ready at Counter' },
-      { status: 'delivered', time: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), label: 'Collected by Student' }
-    ],
-    createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString()
-  }
-];
+const INITIAL_DEMO_ORDERS = [];
 
 /* ─── ORDERS STATE ───────────────────────────────────────── */
 const OrdersState = {
@@ -270,9 +219,9 @@ function renderLiveTracker() {
     </div>
 
     <div class="live-footer">
-      <div class="live-otp-wrap" role="button" title="Click to copy" style="cursor: pointer;" onclick="copyOrderText('${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || 'Room 214') : (order.otp || '4829')}', '${order.fulfillmentType === 'delivery' ? 'Room' : 'OTP'}')">
+      <div class="live-otp-wrap" role="button" title="Click to copy" style="cursor: pointer;" onclick="copyOrderText('${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || order.user_room || 'Room') : (order.otp || '4829')}', '${order.fulfillmentType === 'delivery' ? 'Room' : 'OTP'}')">
         <span class="live-otp-label">${order.fulfillmentType === 'delivery' ? 'Room:' : 'Pickup OTP:'}</span>
-        <span class="live-otp-code">${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || 'Room 214') : (order.otp || '4829')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;vertical-align:middle;opacity:0.75;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+        <span class="live-otp-code">${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || order.user_room || 'Assigned') : (order.otp || '4829')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;vertical-align:middle;opacity:0.75;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
       </div>
       <button class="live-action-btn" id="liveViewDetailsBtn" data-oid="${order.id}">View Details</button>
     </div>
@@ -552,7 +501,7 @@ function renderModalContent(orderId) {
     <div class="modal-section">
       <div class="modal-section-title">${order.fulfillmentType === 'delivery' ? 'Delivery Destination' : 'Pickup Location'}</div>
       <div class="modal-info-row">
-        📍 ${order.fulfillmentType === 'delivery' ? `${order.deliveryInfo?.hostel || 'Campus Hostel'}, ${order.deliveryInfo?.room || 'Room 214'}` : (order.pickupLocation || 'Ground floor, near main entrance')}
+        📍 ${order.fulfillmentType === 'delivery' ? `${order.deliveryInfo?.hostel || order.user_hostel || 'Campus Hostel'}, ${order.deliveryInfo?.room || order.user_room || 'Room'}` : (order.pickupLocation || 'Ground floor, near main entrance')}
       </div>
       ${order.otp ? `<div class="modal-info-sub">Show verification code to pickup: <strong style="color:var(--blue); font-family:monospace; font-size:14px;">${order.otp}</strong></div>` : ''}
     </div>
@@ -665,8 +614,14 @@ function syncSidebarProfile() {
     const roleEl = document.querySelector('.sidebar-profile-role');
     const avatarEl = document.querySelector('.sidebar-avatar');
 
-    if (nameEl && user.name) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
+    if (nameEl) nameEl.textContent = user.name || 'Campus Student';
+    if (roleEl) {
+      if (user.hostel && user.room) {
+        roleEl.textContent = `${user.hostel} · ${user.room}`;
+      } else {
+        roleEl.textContent = user.email || 'Campus Account';
+      }
+    }
     if (avatarEl) {
       const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
       avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
@@ -768,34 +723,51 @@ async function syncOrdersWithSupabase() {
       dbOrders.forEach(remote => {
         const existing = OrdersState.orders.find(o => o.id === remote.id);
         if (existing) {
-          if (existing.status !== remote.status) {
-            existing.status = remote.status;
+          const exSt = (existing.status || '').toLowerCase();
+          const rmSt = (remote.status || '').toLowerCase();
+          if (exSt === 'delivered' || exSt === 'completed') {
+            // Never demote a completed/delivered order
+          } else if (exSt !== rmSt) {
+            existing.status = rmSt;
             hasChange = true;
           }
         } else {
+          const storeNamesMap = {
+            'campus-cafe': 'Campus Café',
+            'book-corner': 'Book Corner',
+            'techstop': 'TechStop',
+            'campus-mart': 'Campus Mart',
+            'campus-wear': 'Campus Wear',
+            'health-hub': 'Health Hub'
+          };
+          const cleanStoreName = storeNamesMap[remote.store_id] || remote.store_name || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
+          const rawItems = remote.items || remote.unimall_order_items || [];
+
           OrdersState.orders.unshift({
             id: remote.id,
-            storeName: remote.store_id || 'Campus Store',
+            order_number_display: remote.order_number || (`#ORD-${String(remote.id).slice(-2)}`),
+            storeId: remote.store_id,
+            storeName: cleanStoreName,
             storeIcon: '🛍️',
-            items: (remote.unimall_order_items || []).map(it => ({
-              productId: it.product_id,
-              name: it.product_name,
-              price: Number(it.price),
-              qty: it.qty,
+            items: rawItems.map(it => ({
+              productId: it.product_id || it.productId || it.id,
+              name: it.product_name || it.name,
+              price: Number(it.price || 0),
+              qty: it.qty || it.quantity || 1,
               emoji: it.emoji || '📦'
             })),
-            subtotal: Number(remote.subtotal),
+            subtotal: Number(remote.subtotal || remote.total || 0),
             deliveryFee: Number(remote.delivery_fee || 0),
-            total: Number(remote.total),
+            total: Number(remote.total || remote.subtotal || 0),
             fulfillmentType: remote.fulfillment_type || 'pickup',
             deliveryInfo: remote.user_hostel ? { hostel: remote.user_hostel, room: remote.user_room } : null,
-            status: remote.status,
-            statusHistory: (remote.unimall_order_status_history || []).map(h => ({
+            status: (remote.status || 'placed').toLowerCase(),
+            statusHistory: (remote.statusHistory || remote.unimall_order_status_history || []).map(h => ({
               status: h.status,
-              time: h.created_at,
-              label: h.notes || h.status
+              time: h.created_at || h.time,
+              label: h.notes || h.label || h.status
             })),
-            createdAt: remote.created_at
+            createdAt: remote.created_at || new Date().toISOString()
           });
           hasChange = true;
         }
@@ -823,35 +795,9 @@ document.addEventListener('DOMContentLoaded', () => {
   syncCartBadge();
   syncSidebarProfile();
 
-  // Supabase/Neon live sync (visibility aware)
+  // Neon DB order sync on initial page load
   syncOrdersWithSupabase();
-  setInterval(() => {
-    if (document.visibilityState === 'visible') syncOrdersWithSupabase();
-  }, 10000);
-
-  // Cross-tab and BroadcastChannel listeners for instant updates
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'unimall_order_delivered_event' || e.key === 'unimall_order_ready_event' || e.key === 'unimall_new_order_placed_event' || e.key === 'unimall_v1') {
-      loadStateFromStorage();
-      syncOrdersWithSupabase();
-      updateTabCounts();
-      renderLiveTracker();
-      renderOrdersList();
-      if (OrdersState.selectedOrderId) renderModalContent(OrdersState.selectedOrderId);
-    }
-  });
-
-  try {
-    const bc = new BroadcastChannel('unimall_orders_channel');
-    bc.onmessage = () => {
-      loadStateFromStorage();
-      syncOrdersWithSupabase();
-      updateTabCounts();
-      renderLiveTracker();
-      renderOrdersList();
-      if (OrdersState.selectedOrderId) renderModalContent(OrdersState.selectedOrderId);
-    };
-  } catch(e) {}
+  // Automatic polling interval and background resetting disabled — user reloads manually for fresh data
 
   // Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
   setInterval(() => {

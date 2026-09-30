@@ -64,12 +64,23 @@ button {
 
 .app {
   width: 100%;
-  max-width: 520px;
+  max-width: 100%;
   min-height: 100vh;
-  margin: auto;
+  margin: 0 auto;
   background: var(--background);
   padding-bottom: 120px;
   position: relative;
+  box-sizing: border-box;
+}
+
+.cart-header,
+.cart-content-wrapper,
+.empty-cart-state {
+  width: 100%;
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 /* ═══════════════════════════════════════════════════════════

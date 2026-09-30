@@ -158,6 +158,7 @@ async function apiRequest(endpoint, options = {}) {
   // 2. Direct Supabase / Client Handler Fallback
   return await handleClientAdminRequest(endpoint, options);
 }
+window.apiRequest = apiRequest;
 
 /**
  * Unified Client-Side Handler (Supabase PostgREST + LocalStorage)
@@ -198,6 +199,23 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     const storeId = storeMatch[1];
 
     if (method === 'GET') {
+      if (storeId === 'all') {
+        return {
+          store: {
+            id: 'all',
+            name: 'All Campus Stores',
+            category: 'Platform Operations',
+            location: 'Platform-wide Executive Overview',
+            phone: '+91 UniMall HQ',
+            description: 'Platform management and cumulative analytics across all registered campus stores.',
+            image_url: '',
+            accepts_delivery: 1,
+            accepts_pickup: 1,
+            is_open: 1
+          }
+        };
+      }
+
       const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
       const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
       const reg = registeredStores.find(r => r.storeId === storeId);
@@ -285,8 +303,8 @@ async function handleClientAdminRequest(endpoint, options = {}) {
             id: o.id,
             order_number: o.order_number || o.id,
             order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-2)}`),
-            user_name: (o.user_name || o.customerName || 'Ansh Sharma').trim(),
-            user_phone: o.user_phone || '+91 98765 43210',
+            user_name: (o.user_name || o.customerName || o.customer_name || 'Student').trim(),
+            user_phone: o.user_phone || '',
             store_id: o.store_id,
             subtotal: parseFloat(o.subtotal || o.total || 0),
             store_subtotal: parseFloat(o.subtotal || o.total || 0),
@@ -313,7 +331,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       }
     }
 
-    // 2. Merge with any local orders in unimall_v1 cache
+    // 2. Read local cache to ensure terminal DELIVERED states are preserved and merge local orders
     try {
       const raw = localStorage.getItem('unimall_v1');
       if (raw) {
@@ -328,12 +346,56 @@ async function handleClientAdminRequest(endpoint, options = {}) {
             'health-hub': ['store-pharmacy', 'health-hub']
           };
           const targetIds = aliasMap[storeId] || [storeId];
+          let cacheChanged = false;
+
+          // Sync statuses between DB orders and local cache
+          ordersList.forEach(dbOrd => {
+            const cleanDbId = String(dbOrd.id || '').replace(/^#/, '').toLowerCase();
+            const cleanDbNum = String(dbOrd.order_number || '').replace(/^#/, '').toLowerCase();
+
+            const localOrd = appData.orders.find(lo => {
+              const loId = String(lo.id || '').replace(/^#/, '').toLowerCase();
+              const loNum = String(lo.order_number || '').replace(/^#/, '').toLowerCase();
+              const loDisp = String(lo.order_number_display || '').replace(/^#/, '').toLowerCase();
+              return loId === cleanDbId || loNum === cleanDbNum || loDisp === cleanDbNum || lo.id === dbOrd.id;
+            });
+
+            if (localOrd) {
+              const normLocalStatus = (localOrd.status || '').toLowerCase();
+              const normDbStatus = (dbOrd.status || '').toLowerCase();
+
+              // Rule: Terminal status (delivered/completed) is one-way! Never revert!
+              if (normLocalStatus === 'delivered' || normLocalStatus === 'completed') {
+                dbOrd.status = 'DELIVERED';
+                if (normDbStatus !== 'delivered' && normDbStatus !== 'completed') {
+                  if (window.UniMallDB && typeof window.UniMallDB.updateOrderStatus === 'function') {
+                    window.UniMallDB.updateOrderStatus(dbOrd.id, 'DELIVERED').catch(() => {});
+                  }
+                }
+              } else if (normDbStatus === 'delivered' || normDbStatus === 'completed') {
+                localOrd.status = 'delivered';
+                localOrd.deliveredAt = localOrd.deliveredAt || new Date().toISOString();
+                cacheChanged = true;
+              } else if (normDbStatus && normDbStatus !== normLocalStatus) {
+                localOrd.status = normDbStatus;
+                cacheChanged = true;
+              }
+            }
+          });
+
+          // Also include any local orders that aren't yet in ordersList
+          const existingIds = new Set(ordersList.map(o => String(o.id || '').replace(/^#/, '').toLowerCase()));
+          const existingNums = new Set(ordersList.map(o => String(o.order_number || '').replace(/^#/, '').toLowerCase()));
+
           const localOrders = appData.orders
             .filter(o => storeId === 'all' || (o.storeId && targetIds.includes(o.storeId)))
             .map(o => {
-              const custName = (o.user_name || o.customerName || o.customer_name || o.userName || o.customer?.name || 'Ansh Sharma').trim();
+              const custName = (o.user_name || o.customerName || o.customer_name || o.userName || o.customer?.name || 'Student').trim();
               const subtotalVal = parseFloat(o.subtotal || o.total || 0);
               const totalVal = parseFloat(o.total || o.subtotal || 0);
+              const rawSt = (o.status || 'placed').toLowerCase();
+              const cleanStatus = (rawSt === 'delivered' || rawSt === 'completed') ? 'DELIVERED' : rawSt.toUpperCase();
+
               return {
                 id: o.id,
                 order_number: o.order_number_display || o.order_number || o.id,
@@ -346,7 +408,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
                 delivery_fee: parseFloat(o.deliveryFee || 0),
                 total_amount: totalVal,
                 total: totalVal,
-                status: (o.status || 'placed').toUpperCase(),
+                status: cleanStatus,
                 fulfillment_type: o.fulfillmentType || 'counter-pickup',
                 delivery_location: o.deliveryInfo ? `${o.deliveryInfo.hostel} - ${o.deliveryInfo.room}` : 'Counter Pickup',
                 created_at: o.createdAt || o.date || new Date().toISOString(),
@@ -362,19 +424,24 @@ async function handleClientAdminRequest(endpoint, options = {}) {
               };
             });
 
-          // Deduplicate by ID
-          const existingIds = new Set(ordersList.map(o => o.id));
-          localOrders.forEach(o => {
-            if (!existingIds.has(o.id)) {
-              ordersList.push(o);
+          localOrders.forEach(lo => {
+            const cleanId = String(lo.id || '').replace(/^#/, '').toLowerCase();
+            const cleanNum = String(lo.order_number || '').replace(/^#/, '').toLowerCase();
+            if (!existingIds.has(cleanId) && !existingNums.has(cleanNum)) {
+              ordersList.push(lo);
+              existingIds.add(cleanId);
             }
           });
+
+          if (cacheChanged) {
+            localStorage.setItem('unimall_v1', JSON.stringify(appData));
+          }
         }
       }
     } catch(e) {}
 
-    // Sort by created_at desc
-    ordersList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    // Sort by created_at desc (newest first in list)
+    ordersList.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     return { orders: ordersList };
   }
@@ -398,7 +465,13 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       if (raw) {
         const appData = JSON.parse(raw);
         if (Array.isArray(appData.orders)) {
-          const ord = appData.orders.find(o => o.id === orderId);
+          const cleanTarget = String(orderId || '').replace(/^#/, '').toLowerCase();
+          const ord = appData.orders.find(o => {
+            const oId = String(o.id || '').replace(/^#/, '').toLowerCase();
+            const oNum = String(o.order_number || '').replace(/^#/, '').toLowerCase();
+            const oDisp = String(o.order_number_display || '').replace(/^#/, '').toLowerCase();
+            return oId === cleanTarget || oNum === cleanTarget || oDisp === cleanTarget || o.id === orderId;
+          });
           if (ord) {
             ord.status = isDelivered ? 'delivered' : newStatus.toLowerCase();
             if (isDelivered) {

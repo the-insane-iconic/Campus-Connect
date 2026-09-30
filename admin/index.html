@@ -43,75 +43,73 @@
         <button type="button" id="btn-close-drawer" class="btn-close-drawer" aria-label="Close menu">✕</button>
       </div>
 
-      <!-- ACTIVE STORE CARD -->
+      <!-- ACTIVE STORE / PLATFORM CONSOLE CARD -->
       <div class="active-store-card" id="active-store-card">
-        <div class="store-avatar" id="sidebar-store-avatar">☕</div>
+        <div class="store-avatar" id="sidebar-store-avatar">🏢</div>
         <div class="store-meta">
-          <div class="store-title" id="sidebar-store-name">Campus Bakery & Café</div>
-          <div class="store-badge-status" id="sidebar-store-status">● Open</div>
+          <div class="store-title" id="sidebar-store-name">Campus Operations</div>
+          <div class="store-badge-status" id="sidebar-store-status">● Console Active</div>
         </div>
       </div>
 
       <!-- NAVIGATION LINKS -->
       <nav class="sidebar-nav" aria-label="Admin Navigation">
-        <div class="nav-group-label">OPERATIONS</div>
+        <div class="nav-group-label" id="label-ops-group">OPERATIONS</div>
 
         <button type="button" class="nav-item active" data-view="dashboard" id="nav-dashboard">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-          <span>Dashboard</span>
+          <span id="nav-dash-label">Dashboard</span>
         </button>
 
         <button type="button" class="nav-item" data-view="orders" id="nav-orders">
           <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span>Orders</span>
+          <span id="nav-orders-label">Orders</span>
           <span class="nav-counter alert" id="counter-orders">0</span>
         </button>
 
-        <button type="button" class="nav-item" data-view="products" id="nav-products">
+        <!-- REGISTERED SHOPS & UNIFIED INVENTORY (Unified Hub for Platform Admin) -->
+        <button type="button" class="nav-item founder-nav hidden" data-view="founder" id="nav-founder">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Registered Shops</span>
+        </button>
+
+        <!-- SINGLE STORE ONLY NAVIGATION (Hidden for Platform Admin to keep inventory & products unified) -->
+        <button type="button" class="nav-item store-only-nav" data-view="products" id="nav-products">
           <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <span>Products</span>
         </button>
 
-        <button type="button" class="nav-item" data-view="inventory" id="nav-inventory">
+        <button type="button" class="nav-item store-only-nav" data-view="inventory" id="nav-inventory">
           <svg viewBox="0 0 24 24"><path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"/></svg>
           <span>Inventory</span>
           <span class="nav-counter warn" id="counter-low-stock">0</span>
         </button>
 
-        <div class="nav-group-label">STORE SETTINGS</div>
+        <div class="nav-group-label" id="label-settings-group">STORE SETTINGS</div>
 
-        <button type="button" class="nav-item" data-view="store" id="nav-store">
+        <button type="button" class="nav-item store-only-nav" data-view="store" id="nav-store">
           <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Store & Hours</span>
         </button>
 
         <button type="button" class="nav-item" data-view="analytics" id="nav-analytics">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span>Analytics</span>
+          <span id="nav-analytics-label">Analytics</span>
         </button>
 
         <button type="button" class="nav-item" data-view="requests" id="nav-requests">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>Customer Demand</span>
         </button>
-
-        <!-- PLATFORM ADMIN ONLY HUB -->
-        <div id="nav-founder-group" class="hidden">
-          <div class="nav-group-label">FOUNDER HUB</div>
-          <button type="button" class="nav-item founder-nav" data-view="founder" id="nav-founder">
-            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <span>Onboarding Tools</span>
-          </button>
-        </div>
       </nav>
 
       <!-- SIDEBAR FOOTER (User profile & logout) -->
       <div class="sidebar-footer">
         <div class="user-pill">
-          <div class="user-avatar" id="sidebar-user-avatar">R</div>
+          <div class="user-avatar" id="sidebar-user-avatar">A</div>
           <div class="user-details">
-            <div class="user-name" id="sidebar-user-name">Rahul Sharma</div>
-            <div class="user-role" id="sidebar-user-role">Store Owner</div>
+            <div class="user-name" id="sidebar-user-name">Admin</div>
+            <div class="user-role" id="sidebar-user-role">Platform Superadmin</div>
           </div>
           <button type="button" id="btn-logout" class="btn-logout-icon" title="Sign Out" aria-label="Sign Out">
             <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -175,7 +173,7 @@
               <h1 class="view-title" id="dash-greeting">Good morning, Store Manager</h1>
               <p class="view-subtitle" id="dash-store-sub">Store Operating Overview</p>
             </div>
-            <div class="view-actions">
+            <div class="view-actions" id="dash-header-actions">
               <button type="button" class="btn-action primary" id="dash-btn-add-product">+ Add Product</button>
               <button type="button" class="btn-action secondary" id="dash-btn-quick-add">⚡ Quick Add</button>
             </div>
@@ -186,7 +184,7 @@
             <div class="metric-card" id="card-metric-orders">
               <div class="metric-icon blue">📦</div>
               <div class="metric-info">
-                <div class="metric-label">Today's Orders</div>
+                <div class="metric-label" id="lbl-dash-orders">Today's Orders</div>
                 <div class="metric-value" id="dash-today-orders">0</div>
               </div>
             </div>
@@ -194,7 +192,7 @@
             <div class="metric-card" id="card-metric-pending">
               <div class="metric-icon amber">⏳</div>
               <div class="metric-info">
-                <div class="metric-label">Pending / Kitchen</div>
+                <div class="metric-label" id="lbl-dash-pending">Pending / Kitchen</div>
                 <div class="metric-value" id="dash-pending-orders">0</div>
               </div>
             </div>
@@ -202,7 +200,7 @@
             <div class="metric-card" id="card-metric-ready">
               <div class="metric-icon green">✅</div>
               <div class="metric-info">
-                <div class="metric-label">Ready for Pickup</div>
+                <div class="metric-label" id="lbl-dash-ready">Ready for Pickup</div>
                 <div class="metric-value" id="dash-ready-orders">0</div>
               </div>
             </div>
@@ -210,8 +208,43 @@
             <div class="metric-card" id="card-metric-sales">
               <div class="metric-icon purple">₹</div>
               <div class="metric-info">
-                <div class="metric-label">Today's Sales</div>
+                <div class="metric-label" id="lbl-dash-sales">Today's Sales</div>
                 <div class="metric-value" id="dash-today-sales">₹0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PLATFORM USER ANALYTICS & CAMPUS OVERVIEW (Visible in Platform View) -->
+          <div id="dash-platform-user-analytics" class="card-panel mt-4 hidden" style="border-left: 4px solid var(--primary); margin-bottom: 20px;">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                <span>👥</span>
+                <span>Campus User Analytics & Platform GMV</span>
+              </div>
+              <span class="badge-status completed" style="font-size:11px; padding:3px 8px;">Authoritative Neon Postgres</span>
+            </div>
+            <div class="panel-body" style="padding: 16px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
+                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Registered Students</div>
+                  <div style="font-size: 22px; font-weight: 800; color: var(--primary); margin-top: 4px;" id="stat-user-count">0</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Campus accounts created</div>
+                </div>
+                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Active Buyers</div>
+                  <div style="font-size: 22px; font-weight: 800; color: #10B981; margin-top: 4px;" id="stat-active-buyers">0</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Students with orders placed</div>
+                </div>
+                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Lifetime Platform GMV</div>
+                  <div style="font-size: 22px; font-weight: 800; color: #8B5CF6; margin-top: 4px;" id="stat-lifetime-gmv">₹0</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Cumulative across all shops</div>
+                </div>
+                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Orders Placed</div>
+                  <div style="font-size: 22px; font-weight: 800; color: #F59E0B; margin-top: 4px;" id="stat-lifetime-orders">0</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Orders recorded across all stores</div>
+                </div>
               </div>
             </div>
           </div>
@@ -222,7 +255,7 @@
             <!-- LEFT: ORDERS REQUIRING ATTENTION -->
             <div class="card-panel">
               <div class="panel-header">
-                <div class="panel-title">Orders Requiring Action</div>
+                <div class="panel-title" id="dash-orders-panel-title">Orders Requiring Action</div>
                 <button type="button" class="panel-link" id="dash-link-all-orders">View All Orders →</button>
               </div>
               <div class="panel-body" id="dash-urgent-orders">
@@ -235,7 +268,7 @@
 
               <div class="card-panel">
                 <div class="panel-header">
-                  <div class="panel-title">Low Stock Alerts</div>
+                  <div class="panel-title" id="dash-inventory-panel-title">Low Stock Alerts</div>
                   <button type="button" class="panel-link" id="dash-link-inventory">Manage Stock →</button>
                 </div>
                 <div class="panel-body" id="dash-low-stock-list">
@@ -632,11 +665,15 @@
         </section>
 
         <!-- 8. FOUNDER / PLATFORM ADMIN HUB (Platform Admin Only) -->
+        <!-- 8. REGISTERED SHOPS & UNIFIED STORE INVENTORY (Platform Admin) -->
         <section class="admin-view" id="view-founder">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Admin Control Center</h1>
-              <p class="view-subtitle">Full platform management — stores, registrations, owner accounts & health</p>
+              <h1 class="view-title">Registered Shops & Unified Inventory</h1>
+              <p class="view-subtitle">Consolidated management — registered stores, master product catalog, inventory restock & applications</p>
+            </div>
+            <div class="view-actions">
+              <button type="button" class="btn-action primary" id="btn-regshops-onboard-store">+ Onboard Store</button>
             </div>
           </div>
 
@@ -644,125 +681,182 @@
             <div class="metric-card">
               <div class="metric-icon blue">🏪</div>
               <div class="metric-info">
-                <div class="metric-label">Active Campus Stores</div>
+                <div class="metric-label">Registered Campus Stores</div>
                 <div class="metric-value" id="founder-stat-stores">0</div>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon amber">📝</div>
-              <div class="metric-info">
-                <div class="metric-label">Pending Registrations</div>
-                <div class="metric-value" id="founder-stat-pending">0</div>
               </div>
             </div>
             <div class="metric-card">
               <div class="metric-icon green">📦</div>
               <div class="metric-info">
-                <div class="metric-label">Live Products Catalog</div>
+                <div class="metric-label">Master Catalog Items</div>
                 <div class="metric-value" id="founder-stat-prods">0</div>
               </div>
             </div>
             <div class="metric-card">
-              <div class="metric-icon purple">💳</div>
+              <div class="metric-icon amber">⚠️</div>
               <div class="metric-info">
-                <div class="metric-label">Platform Gross Sales</div>
-                <div class="metric-value" id="founder-stat-revenue">₹0</div>
+                <div class="metric-label">Low Stock Across Stores</div>
+                <div class="metric-value" id="founder-stat-low-stock">0</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">📝</div>
+              <div class="metric-info">
+                <div class="metric-label">Pending Applications</div>
+                <div class="metric-value" id="founder-stat-pending">0</div>
               </div>
             </div>
           </div>
 
-          <!-- PENDING STORE REGISTRATIONS -->
-          <div class="card-panel mt-6">
-            <div class="panel-header">
-              <div class="panel-title">📋 Pending Store Registrations</div>
-              <button type="button" class="btn-action secondary" id="btn-refresh-registrations" style="font-size:12px; padding: 4px 12px;">↻ Refresh</button>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Store Name</th>
-                    <th>Type</th>
-                    <th>Owner</th>
-                    <th>Location</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="pending-registrations-tbody">
-                  <tr><td colspan="7" class="text-center py-6">No pending store registrations.</td></tr>
-                </tbody>
-              </table>
+          <!-- REGISTERED SHOPS TABS -->
+          <div class="orders-mode-bar mt-6">
+            <div class="orders-mode-tabs" id="reg-shops-tabs">
+              <button type="button" class="order-mode-btn active" data-tab="directory" onclick="switchRegShopsTab('directory')">
+                🏪 Campus Stores Directory
+              </button>
+              <button type="button" class="order-mode-btn" data-tab="catalog" onclick="switchRegShopsTab('catalog')">
+                📦 Consolidated Catalog & Inventory
+              </button>
+              <button type="button" class="order-mode-btn" data-tab="pending" onclick="switchRegShopsTab('pending')">
+                📋 Vendor Applications (<span id="reg-shops-pending-badge">0</span>)
+              </button>
+              <button type="button" class="order-mode-btn" data-tab="onboard" onclick="switchRegShopsTab('onboard')">
+                ➕ Onboard New Store
+              </button>
             </div>
           </div>
 
-          <!-- ALL STORES MONITOR -->
-          <div class="card-panel mt-6">
-            <div class="panel-header">
-              <div class="panel-title">🏪 All Campus Stores</div>
-            </div>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Store</th>
-                    <th>Category</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="all-stores-tbody">
-                  <tr><td colspan="5" class="text-center py-6">Loading stores...</td></tr>
-                </tbody>
-              </table>
+          <!-- TAB 1: ALL CAMPUS STORES DIRECTORY -->
+          <div id="tab-pane-directory" class="reg-shops-tab-pane">
+            <div class="card-panel mt-4">
+              <div class="panel-header">
+                <div class="panel-title">Active Campus Stores & Operations</div>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Store</th>
+                      <th>Category</th>
+                      <th>Location</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="all-stores-tbody">
+                    <tr><td colspan="5" class="text-center py-6">Loading stores...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div class="settings-grid mt-6">
-            <!-- CREATE STORE -->
-            <div class="card-panel">
-              <div class="panel-header"><div class="panel-title">➕ Onboard New Store (Manual)</div></div>
-              <form id="founder-create-store-form" class="settings-form">
-                <div class="form-group">
-                  <label for="founder-store-name-input">Store Name</label>
-                  <input type="text" id="founder-store-name-input" placeholder="e.g. Campus Juice Bar" required />
+          <!-- TAB 2: CONSOLIDATED CATALOG & INVENTORY -->
+          <div id="tab-pane-catalog" class="reg-shops-tab-pane hidden">
+            <div class="card-panel mt-4">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div class="panel-title">Master Product Inventory (All Stores)</div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <select id="reg-shops-store-filter" style="height:32px; font-size:12px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 8px;">
+                    <option value="all">Filter: All Stores</option>
+                  </select>
+                  <input type="text" id="reg-shops-search-input" placeholder="Search product or SKU..." style="height:32px; font-size:12px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 10px; width:180px;" />
                 </div>
-                <div class="form-group">
-                  <label for="founder-store-cat-input">Category</label>
-                  <input type="text" id="founder-store-cat-input" placeholder="e.g. Food & Drinks" required />
-                </div>
-                <div class="form-group">
-                  <label for="founder-store-loc-input">Location</label>
-                  <input type="text" id="founder-store-loc-input" placeholder="e.g. Ground Floor, Sports Complex" required />
-                </div>
-                <button type="submit" class="btn-action primary" id="btn-founder-submit-store">Create Store</button>
-              </form>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Store</th>
+                      <th>Price</th>
+                      <th>Stock Level</th>
+                      <th>Status</th>
+                      <th>Quick Restock</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reg-shops-inventory-tbody">
+                    <tr><td colspan="6" class="text-center py-6">Loading inventory...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
+          </div>
 
-            <!-- CREATE OWNER ACCOUNT -->
-            <div class="card-panel">
-              <div class="panel-header"><div class="panel-title">👤 Create Store Owner Account</div></div>
-              <form id="founder-create-owner-form" class="settings-form">
-                <div class="form-group">
-                  <label for="founder-owner-store-select">Assign Store</label>
-                  <select id="founder-owner-store-select" required></select>
-                </div>
-                <div class="form-group">
-                  <label for="founder-owner-name">Owner Full Name</label>
-                  <input type="text" id="founder-owner-name" placeholder="e.g. Rajiv Menon" required />
-                </div>
-                <div class="form-group">
-                  <label for="founder-owner-email">Owner Email</label>
-                  <input type="email" id="founder-owner-email" placeholder="owner@unimall.app" required />
-                </div>
-                <div class="form-group">
-                  <label for="founder-owner-pass">Temporary Password</label>
-                  <input type="password" id="founder-owner-pass" placeholder="••••••••" required />
-                </div>
-                <button type="submit" class="btn-action primary" id="btn-founder-submit-owner">Create & Assign Owner</button>
-              </form>
+          <!-- TAB 3: PENDING STORE REGISTRATIONS -->
+          <div id="tab-pane-pending" class="reg-shops-tab-pane hidden">
+            <div class="card-panel mt-4">
+              <div class="panel-header">
+                <div class="panel-title">📋 Vendor Onboarding Applications</div>
+                <button type="button" class="btn-action secondary" id="btn-refresh-registrations" style="font-size:12px; padding: 4px 12px;">↻ Refresh</button>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Store Name</th>
+                      <th>Type</th>
+                      <th>Owner</th>
+                      <th>Location</th>
+                      <th>Phone</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pending-registrations-tbody">
+                    <tr><td colspan="7" class="text-center py-6">No pending store registrations.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 4: MANUAL ONBOARDING -->
+          <div id="tab-pane-onboard" class="reg-shops-tab-pane hidden">
+            <div class="settings-grid mt-4">
+              <!-- CREATE STORE -->
+              <div class="card-panel">
+                <div class="panel-header"><div class="panel-title">➕ Onboard New Campus Store</div></div>
+                <form id="founder-create-store-form" class="settings-form">
+                  <div class="form-group">
+                    <label for="founder-store-name-input">Store Name</label>
+                    <input type="text" id="founder-store-name-input" placeholder="e.g. Campus Juice Bar" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="founder-store-cat-input">Category</label>
+                    <input type="text" id="founder-store-cat-input" placeholder="e.g. Food & Drinks" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="founder-store-loc-input">Location</label>
+                    <input type="text" id="founder-store-loc-input" placeholder="e.g. Ground Floor, Sports Complex" required />
+                  </div>
+                  <button type="submit" class="btn-action primary" id="btn-founder-submit-store">Create Store</button>
+                </form>
+              </div>
+
+              <!-- CREATE OWNER ACCOUNT -->
+              <div class="card-panel">
+                <div class="panel-header"><div class="panel-title">👤 Create Store Owner Account</div></div>
+                <form id="founder-create-owner-form" class="settings-form">
+                  <div class="form-group">
+                    <label for="founder-owner-store-select">Assign Store</label>
+                    <select id="founder-owner-store-select" required></select>
+                  </div>
+                  <div class="form-group">
+                    <label for="founder-owner-name">Owner Full Name</label>
+                    <input type="text" id="founder-owner-name" placeholder="e.g. Rajiv Menon" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="founder-owner-email">Owner Email</label>
+                    <input type="email" id="founder-owner-email" placeholder="owner@unimall.app" required />
+                  </div>
+                  <div class="form-group">
+                    <label for="founder-owner-pass">Temporary Password</label>
+                    <input type="password" id="founder-owner-pass" placeholder="••••••••" required />
+                  </div>
+                  <button type="submit" class="btn-action primary" id="btn-founder-submit-owner">Create & Assign Owner</button>
+                </form>
+              </div>
             </div>
           </div>
         </section>
@@ -931,9 +1025,14 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <!-- SCRIPTS -->
+  <!-- SCRIPTS & CONFIG -->
   <script src="../js/config.js"></script>
   <script src="js/api.js"></script>
+
+  <!-- REACT 18 & REACT DOM FOR REACTIVE ZERO-RELOAD ORDER COMPONENTS -->
+  <script src="../vendor/react.production.min.js"></script>
+  <script src="../vendor/react-dom.production.min.js"></script>
+  <script src="js/components/AdminOrdersReact.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/orders.js"></script>

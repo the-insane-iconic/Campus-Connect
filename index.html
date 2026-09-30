@@ -68,10 +68,10 @@
 
       <div class="sidebar-footer">
         <a href="profile.html" class="sidebar-profile" id="sb-profile-footer" aria-label="View profile">
-          <div class="sidebar-avatar">A</div>
+          <div class="sidebar-avatar" id="sidebarAvatar">S</div>
           <div class="sidebar-profile-info">
-            <div class="sidebar-profile-name">Aarav Singh</div>
-            <div class="sidebar-profile-role">Hostel B · Room 214</div>
+            <div class="sidebar-profile-name" id="sidebarProfileName">Campus Student</div>
+            <div class="sidebar-profile-role" id="sidebarProfileRole">Campus Account</div>
           </div>
         </a>
       </div>
@@ -191,71 +191,8 @@
                 </div>
               </div>
 
-              <!-- 2. ACTIVE ORDER BANNER: Displayed when an order is active or delivered < 24h -->
-              <div class="active-order-banner" id="active-order-banner" style="display: none;"
-                   role="button" tabindex="0" aria-label="Active order pickup pass — tap to view details">
-                <!-- Center Ripple Expanding Disk -->
-                <div class="card-ripple-wave" id="card-ripple-wave" aria-hidden="true"></div>
-
-                <!-- 1. Header: Initial Avatar + Customer Name + Store & Location (Left), Status & ETA (Right) -->
-                <div class="active-order-header-row">
-                  <div class="active-order-profile-left">
-                    <div class="active-order-avatar-circle" id="orderBannerAvatar">A</div>
-                    <div class="active-order-user-meta">
-                      <span class="active-order-eyebrow">YOUR ORDER</span>
-                      <h3 class="active-order-name-priority" id="orderBannerCustomerName">Ansh Sharma</h3>
-                      <div class="active-order-store-inline">
-                        <span class="active-order-store-ico" id="orderBannerStoreIcon">☕</span>
-                        <span class="active-order-store-name" id="orderBannerStoreName">Campus Café</span>
-                        <span class="store-inline-chevron">›</span>
-                      </div>
-                      <div class="active-order-store-loc" id="orderBannerStoreLoc">Ground floor, near main entrance</div>
-                    </div>
-                  </div>
-
-                  <div class="active-order-status-right">
-                    <div class="active-order-status-pill" id="orderBannerStatusBadge">
-                      <span class="status-pulse-dots">
-                        <span class="pulse-dot"></span>
-                        <span class="pulse-dot"></span>
-                      </span>
-                      <span class="status-pill-text" id="orderBannerStatusText">Order Confirmed</span>
-                    </div>
-                    <div class="active-order-eta-text" id="orderBannerEtaText">Estimated pickup: 5–10 min</div>
-                  </div>
-                </div>
-
-                <!-- 2. Middle Row: Items White Tray -->
-                <div class="active-order-items-tray" id="orderBannerItemsTray">
-                  <!-- Populated dynamically with item photos, 1x badges, item names & prices -->
-                </div>
-
-                <!-- 3. Bottom Row: Total (Left), Divider, and Show at Counter Button (Right) -->
-                <div class="active-order-footer-row">
-                  <div class="active-order-total-block">
-                    <span class="active-order-total-label">Total</span>
-                    <span class="active-order-total-val" id="orderBannerTotal">₹150</span>
-                  </div>
-
-                  <div class="active-order-footer-divider"></div>
-
-                  <button type="button" class="active-order-action-btn" id="orderBannerActionPill">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                      <line x1="3" y1="6" x2="21" y2="6"/>
-                      <path d="M16 10a4 4 0 0 1-8 0"/>
-                    </svg>
-                    <span id="orderBannerActionText">Show at Counter</span>
-                    <span class="cta-chevron">›</span>
-                  </button>
-                </div>
-
-                <!-- Delivered celebration stamp (reveals on completion) -->
-                <div class="active-order-delivered-stamp" id="orderBannerDeliveredStamp" style="display: none;">
-                  <span class="stamp-check">✓</span>
-                  <span class="stamp-msg">Order Picked Up & Delivered · Active on home for 24h</span>
-                </div>
-              </div>
+              <!-- 2. ACTIVE ORDER BANNER: Powered by React 18 for zero-interruption live updates -->
+              <div id="active-order-banner-root"></div>
 
               <!-- 3. EMPTY ORDER FALLBACK BANNER: Displayed when no active orders exist (always keeping 2 banners) -->
               <div class="empty-order-promo-banner" id="empty-order-promo-banner" role="region" aria-label="Explore food and snacks">
@@ -570,7 +507,7 @@
     <div class="sheet-pass-card" id="sheetPassCard">
       <div class="sheet-pass-left">
         <div class="sheet-pass-eyebrow">COUNTER PICKUP PASS</div>
-        <div class="sheet-pass-customer-name" id="sheetCustomerName">ANSH SHARMA</div>
+        <div class="sheet-pass-customer-name" id="sheetCustomerName">STUDENT</div>
         <div class="sheet-pass-sub">Order <strong id="sheetOrderId">#UM1024</strong> · Flash at counter</div>
       </div>
       <div class="sheet-pass-right">
@@ -632,6 +569,11 @@
     </div>
   </div>
 </aside>
+
+<!-- React 18 Engine & Reactive Components (Zero-Reload Live State) -->
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="js/components/ActiveOrderBanner.js"></script>
 
 <!-- Scripts — load order matters (each file depends on those above it) -->
 <script src="js/config.js"></script>

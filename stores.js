@@ -697,8 +697,14 @@ function syncSidebarProfile() {
     const roleEl = document.querySelector(".sidebar-profile-role");
     const avatarEl = document.querySelector(".sidebar-avatar");
 
-    if (nameEl && user.name) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
+    if (nameEl) nameEl.textContent = user.name || 'Campus Student';
+    if (roleEl) {
+      if (user.hostel && user.room) {
+        roleEl.textContent = `${user.hostel} · ${user.room}`;
+      } else {
+        roleEl.textContent = user.email || 'Campus Account';
+      }
+    }
     if (avatarEl) {
       const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
       avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;

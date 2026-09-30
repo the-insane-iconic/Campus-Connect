@@ -524,14 +524,15 @@ const INITIAL_NOTIFICATIONS = [
   { id: 'n4', type: 'order',   title: 'Order delivered',          body: 'Your order #UM1018 was delivered to Room 214. Enjoy!', time: 'Yesterday', read: true  },
 ];
 
-/* ─── MOCK USER ──────────────────────────────────────────── */
+/* ─── AUTHENTICATED USER STATE ───────────────────────────── */
 const DEFAULT_USER = {
-  name:   'Ansh Sharma',
-  email:  'ansh.s@campus.edu',
-  hostel: 'Hostel B',
-  room:   'Room 214',
-  avatar: 'A',
-  phone:  '+91 98765 43210',
+  name:   '',
+  email:  '',
+  hostel: '',
+  room:   '',
+  avatar: '',
+  phone:  '',
+  isGuest: true
 };
 
 /* ─── SUPABASE LIVE SYNC ─────────────────────────────────── */

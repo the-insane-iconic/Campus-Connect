@@ -315,7 +315,7 @@ try {
           sendOrderPushNotification({
             orderId,
             displayNum,
-            customerName: customerName || 'Ansh Sharma',
+            customerName: customerName || 'Student',
             total: total || 0,
             itemsCount: itemsCount || 1
           });
@@ -427,20 +427,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function startOrdersPolling() {
+  // Automatic live reload disabled — store admin reloads manually
   stopOrdersPolling();
-  ordersPollInterval = setInterval(() => {
-    if (activeStoreId) {
-      loadOrders(activeStoreId, true); // silent refresh & background order check
-    }
-  }, 4000);
 }
-
-// Reactivate and check immediately when mobile owner switches back to app
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && activeStoreId) {
-    loadOrders(activeStoreId, true);
-  }
-});
 
 function stopOrdersPolling() {
   if (ordersPollInterval) {
@@ -515,8 +504,12 @@ async function loadOrders(storeId, silent = false) {
 
     currentOrdersList = fetchedOrders;
 
-    // Render both views
-    renderActiveOrdersBoard();
+    // Render views (React component for zero-reload diffing if loaded)
+    if (typeof window.mountAdminActiveOrdersBoard === 'function') {
+      window.mountAdminActiveOrdersBoard();
+    } else {
+      renderActiveOrdersBoard();
+    }
     renderOrdersTable();
 
     // Update badges
@@ -568,14 +561,8 @@ function renderActiveOrdersBoard() {
     return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
   });
 
-  // Sort orders: PLACED first (newest needs accept), then PREPARING, then READY
-  const statusPriority = { 'PLACED': 1, 'ACCEPTED': 2, 'PREPARING': 3, 'READY': 4 };
-  activeOrders.sort((a, b) => {
-    const pa = statusPriority[(a.status || '').toUpperCase()] || 99;
-    const pb = statusPriority[(b.status || '').toUpperCase()] || 99;
-    if (pa !== pb) return pa - pb;
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-  });
+  // Sort orders: Strict FIFO chronological order (earliest/first placed order at the top)
+  activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
 
   if (activeOrders.length === 0) {
     container.innerHTML = `
@@ -738,13 +725,23 @@ function getProductSubtext(item) {
  * - Single progression button: Accept & Process -> Done Packing -> Delivered
  */
 function renderActiveOrderCard(o, index, allOrders) {
-  const custName = o.user_name || o.customer_name || 'Aian Priority';
+  const custName = (o.user_name || o.customer_name || o.customerName || 'Campus Student').trim();
   const custInitial = custName.charAt(0).toUpperCase();
   const timeElapsed = formatTimeElapsed(o.created_at);
   const waitTime = getWaitingTimeText(o.created_at);
   const placedTime = new Date(o.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const status = (o.status || 'PLACED').toUpperCase();
   const displayNumber = formatDisplayOrderNumber(o, index, allOrders || currentOrdersList);
+
+  const STORE_COLOR_MAP = {
+    'campus-cafe': { bg: '#FEF3C7', color: '#92400E', label: 'Campus Café' },
+    'book-corner': { bg: '#DBEAFE', color: '#1E40AF', label: 'Book Corner' },
+    'techstop':    { bg: '#E0E7FF', color: '#3730A3', label: 'TechStop' },
+    'campus-mart': { bg: '#DCFCE7', color: '#166534', label: 'Campus Mart' },
+    'campus-wear': { bg: '#F3E8FF', color: '#6B21A8', label: 'Campus Wear' },
+    'health-hub':  { bg: '#FEE2E2', color: '#991B1B', label: 'Health Hub' },
+  };
+  const storeTag = STORE_COLOR_MAP[o.store_id] || { bg: '#F1F5F9', color: '#334155', label: o.store_id || 'Campus Store' };
 
   // Status Classes & Tag labels
   let statusClass = 'placed';
@@ -796,7 +793,7 @@ function renderActiveOrderCard(o, index, allOrders) {
               onclick="progressOrderStep('${o.id}', 'DELIVERED')"
               title="Click when student receives their order">
         <span class="step-icon">📦</span>
-        <span class="step-text">Delivered</span>
+        <span class="step-text">Mark Delivered</span>
         <span class="step-arrow">✓</span>
       </button>
     `;
@@ -804,7 +801,7 @@ function renderActiveOrderCard(o, index, allOrders) {
     buttonHtml = `
       <div class="order-step-completed">
         <span class="step-icon">✅</span>
-        <span class="step-text">Order Delivered & Completed</span>
+        <span class="step-text">Order Delivered & Completed ✓</span>
       </div>
     `;
   } else {
@@ -815,92 +812,126 @@ function renderActiveOrderCard(o, index, allOrders) {
     `;
   }
 
-  // Items in clean, organized multi-column grid
-  const items = Array.isArray(o.items) && o.items.length > 0 ? o.items : [
-    { name: 'Cold Brew Coffee', qty: 1, price: 250, subtext: 'Iced · Regular' },
-    { name: 'Grilled Veg Sandwich', qty: 1, price: 275, subtext: 'No onions' }
-  ];
+  // Items in clean, consistent 2-column grid with strict truncation rule:
+  // If > 4 products: show first 3 products, and 4th slot displays "+X others"
+  // If <= 4 products: show up to 4 products
+  const items = Array.isArray(o.items) && o.items.length > 0 ? o.items : [];
+  let visibleItems = [];
+  let moreCount = 0;
 
-  const itemsHtml = items.map(it => {
-    const qty = it.quantity || it.qty || 1;
-    const name = escapeHtml(it.product_name_snapshot || it.name || 'Product');
-    const price = Number(it.price_snapshot || it.price || 0) * qty;
-    const thumb = getProductThumbnail(it);
-    const subtext = escapeHtml(getProductSubtext(it));
-    return `
-      <div class="order-product-card">
-        <div class="product-qty-badge">${qty}×</div>
-        <img src="${thumb}" alt="${name}" class="product-thumbnail" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80'" />
+  if (items.length > 4) {
+    visibleItems = items.slice(0, 3);
+    moreCount = items.length - 3;
+  } else {
+    visibleItems = items.slice(0, 4);
+  }
+
+  let itemsHtml = '';
+  if (items.length === 0) {
+    itemsHtml = `
+      <div class="order-product-card" style="grid-column: 1 / -1;">
+        <span style="font-size: 13px;">📦</span>
         <div class="product-info-box">
-          <div class="product-title" title="${name}">${name}</div>
-          <div class="product-price-line">₹${price}</div>
-          <div class="product-subtext-line">${subtext}</div>
+          <div class="product-title" style="font-size: 11.5px; color: var(--text-muted);">Standard Counter Package (${escapeHtml(o.fulfillment_type || 'Counter Pickup')})</div>
         </div>
       </div>
     `;
-  }).join('');
+  } else {
+    itemsHtml = visibleItems.map(it => {
+      const qty = it.quantity || it.qty || 1;
+      const name = escapeHtml(it.product_name_snapshot || it.name || it.product_name || 'Item');
+      const price = Number(it.price_snapshot || it.price || 0) * qty;
+      const thumb = getProductThumbnail(it);
+      return `
+        <div class="order-product-card" title="${name} (x${qty})">
+          <div class="product-qty-badge">${qty}×</div>
+          <img src="${thumb}" alt="${name}" class="product-thumbnail" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120&auto=format&fit=crop&q=80'" />
+          <div class="product-info-box">
+            <div class="product-title">${name}</div>
+            <div class="product-price-line">₹${price}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (moreCount > 0) {
+      itemsHtml += `
+        <div class="order-product-card product-more-pill" title="${moreCount} more product${moreCount === 1 ? '' : 's'} in this order">
+          <div class="more-icon-box">+</div>
+          <div class="product-info-box">
+            <div class="product-title" style="font-weight: 700; color: #2563EB;">+${moreCount} other${moreCount === 1 ? '' : 's'}</div>
+            <div class="product-subtext-line">more items</div>
+          </div>
+        </div>
+      `;
+    }
+  }
 
   const isDelivery = o.delivery_method === 'delivery' || o.fulfillment_type === 'delivery' || o.fulfillmentType === 'delivery';
 
   return `
     <div class="active-order-card status-${statusClass} order-card-${o.id}" id="order-card-${o.id}">
-      <!-- 1. TOP HEADER: RED CORAL TAG & WAITING TIME -->
+      <!-- 1. TOP HEADER: STORE TAG, NEXT ORDER TAG & WAITING TIME -->
       <div class="order-top-banner">
-        <div class="order-next-tag">
-          <span class="tag-icon">${bannerIcon}</span>
-          <span class="tag-label">${bannerTag}</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="store-chip-tag" style="background: ${storeTag.bg}; color: ${storeTag.color};">
+            ${escapeHtml(storeTag.label)}
+          </span>
+          <div class="order-next-tag tag-${statusClass}">
+            <span class="tag-icon">${bannerIcon}</span>
+            <span class="tag-label">${bannerTag}</span>
+          </div>
         </div>
-        <div class="order-waiting-tag">
+        <div class="order-waiting-tag tag-${statusClass}">
           <span class="wait-icon">🕒</span>
           <span class="wait-text">${status === 'READY' ? 'Ready for Pickup' : 'Waiting for ' + waitTime}</span>
         </div>
       </div>
 
-      <!-- 2. CUSTOMER INFO ROW WITH TOTAL AMOUNT BOX -->
+      <!-- 2. COMPACT CUSTOMER INFO ROW WITH INLINE TOTAL AMOUNT BOX -->
       <div class="order-customer-row">
         <div class="order-user-group">
           <div class="order-avatar-circle">${custInitial}</div>
           <div class="order-user-details">
-            <h3 class="order-user-name">${escapeHtml(custName)}</h3>
-            <div class="order-token-line">
-              <span class="order-token-code">${displayNumber}</span>
-              <button type="button" class="btn-copy-token" onclick="copyOrderToken('${displayNumber}', event)" title="Copy order number">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <h3 class="order-user-name">${escapeHtml(custName)}</h3>
+              <div class="order-token-line">
+                <span class="order-token-code">${displayNumber}</span>
+                <button type="button" class="btn-copy-token" onclick="copyOrderToken('${displayNumber}', event)" title="Copy order number">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="order-meta-chips">
               <span class="meta-fulfillment">
                 ${isDelivery ? '🛵 Delivery · ' + escapeHtml(o.delivery_address || 'Hostel') : '🛍️ Pickup'}
               </span>
-              <span class="meta-sep">|</span>
-              <span class="meta-time">🕒 ${placedTime}</span>
-              <span class="meta-ago">${timeElapsed}</span>
+              <span class="meta-sep">•</span>
+              <span class="meta-time">🕒 ${placedTime} (${timeElapsed})</span>
             </div>
           </div>
         </div>
-        <div class="order-total-box">
-          <span class="total-label">Total</span>
-          <span class="total-amount">₹${Number(o.store_subtotal || o.total || 525).toLocaleString('en-IN')}</span>
+        <div class="order-inline-total">
+          <span class="total-amount">₹${Number(o.store_subtotal || o.total || 0).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
-      <!-- 3. ORGANISED PRODUCTS GRID (FITTED HORIZONTAL TILES) -->
+      <!-- 3. ORGANISED PRODUCTS GRID (CONSISTENT 2-COLUMN TILES) -->
       <div class="order-products-container">
         <div class="order-products-grid">
           ${itemsHtml}
         </div>
         ${o.notes ? `
           <div class="order-student-note">
-            <span class="note-icon">💬</span>
-            <span class="note-text">"${escapeHtml(o.notes)}"</span>
+            <span>💬</span> <span>"${escapeHtml(o.notes)}"</span>
           </div>
         ` : ''}
       </div>
 
-      <!-- 4. BOTTOM ACTION ROW: SINGLE PROGRESSION BUTTON ONLY -->
+      <!-- 4. BOTTOM ACTION ROW: SINGLE COMPACT PROGRESSION BUTTON -->
       <div class="order-action-row">
         ${buttonHtml}
       </div>
@@ -913,16 +944,33 @@ window.renderActiveOrderCard = renderActiveOrderCard;
  * 3-Stage Series Progression Function
  * Click 1: PLACED -> PREPARING (User sees: accepted & processing)
  * Click 2: PREPARING -> READY (Done Packing: sends bell notification to user!)
- * Click 3: READY -> DELIVERED (User receives order: green ripple)
+ * Click 3: READY -> DELIVERED (User receives order: 2s hold + smooth fade out)
  */
 async function progressOrderStep(orderId, nextStatus) {
   try {
-    document.querySelectorAll(`[id="order-card-${orderId}"]`).forEach(card => {
-      card.style.opacity = '0.65';
-      card.style.pointerEvents = 'none';
-      const btn = card.querySelector('.btn-order-step');
+    const cardEl = document.getElementById(`order-card-${orderId}`);
+    if (cardEl) {
+      cardEl.style.opacity = '0.75';
+      const btn = cardEl.querySelector('.btn-order-step');
       if (btn) btn.innerHTML = '<span>⏳</span> <span>Updating...</span>';
-    });
+    }
+
+    if (nextStatus === 'DELIVERED') {
+      if (cardEl) {
+        cardEl.style.transition = 'all 0.35s ease';
+        cardEl.style.borderColor = '#10B981';
+        cardEl.style.background = '#F0FDF4';
+        const actionRow = cardEl.querySelector('.order-action-row');
+        if (actionRow) {
+          actionRow.innerHTML = `
+            <div class="order-step-completed">
+              <span class="step-icon">✅</span>
+              <span class="step-text">Order Delivered & Completed ✓</span>
+            </div>
+          `;
+        }
+      }
+    }
 
     await apiRequest(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
@@ -933,24 +981,81 @@ async function progressOrderStep(orderId, nextStatus) {
     if (nextStatus === 'PREPARING') {
       statusMsg = `Order accepted! Kitchen preparation started.`;
     } else if (nextStatus === 'READY') {
-      statusMsg = `Order packed! Student acknowledged in bell notification 🔔`;
+      statusMsg = `Order packed! Ready for counter pickup 🛍️`;
     } else if (nextStatus === 'DELIVERED') {
       statusMsg = `Order DELIVERED! Customer confirmed.`;
     }
 
     showToast(statusMsg, 'success');
 
-    // Refresh orders view & dashboard in sync
-    if (activeStoreId) {
-      await loadOrders(activeStoreId, true);
+    // Update in-memory data without wiping whole page
+    const ord = currentOrdersList.find(o => o.id === orderId);
+    if (ord) {
+      ord.status = nextStatus.toUpperCase();
+    }
 
-      if (typeof window.loadDashboard === 'function') {
-        window.loadDashboard(activeStoreId);
+    // Broadcast across windows
+    try {
+      const bc = new BroadcastChannel('unimall_orders_channel');
+      bc.postMessage({
+        type: 'ORDER_STATUS_CHANGED',
+        orderId,
+        status: nextStatus.toLowerCase(),
+        timestamp: Date.now()
+      });
+      bc.close();
+    } catch(e) {}
+
+    window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
+      detail: { orderId, status: nextStatus }
+    }));
+
+    // Update order badges without wiping DOM
+    updateOrderBadges();
+
+    if (nextStatus === 'DELIVERED') {
+      // Hold for 2 seconds for visual confirmation, then smoothly fade out
+      setTimeout(() => {
+        if (cardEl) {
+          cardEl.style.transition = 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+          cardEl.style.opacity = '0';
+          cardEl.style.transform = 'translateY(-12px) scale(0.98)';
+          cardEl.style.maxHeight = '0px';
+          cardEl.style.paddingTop = '0px';
+          cardEl.style.paddingBottom = '0px';
+          cardEl.style.marginTop = '0px';
+          cardEl.style.marginBottom = '0px';
+          cardEl.style.borderWidth = '0px';
+          cardEl.style.overflow = 'hidden';
+
+          setTimeout(() => {
+            if (cardEl && cardEl.parentNode) {
+              cardEl.parentNode.removeChild(cardEl);
+            }
+            // Check if dashboard urgent orders is now empty
+            const dashUrgent = document.getElementById('dash-urgent-orders');
+            if (dashUrgent && dashUrgent.querySelectorAll('.active-order-card').length === 0) {
+              dashUrgent.innerHTML = `
+                <div style="text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13.5px;">
+                  ✨ All caught up! No active orders requiring preparation or pickup.
+                </div>
+              `;
+            }
+            // Also refresh orders board if in React
+            if (typeof window.mountAdminActiveOrdersBoard === 'function') {
+              window.mountAdminActiveOrdersBoard();
+            }
+          }, 450);
+        }
+      }, 2000);
+    } else {
+      // Trigger reactive React component update for seamless diff
+      if (typeof window.mountAdminActiveOrdersBoard === 'function') {
+        window.mountAdminActiveOrdersBoard();
       }
     }
   } catch (err) {
     showToast(`Failed to update order: ${err.message}`, 'error');
-    if (activeStoreId) loadOrders(activeStoreId);
   }
 }
 window.progressOrderStep = progressOrderStep;

@@ -187,7 +187,7 @@ function placeOrder(fulfillmentType, deliveryInfo) {
   const order   = {
     id,
     order_number_display: displayNum,
-    customerName:  (AppState.currentUser && AppState.currentUser.name) || 'Ansh Sharma',
+    customerName:  (AppState.currentUser && AppState.currentUser.name) || 'Campus Student',
     storeName:     firstStore ? firstStore.name : 'UniMall Store',
     storeIcon:     items.length > 0 && items[0].product ? (items[0].product.emoji || '🛍️') : '🛍️',
     items:         items.map(l => ({

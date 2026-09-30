@@ -59,18 +59,31 @@ function setupUserProfile() {
   const roleEl = document.getElementById('sidebar-user-role');
   const avatarEl = document.getElementById('sidebar-user-avatar');
 
-  if (nameEl) nameEl.textContent = currentAdminUser.name;
+  const isPlatform = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+
+  if (nameEl) nameEl.textContent = (currentAdminUser && currentAdminUser.name) ? currentAdminUser.name : (isPlatform ? 'Admin' : 'Store Manager');
   if (roleEl) {
-    roleEl.textContent = currentAdminUser.role === 'platform_admin' ? 'Platform Admin' : 'Store Owner';
+    roleEl.textContent = isPlatform ? 'Platform Superadmin' : 'Store Owner';
   }
-  if (avatarEl) {
+  if (avatarEl && currentAdminUser && currentAdminUser.name) {
     avatarEl.textContent = currentAdminUser.name.charAt(0).toUpperCase();
   }
 
-  // Show Founder Hub tab if platform_admin
-  if (currentAdminUser.role === 'platform_admin') {
-    const founderGroup = document.getElementById('nav-founder-group');
-    if (founderGroup) founderGroup.classList.remove('hidden');
+  // Toggle navigation links:
+  // For Platform Admin: show Registered Shops (nav-founder), hide single-store only items (products, inventory, store)
+  const founderNav = document.getElementById('nav-founder');
+  if (founderNav) founderNav.classList.toggle('hidden', !isPlatform);
+
+  document.querySelectorAll('.store-only-nav').forEach(el => {
+    el.classList.toggle('hidden', isPlatform);
+  });
+
+  const settingsLabel = document.getElementById('label-settings-group');
+  if (settingsLabel) settingsLabel.classList.toggle('hidden', isPlatform);
+
+  const analyticsLabel = document.getElementById('nav-analytics-label');
+  if (analyticsLabel) {
+    analyticsLabel.textContent = isPlatform ? 'Campus Analytics' : 'Store Analytics';
   }
 }
 
@@ -80,6 +93,15 @@ function setupStoreContext() {
 
   // If platform admin, add all approved registered stores to the authorized list
   if (currentAdminUser && currentAdminUser.role === 'platform_admin') {
+    // Add "All Campus Stores" platform view at the top
+    if (!currentAuthorizedStores.some(s => s.store_id === 'all')) {
+      currentAuthorizedStores.unshift({
+        store_id: 'all',
+        store_name: '🏢 All Campus Stores (Platform View)',
+        membership_role: 'admin'
+      });
+    }
+
     const regStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
     regStores.filter(r => r.status === 'approved').forEach(r => {
       if (!currentAuthorizedStores.some(s => s.store_id === r.storeId)) {
@@ -90,14 +112,22 @@ function setupStoreContext() {
         });
       }
     });
+
+    // Default to 'all' for platform admin so they see cumulative platform analytics
+    if (!storedActive || storedActive === 'campus-cafe' || !currentAuthorizedStores.some(s => s.store_id === storedActive)) {
+      activeStoreId = 'all';
+    } else {
+      activeStoreId = storedActive;
+    }
+  } else {
+    if (currentAuthorizedStores.length > 0) {
+      const matched = currentAuthorizedStores.find(s => s.store_id === storedActive);
+      activeStoreId = matched ? matched.store_id : currentAuthorizedStores[0].store_id;
+    }
   }
 
-  if (currentAuthorizedStores.length > 0) {
-    const matched = currentAuthorizedStores.find(s => s.store_id === storedActive);
-    activeStoreId = matched ? matched.store_id : currentAuthorizedStores[0].store_id;
-    window.activeStoreId = activeStoreId;
-    sessionStorage.setItem('unimall_admin_active_store', activeStoreId);
-  }
+  window.activeStoreId = activeStoreId;
+  sessionStorage.setItem('unimall_admin_active_store', activeStoreId);
 
   // Populate dropdown
   if (selector) {
@@ -139,24 +169,48 @@ window.getActiveStoreId = function() {
 
 function updateStoreDisplay() {
   const currentStore = currentAuthorizedStores.find(s => s.store_id === activeStoreId);
-  const storeName = currentStore ? currentStore.store_name : 'UniMall Store';
+  const storeName = currentStore ? currentStore.store_name : 'Campus Connect';
+  const isPlatformUser = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+  const isPlatformMode = (activeStoreId === 'all');
 
   // Update sidebar store badge
   const sidebarStoreName = document.getElementById('sidebar-store-name');
-  if (sidebarStoreName) sidebarStoreName.textContent = storeName;
+  const sidebarStoreAvatar = document.getElementById('sidebar-store-avatar');
+  const sidebarStoreStatus = document.getElementById('sidebar-store-status');
+
+  if (isPlatformMode) {
+    if (sidebarStoreName) sidebarStoreName.textContent = 'Campus Connect Platform';
+    if (sidebarStoreAvatar) sidebarStoreAvatar.textContent = '🏢';
+    if (sidebarStoreStatus) sidebarStoreStatus.textContent = '● Platform HQ';
+  } else {
+    if (sidebarStoreName) sidebarStoreName.textContent = storeName;
+    if (sidebarStoreAvatar) sidebarStoreAvatar.textContent = (storeName.includes('Café') || storeName.includes('Cafe')) ? '☕' : '🏬';
+    if (sidebarStoreStatus) sidebarStoreStatus.textContent = '● Store View';
+  }
 
   // Sync open/closed toggle button to the active store's state
-  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
-  const isOpen = storeStatuses[activeStoreId] !== false; // default to open
-  applyStoreOpenState(isOpen);
+  const btnToggle = document.getElementById('btn-store-status-toggle');
+  if (isPlatformMode) {
+    if (btnToggle) {
+      btnToggle.className = 'btn-status-toggle open';
+      const label = document.getElementById('topbar-status-text');
+      if (label) label.textContent = 'Platform Live';
+    }
+  } else {
+    const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+    const isOpen = storeStatuses[activeStoreId] !== false; // default to open
+    applyStoreOpenState(isOpen);
+  }
 
-  // Founder Impersonation Banner
+  // Founder Impersonation Banner: Show ONLY when platform admin is scoped into a single store
   const banner = document.getElementById('founder-banner');
   const founderStoreName = document.getElementById('founder-store-name');
 
-  if (currentAdminUser && currentAdminUser.role === 'platform_admin') {
+  if (isPlatformUser && !isPlatformMode) {
     if (banner) banner.classList.remove('hidden');
-    if (founderStoreName) founderStoreName.textContent = storeName;
+    if (founderStoreName) {
+      founderStoreName.textContent = storeName;
+    }
   } else {
     if (banner) banner.classList.add('hidden');
   }
@@ -172,8 +226,12 @@ function updateStoreDisplay() {
 
   const btnFounderHub = document.getElementById('btn-founder-hub');
   if (btnFounderHub) {
+    btnFounderHub.textContent = '🏢 All Stores Overview';
     btnFounderHub.onclick = () => {
-      switchView('founder');
+      setActiveStore('all');
+      const selector = document.getElementById('store-selector');
+      if (selector) selector.value = 'all';
+      switchView('dashboard');
     };
   }
 }

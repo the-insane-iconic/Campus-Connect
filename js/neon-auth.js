@@ -36,14 +36,21 @@
       ? user.image.trim() 
       : (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(name) : '');
 
+    // Preserve any previously saved user details like hostel/room/phone
+    let existingUser = {};
+    try {
+      const prevAuth = localStorage.getItem(AUTH_KEY);
+      if (prevAuth) existingUser = JSON.parse(prevAuth);
+    } catch(e) {}
+
     const userData = {
       uid: user.id || ('neon_user_' + Date.now()),
       name: name,
       email: email,
       avatar: avatar,
-      hostel: user.hostel || 'Hostel B',
-      room: user.room || 'Room 214',
-      phone: user.phone || '',
+      hostel: user.hostel || existingUser.hostel || '',
+      room: user.room || existingUser.room || '',
+      phone: user.phone || existingUser.phone || '',
       provider: 'google',
       isGuest: false,
       token: session ? (session.token || session.id) : null

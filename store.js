@@ -244,7 +244,7 @@ STORE_PRODUCTS['store-sports'] = STORE_PRODUCTS['health-hub'];
 const STORE_REVIEWS = {
   default: [
     {
-      name: 'Aarav Sharma', avatar: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Aarav&radius=50&backgroundColor=b6e3f4',
+      name: 'Arjun Verma', avatar: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=Arjun&radius=50&backgroundColor=b6e3f4',
       rating: 5, text: 'Really convenient between classes. Fresh products every day and the staff is super friendly!', date: '2 days ago', helpful: 12
     },
     {
@@ -1032,8 +1032,14 @@ function syncSidebarProfile() {
     const roleEl = document.getElementById('sidebar-role-el');
     const avatarEl = document.getElementById('sidebar-avatar-el');
 
-    if (nameEl && user.name) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
+    if (nameEl) nameEl.textContent = user.name || 'Campus Student';
+    if (roleEl) {
+      if (user.hostel && user.room) {
+        roleEl.textContent = `${user.hostel} · ${user.room}`;
+      } else {
+        roleEl.textContent = user.email || 'Campus Account';
+      }
+    }
     if (avatarEl) {
       const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
       avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;

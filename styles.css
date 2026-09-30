@@ -389,17 +389,24 @@ button:active:not(:disabled) {
   flex: 0 0 100%;
   min-width: 100%;
   max-width: 100%;
+  width: 100%;
   scroll-snap-align: start;
   box-sizing: border-box;
   min-height: 124px;
 }
 
+#active-order-banner-root {
+  display: contents;
+}
+
 /* ─── ACTIVE ORDER PICKUP BANNER (Matched to Reference Mockup) ──── */
+.hero-banners-slider .active-order-banner,
 .active-order-banner {
   margin: 0;
   flex: 0 0 100%;
   min-width: 100%;
   max-width: 100%;
+  width: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   box-sizing: border-box;
@@ -2254,10 +2261,11 @@ button:active:not(:disabled) {
 /* ─── 14. BOTTOM NAV (MOBILE) ────────────────────────────── */
 .bottom-nav {
   position: fixed;
-  bottom: 0; left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: var(--content-width);
+  max-width: 100%;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid var(--border-light);

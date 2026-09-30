@@ -33,11 +33,11 @@ try {
 /* ─── PROFILE STATE ──────────────────────────────────────── */
 const ProfileState = {
   user: {
-    name: 'Aarav Singh',
-    email: 'aarav.s@university.edu',
+    name: '',
+    email: '',
     phone: '',
-    hostel: 'Hostel B',
-    room: 'Room 214',
+    hostel: '',
+    room: '',
     avatar: '',
     provider: 'google',
     isGuest: false
@@ -49,6 +49,12 @@ const ProfileState = {
 /* ─── LOAD DATA ──────────────────────────────────────────── */
 function loadProfileData() {
   try {
+    const authRaw = localStorage.getItem(AUTH_KEY);
+    if (authRaw) {
+      const authUser = JSON.parse(authRaw);
+      ProfileState.user = { ...ProfileState.user, ...authUser };
+    }
+
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -61,13 +67,6 @@ function loadProfileData() {
       if (Array.isArray(parsed.itemRequests)) {
         ProfileState.requests = parsed.itemRequests;
       }
-    }
-
-    const authRaw = localStorage.getItem(AUTH_KEY);
-    if (authRaw) {
-      const authUser = JSON.parse(authRaw);
-      ProfileState.user.isGuest = !!authUser.isGuest;
-      if (authUser.avatar) ProfileState.user.avatar = authUser.avatar;
     }
   } catch (e) {
     console.error('Error loading profile data:', e);
@@ -104,8 +103,15 @@ function renderProfile() {
   const switchGoogleBtn = document.getElementById('switchGoogleBtn');
 
   if (userDisplayName) userDisplayName.textContent = u.name || 'Campus Student';
-  if (userEmailText) userEmailText.textContent = u.email || 'student@university.edu';
-  if (userHostelSub) userHostelSub.textContent = `${u.hostel || 'Hostel'} · ${u.room || 'Room'}`;
+  if (userHostelSub) {
+    if (u.hostel && u.room) {
+      userHostelSub.textContent = `${u.hostel} · ${u.room}`;
+    } else if (u.hostel) {
+      userHostelSub.textContent = u.hostel;
+    } else {
+      userHostelSub.textContent = 'Campus Resident';
+    }
+  }
 
   // Avatar — display clean initial of the name
   const initial = (u.name && u.name.trim()) ? u.name.trim().charAt(0).toUpperCase() : 'U';
@@ -279,8 +285,14 @@ function syncSidebarProfile() {
     const roleEl = document.querySelector('.sidebar-profile-role');
     const avatarEl = document.querySelector('.sidebar-avatar');
 
-    if (nameEl && u.name) nameEl.textContent = u.name;
-    if (roleEl) roleEl.textContent = `${u.hostel || 'Hostel B'} · ${u.room || 'Room 214'}`;
+    if (nameEl) nameEl.textContent = u.name || 'Campus Student';
+    if (roleEl) {
+      if (u.hostel && u.room) {
+        roleEl.textContent = `${u.hostel} · ${u.room}`;
+      } else {
+        roleEl.textContent = u.email || 'Campus Account';
+      }
+    }
     if (avatarEl) {
       const initial = (u.name && u.name.trim()) ? u.name.trim().charAt(0).toUpperCase() : 'U';
       avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;

@@ -57,8 +57,8 @@ function renderSidebar() {
       <a href="profile.html" class="sidebar-profile" id="sb-profile-footer" aria-label="View profile">
         <div class="sidebar-avatar">${avatarHtml}</div>
         <div class="sidebar-profile-info">
-          <div class="sidebar-profile-name">${user.name || 'Aarav Singh'}</div>
-          <div class="sidebar-profile-role">${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}</div>
+          <div class="sidebar-profile-name">${user.name || 'Campus Student'}</div>
+          <div class="sidebar-profile-role">${(user.hostel && user.room) ? (user.hostel + ' · ' + user.room) : (user.email || 'Campus Account')}</div>
         </div>
       </a>
     </div>

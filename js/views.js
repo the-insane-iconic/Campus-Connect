@@ -1256,6 +1256,11 @@ function getActiveOrRecentOrder() {
  * 2. Active Order Banner (if active/delivered <24h) OR "Order something Bro" promotional banner
  */
 function renderActiveOrderBanner() {
+  if (typeof window.mountActiveOrderBanner === 'function') {
+    window.mountActiveOrderBanner();
+    return;
+  }
+
   const banner = document.getElementById('active-order-banner');
   const slider = document.getElementById('hero-banners-slider');
   const dotsWrap = document.getElementById('hero-slider-dots');
@@ -1308,7 +1313,7 @@ function renderActiveOrderBanner() {
   const customerNameEl = document.getElementById('orderBannerCustomerName');
   const rawName = order.customerName || order.user_name || order.customer_name ||
                   (typeof AppState !== 'undefined' && AppState.currentUser && AppState.currentUser.name) ||
-                  'Ansh Sharma';
+                  'Campus Student';
 
   if (avatarEl) {
     avatarEl.textContent = (rawName.trim()[0] || 'A').toUpperCase();
@@ -1530,7 +1535,7 @@ function openOrderBottomSheet(orderData) {
 
   const rawName = order.customerName || order.user_name || order.customer_name ||
                   (typeof AppState !== 'undefined' && AppState.currentUser && AppState.currentUser.name) ||
-                  'Ansh Sharma';
+                  'Campus Student';
   if (passCustEl) passCustEl.textContent = rawName.toUpperCase();
   if (passOrderEl) passOrderEl.textContent = order.order_number_display || `#${order.id || 'UM1024'}`;
 
@@ -1851,21 +1856,7 @@ function initRealtimeOrderListeners() {
     }
   });
 
-  // 4. Gentle background poll (every 3.5s)
-  setInterval(() => {
-    try {
-      const orderData = getActiveOrRecentOrder();
-      if (!orderData) {
-        if (_currentDisplayedOrderId) renderActiveOrderBanner();
-        return;
-      }
-      if (orderData.isDelivered && !_currentOrderDeliveredState) {
-        triggerOrderDeliveredRipple(orderData.order);
-      } else if (!orderData.isDelivered && _currentOrderDeliveredState) {
-        renderActiveOrderBanner();
-      }
-    } catch(err) {}
-  }, 3500);
+  // 4. Background polling disabled — user/store admin reloads manually
 }
 
 /**

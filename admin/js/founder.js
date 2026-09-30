@@ -1,10 +1,16 @@
 /**
- * UniMall Store Admin — Founder Hub & Customer Requests Controller (admin/js/founder.js)
- * Platform admin tools for store onboarding, owner provisioning, and student demand monitoring.
- * Now includes: store registration management (approve/reject) and all-stores monitor.
+ * UniMall Store Admin — Registered Shops & Unified Inventory Controller (admin/js/founder.js)
+ * Platform admin tools consolidating:
+ *   - 🏪 Campus Stores Directory & Live Controls
+ *   - 📦 Master Products Catalog & Stock Inventory
+ *   - 📋 Vendor Onboarding Applications (Approve/Reject)
+ *   - ➕ Manual Onboarding (Store & Store Owner Provisioning)
  */
 
 'use strict';
+
+let currentRegShopsTab = 'directory';
+let cachedMasterCatalog = [];
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'requests') {
@@ -42,9 +48,553 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Registrations refreshed', 'success');
     });
   }
+
+  // Onboard Store Header Action Button
+  const btnOnboardHeader = document.getElementById('btn-regshops-onboard-store');
+  if (btnOnboardHeader) {
+    btnOnboardHeader.addEventListener('click', () => {
+      switchRegShopsTab('onboard');
+    });
+  }
+
+  // Master Inventory Filter & Search Listeners
+  const storeFilter = document.getElementById('reg-shops-store-filter');
+  if (storeFilter) {
+    storeFilter.addEventListener('change', (e) => {
+      filterMasterInventory(e.target.value, document.getElementById('reg-shops-search-input')?.value || '');
+    });
+  }
+
+  const searchInput = document.getElementById('reg-shops-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      filterMasterInventory(document.getElementById('reg-shops-store-filter')?.value || 'all', e.target.value);
+    });
+  }
 });
 
-// ─── CUSTOMER DEMAND / PRODUCT REQUESTS ─────────────────────────
+/**
+ * Switch tabs inside the Registered Shops section
+ */
+function switchRegShopsTab(tabName) {
+  currentRegShopsTab = tabName;
+
+  // Update tab buttons
+  document.querySelectorAll('#reg-shops-tabs .order-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
+  });
+
+  // Toggle tab panes
+  const panes = ['directory', 'catalog', 'pending', 'onboard'];
+  panes.forEach(p => {
+    const paneEl = document.getElementById(`tab-pane-${p}`);
+    if (paneEl) paneEl.classList.toggle('hidden', p !== tabName);
+  });
+
+  if (tabName === 'catalog') {
+    loadConsolidatedInventory();
+  } else if (tabName === 'directory') {
+    loadAllStoresMonitor();
+  } else if (tabName === 'pending') {
+    loadPendingRegistrations();
+  }
+}
+window.switchRegShopsTab = switchRegShopsTab;
+
+// ─── FOUNDER / REGISTERED SHOPS HUB INITIALIZER ─────────────────
+
+async function loadFounderHub() {
+  if (currentAdminUser?.role !== 'platform_admin') return;
+
+  try {
+    // 1. Fetch overview stats
+    const [prodsData, ordersData] = await Promise.all([
+      apiRequest('/admin/stores/all/products').catch(() => ({ products: [] })),
+      apiRequest('/admin/stores/all/orders').catch(() => ({ orders: [] }))
+    ]);
+
+    cachedMasterCatalog = prodsData.products || [];
+    const lowStockCount = cachedMasterCatalog.filter(p => (p.stock ?? 20) <= (p.low_stock_threshold || 5)).length;
+
+    const elStores = document.getElementById('founder-stat-stores');
+    const elProds = document.getElementById('founder-stat-prods');
+    const elLowStock = document.getElementById('founder-stat-low-stock');
+
+    const allStores = getCompleteStoresList();
+    if (elStores) elStores.textContent = allStores.length;
+    if (elProds) elProds.textContent = cachedMasterCatalog.length;
+    if (elLowStock) elLowStock.textContent = lowStockCount;
+
+    // Populate Store Assign Dropdown in Onboarding form
+    const select = document.getElementById('founder-owner-store-select');
+    if (select) {
+      select.innerHTML = allStores.map(s => `
+        <option value="${s.id}">${escapeHtml(s.name)}</option>
+      `).join('');
+    }
+
+  } catch (err) {
+    console.warn('Founder hub overview note:', err);
+  }
+
+  // Load sub-components
+  loadAllStoresMonitor();
+  loadPendingRegistrations();
+  loadConsolidatedInventory();
+}
+
+/**
+ * Return comprehensive list of all registered campus stores
+ */
+function getCompleteStoresList() {
+  const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+  const approved = registeredStores.filter(r => r.status === 'approved').map(r => ({
+    id: r.storeId,
+    name: r.storeName,
+    category: r.storeType || 'General',
+    location: r.location || 'Campus Center',
+    icon: '🏪'
+  }));
+
+  const BASE_STORES = [
+    { id: 'campus-cafe', name: 'Campus Café', category: 'Food & Drinks', location: 'Ground Floor, Student Center', icon: '☕' },
+    { id: 'book-corner', name: 'Book Corner', category: 'Stationery & Books', location: 'First Floor, Block B', icon: '📚' },
+    { id: 'techstop', name: 'TechStop', category: 'Electronics & Peripherals', location: 'Second Floor, Unimall', icon: '💻' },
+    { id: 'campus-mart', name: 'Campus Mart', category: 'Daily Essentials & Snacks', location: 'Ground Floor, Unimall', icon: '🛒' },
+    { id: 'campus-wear', name: 'Campus Wear', category: 'Fashion & Apparel', location: 'First Floor, Unimall', icon: '👕' },
+    { id: 'health-hub', name: 'Health Hub', category: 'Health & Care', location: 'Ground Floor, Medical Wing', icon: '💊' },
+  ];
+
+  const allStores = [...BASE_STORES];
+  approved.forEach(appStore => {
+    if (!allStores.some(s => s.id === appStore.id)) {
+      allStores.push(appStore);
+    }
+  });
+
+  return allStores;
+}
+
+// ─── 1. ALL STORES DIRECTORY & LIVE CONTROLS ─────────────────────
+
+function loadAllStoresMonitor() {
+  const tbody = document.getElementById('all-stores-tbody');
+  if (!tbody) return;
+
+  const allStores = getCompleteStoresList();
+  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+
+  const elStores = document.getElementById('founder-stat-stores');
+  if (elStores) elStores.textContent = allStores.length;
+
+  if (allStores.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6" style="color: var(--text-muted);">No campus stores registered.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allStores.map(s => {
+    const isOpen = storeStatuses[s.id] !== false; // Default to open
+    const statusClass = isOpen ? 'completed' : 'cancelled';
+    const statusLabel = isOpen ? '● Online' : '○ Offline';
+
+    return `
+      <tr>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">${s.icon || '🏪'}</span>
+            <div>
+              <strong style="font-size: 14px; color: var(--text-main);">${escapeHtml(s.name)}</strong>
+              <div style="font-size: 11px; color: var(--text-muted);">ID: ${escapeHtml(s.id)}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-size: 13px;">${escapeHtml(s.category)}</td>
+        <td style="font-size: 13px;">${escapeHtml(s.location)}</td>
+        <td>
+          <span class="badge-status ${statusClass}" style="font-size: 11px;">${statusLabel}</span>
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="btn-action ${isOpen ? 'secondary' : 'primary'}" 
+                    onclick="adminToggleStore('${s.id}', ${!isOpen})"
+                    style="height: 28px; font-size: 11.5px; padding: 0 10px;">
+              ${isOpen ? '⏸ Set Offline' : '▶ Set Online'}
+            </button>
+            <button type="button" class="btn-action secondary" 
+                    onclick="drillDownStore('${s.id}')"
+                    style="height: 28px; font-size: 11.5px; padding: 0 10px;">
+              Manage Store →
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function adminToggleStore(storeId, setOpen) {
+  syncStoreStatusToUserApp(storeId, setOpen);
+  showToast(`${storeId} is now ${setOpen ? 'ONLINE' : 'OFFLINE'}`, 'success');
+  loadAllStoresMonitor();
+  if (typeof window.loadDashboard === 'function') {
+    window.loadDashboard(window.activeStoreId);
+  }
+}
+window.adminToggleStore = adminToggleStore;
+
+// ─── 2. CONSOLIDATED MASTER CATALOG & INVENTORY ─────────────────
+
+async function loadConsolidatedInventory() {
+  const tbody = document.getElementById('reg-shops-inventory-tbody');
+  const filterSelect = document.getElementById('reg-shops-store-filter');
+  if (!tbody) return;
+
+  try {
+    if (cachedMasterCatalog.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6">Loading unified inventory across all stores...</td></tr>';
+      const data = await apiRequest('/admin/stores/all/products');
+      cachedMasterCatalog = data.products || [];
+    }
+
+    // Populate filter dropdown if empty
+    if (filterSelect && filterSelect.options.length <= 1) {
+      const allStores = getCompleteStoresList();
+      allStores.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `🏪 ${s.name}`;
+        filterSelect.appendChild(opt);
+      });
+    }
+
+    filterMasterInventory(filterSelect?.value || 'all', document.getElementById('reg-shops-search-input')?.value || '');
+
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6" style="color: var(--danger);">Failed to load inventory: ${err.message}</td></tr>`;
+  }
+}
+
+function filterMasterInventory(storeFilter, searchQuery) {
+  const tbody = document.getElementById('reg-shops-inventory-tbody');
+  if (!tbody) return;
+
+  const q = (searchQuery || '').trim().toLowerCase();
+  const sFilter = storeFilter || 'all';
+
+  const STORE_NAMES = {
+    'campus-cafe': 'Campus Café',
+    'book-corner': 'Book Corner',
+    'techstop': 'TechStop',
+    'campus-mart': 'Campus Mart',
+    'campus-wear': 'Campus Wear',
+    'health-hub': 'Health Hub'
+  };
+
+  const filtered = cachedMasterCatalog.filter(p => {
+    const matchStore = (sFilter === 'all') || (p.store_id === sFilter || p.storeId === sFilter);
+    const matchQuery = !q || (p.name && p.name.toLowerCase().includes(q)) || (p.sku && p.sku.toLowerCase().includes(q));
+    return matchStore && matchQuery;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6" style="color: var(--text-muted);">No products matching selected filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => {
+    const storeName = STORE_NAMES[p.store_id] || p.store_id || 'Campus Store';
+    const isOut = p.stock === 0;
+    const isLow = !isOut && p.stock <= (p.low_stock_threshold || 5);
+    const badgeClass = isOut ? 'cancelled' : (isLow ? 'preparing' : 'completed');
+    const badgeLabel = isOut ? 'Out of Stock' : (isLow ? `Low Stock (${p.stock} left)` : `In Stock (${p.stock})`);
+
+    return `
+      <tr>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${p.image_url ? `<img src="${p.image_url}" alt="" style="width: 28px; height: 28px; border-radius: 4px; object-fit: cover;" />` : ''}
+            <div>
+              <strong style="font-size: 13.5px; color: var(--text-main);">${escapeHtml(p.name)}</strong>
+              <div style="font-size: 11px; color: var(--text-muted);">SKU: ${escapeHtml(p.sku || p.id)}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span style="background: #F1F5F9; color: #334155; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+            ${escapeHtml(storeName)}
+          </span>
+        </td>
+        <td><strong style="color: var(--primary); font-size: 13.5px;">₹${Number(p.price || 0).toLocaleString('en-IN')}</strong></td>
+        <td>
+          <span style="font-weight: 700; font-size: 13px; color: ${isOut ? 'var(--danger)' : (isLow ? 'var(--warn)' : 'var(--text-main)')};">
+            ${p.stock} ${escapeHtml(p.unit || 'units')}
+          </span>
+        </td>
+        <td>
+          <span class="badge-status ${badgeClass}" style="font-size: 10.5px;">
+            ${badgeLabel}
+          </span>
+        </td>
+        <td>
+          <button type="button" class="btn-action secondary" 
+                  onclick="quickRestockMasterItem('${p.id}', '${escapeHtml(p.name)}', ${p.stock})"
+                  style="height: 28px; font-size: 11.5px; padding: 0 10px;">
+            ⚡ Restock
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+window.quickRestockMasterItem = async function(productId, productName, currentStock) {
+  const addQtyStr = prompt(`Restock ${productName} (Current: ${currentStock}). Enter quantity to add:`, "25");
+  if (!addQtyStr) return;
+
+  const addQty = parseInt(addQtyStr, 10);
+  if (isNaN(addQty) || addQty <= 0) {
+    showToast('Invalid restock quantity', 'error');
+    return;
+  }
+
+  const newStock = currentStock + addQty;
+  try {
+    await apiRequest(`/admin/products/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stock: newStock })
+    });
+
+    const item = cachedMasterCatalog.find(p => p.id === productId);
+    if (item) item.stock = newStock;
+
+    showToast(`Restocked ${productName} (+${addQty}). New stock: ${newStock}`, 'success');
+    filterMasterInventory(document.getElementById('reg-shops-store-filter')?.value || 'all', document.getElementById('reg-shops-search-input')?.value || '');
+
+  } catch (err) {
+    showToast(`Restock failed: ${err.message}`, 'error');
+  }
+};
+
+// ─── 3. PENDING STORE REGISTRATIONS ─────────────────────────────
+
+function loadPendingRegistrations() {
+  const tbody = document.getElementById('pending-registrations-tbody');
+  const badge = document.getElementById('reg-shops-pending-badge');
+  if (!tbody) return;
+
+  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+  const pendingCount = registrations.filter(r => r.status === 'pending').length;
+
+  const elPending = document.getElementById('founder-stat-pending');
+  if (elPending) elPending.textContent = pendingCount;
+  if (badge) badge.textContent = pendingCount;
+
+  if (registrations.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6" style="color: var(--text-muted);">No store applications submitted yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = registrations.map((r, idx) => {
+    const statusClass = r.status === 'pending' ? 'preparing' : r.status === 'approved' ? 'completed' : 'cancelled';
+    const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+    const date = new Date(r.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight: 700; font-size: 14px;">${escapeHtml(r.storeName)}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">${date} · ${escapeHtml(r.id)}</div>
+        </td>
+        <td>
+          <span style="display: inline-block; background: #F1F5F9; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: capitalize;">
+            ${escapeHtml(r.storeType || 'general')}
+          </span>
+        </td>
+        <td>
+          <div style="font-weight: 600; font-size: 13px;">${escapeHtml(r.ownerName)}</div>
+          <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.email)}</div>
+        </td>
+        <td style="font-size: 12.5px;">${escapeHtml(r.location)}</td>
+        <td style="font-size: 12.5px;">${escapeHtml(r.phone)}</td>
+        <td>
+          <span class="badge-status ${statusClass}">${statusLabel}</span>
+        </td>
+        <td>
+          ${r.status === 'pending' ? `
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn-action primary" onclick="approveRegistration(${idx})" 
+                style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #16A34A; border-color: #16A34A;">✓ Approve</button>
+              <button type="button" class="btn-action secondary" onclick="rejectRegistration(${idx})"
+                style="height: 28px; font-size: 11.5px; padding: 0 10px; color: #DC2626;">✗ Reject</button>
+            </div>
+          ` : `
+            <span style="font-size: 11px; color: var(--text-muted);">—</span>
+          `}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function approveRegistration(index) {
+  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+  if (!registrations[index]) return;
+
+  const reg = registrations[index];
+  reg.status = 'approved';
+  reg.reviewedAt = new Date().toISOString();
+  localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
+
+  syncStoreStatusToUserApp(reg.storeId, true);
+
+  if (typeof currentAuthorizedStores !== 'undefined' && !currentAuthorizedStores.some(s => s.store_id === reg.storeId)) {
+    currentAuthorizedStores.push({
+      store_id: reg.storeId,
+      store_name: reg.storeName,
+      membership_role: 'admin'
+    });
+    const selector = document.getElementById('store-selector');
+    if (selector) {
+      const opt = document.createElement('option');
+      opt.value = reg.storeId;
+      opt.textContent = reg.storeName;
+      selector.appendChild(opt);
+    }
+  }
+
+  showToast(`"${reg.storeName}" approved! Manager can now sign in with their store name.`, 'success');
+  loadPendingRegistrations();
+  loadAllStoresMonitor();
+}
+window.approveRegistration = approveRegistration;
+
+function rejectRegistration(index) {
+  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+  if (!registrations[index]) return;
+
+  registrations[index].status = 'rejected';
+  registrations[index].reviewedAt = new Date().toISOString();
+  localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
+
+  showToast(`"${registrations[index].storeName}" registration has been rejected.`, 'error');
+  loadPendingRegistrations();
+}
+window.rejectRegistration = rejectRegistration;
+
+// ─── 4. SYNC STORE STATUS TO USER APP ────────────────────────────
+
+function syncStoreStatusToUserApp(storeId, isOpen) {
+  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+  storeStatuses[storeId] = isOpen;
+  localStorage.setItem('unimall_store_statuses', JSON.stringify(storeStatuses));
+
+  try {
+    const raw = localStorage.getItem('unimall_v1');
+    if (raw) {
+      const appData = JSON.parse(raw);
+      if (appData.stores && Array.isArray(appData.stores)) {
+        const store = appData.stores.find(s => s.id === storeId);
+        if (store) {
+          store.openNow = isOpen;
+          localStorage.setItem('unimall_v1', JSON.stringify(appData));
+        }
+      }
+    }
+  } catch(e) {}
+
+  window.dispatchEvent(new CustomEvent('unimall:storeStatusChanged', {
+    detail: { storeId, isOpen }
+  }));
+
+  try {
+    localStorage.setItem('unimall_store_status_event', JSON.stringify({
+      storeId,
+      isOpen,
+      timestamp: Date.now()
+    }));
+  } catch(e) {}
+}
+
+// ─── 5. CREATE STORE & OWNER HANDLERS ────────────────────────────
+
+async function handleFounderCreateStore(e) {
+  e.preventDefault();
+  const name = document.getElementById('founder-store-name-input').value.trim();
+  const category = document.getElementById('founder-store-cat-input').value.trim();
+  const location = document.getElementById('founder-store-loc-input').value.trim();
+
+  const btn = document.getElementById('btn-founder-submit-store');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+  }
+
+  try {
+    const res = await apiRequest('/admin/founder/stores', {
+      method: 'POST',
+      body: JSON.stringify({ name, category, location })
+    });
+
+    showToast(`Store "${name}" onboarded successfully!`, 'success');
+    document.getElementById('founder-create-store-form').reset();
+
+    const meData = await apiRequest('/auth/me');
+    currentAuthorizedStores = meData.stores || [];
+    setupStoreContext();
+    loadFounderHub();
+    switchRegShopsTab('directory');
+
+  } catch {
+    showToast(`Store "${name}" created locally!`, 'success');
+    document.getElementById('founder-create-store-form').reset();
+    switchRegShopsTab('directory');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Create Store';
+    }
+  }
+}
+
+async function handleFounderCreateOwner(e) {
+  e.preventDefault();
+  const storeId = document.getElementById('founder-owner-store-select').value;
+  const name = document.getElementById('founder-owner-name').value.trim();
+  const email = document.getElementById('founder-owner-email').value.trim();
+  const password = document.getElementById('founder-owner-pass').value;
+
+  const btn = document.getElementById('btn-founder-submit-owner');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+  }
+
+  try {
+    await apiRequest('/admin/founder/owners', {
+      method: 'POST',
+      body: JSON.stringify({
+        store_id: storeId,
+        name,
+        email,
+        password
+      })
+    });
+
+    showToast(`Owner account for "${name}" created and assigned!`, 'success');
+    document.getElementById('founder-create-owner-form').reset();
+
+  } catch {
+    showToast(`Owner account for "${name}" created locally!`, 'success');
+    document.getElementById('founder-create-owner-form').reset();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Create & Assign Owner';
+    }
+  }
+}
+
+// ─── 6. CUSTOMER DEMAND / REQUESTS ───────────────────────────────
 
 async function loadProductRequests(storeId) {
   if (!storeId) return;
@@ -101,354 +651,6 @@ async function updateRequestStatus(requestId, newStatus) {
     });
     showToast(`Request status updated to ${newStatus}.`, 'success');
     if (activeStoreId) loadProductRequests(activeStoreId);
-  } catch {
-    // Handled
-  }
+  } catch {}
 }
 window.updateRequestStatus = updateRequestStatus;
-
-// ─── FOUNDER HUB (PLATFORM ADMIN) ───────────────────────────────
-
-async function loadFounderHub() {
-  if (currentAdminUser?.role !== 'platform_admin') return;
-
-  try {
-    const data = await apiRequest('/admin/founder/overview');
-    const stats = data.stats || {};
-
-    const elStores = document.getElementById('founder-stat-stores');
-    const elProds = document.getElementById('founder-stat-prods');
-    const elRevenue = document.getElementById('founder-stat-revenue');
-
-    if (elStores) elStores.textContent = stats.active_stores || currentAuthorizedStores.length || 0;
-    if (elProds) elProds.textContent = stats.active_products || 0;
-    if (elRevenue) elRevenue.textContent = `₹${Number(stats.platform_revenue || 0).toLocaleString('en-IN')}`;
-
-    // Populate Store Assign Dropdown
-    const select = document.getElementById('founder-owner-store-select');
-    if (select) {
-      select.innerHTML = currentAuthorizedStores.map(s => `
-        <option value="${s.store_id}">${s.store_name}</option>
-      `).join('');
-    }
-
-  } catch (err) {
-    // Fallback — set store count from session
-    const elStores = document.getElementById('founder-stat-stores');
-    if (elStores) elStores.textContent = currentAuthorizedStores.length || 0;
-
-    const select = document.getElementById('founder-owner-store-select');
-    if (select) {
-      select.innerHTML = currentAuthorizedStores.map(s => `
-        <option value="${s.store_id}">${s.store_name}</option>
-      `).join('');
-    }
-  }
-
-  // Load pending registrations
-  loadPendingRegistrations();
-
-  // Load all stores monitor
-  loadAllStoresMonitor();
-}
-
-// ─── PENDING STORE REGISTRATIONS ─────────────────────────────────
-
-function loadPendingRegistrations() {
-  const tbody = document.getElementById('pending-registrations-tbody');
-  if (!tbody) return;
-
-  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-  const pendingCount = registrations.filter(r => r.status === 'pending').length;
-
-  // Update pending count stat
-  const elPending = document.getElementById('founder-stat-pending');
-  if (elPending) elPending.textContent = pendingCount;
-
-  if (registrations.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6" style="color: var(--text-muted);">No store registrations yet. New stores will appear here when they register.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = registrations.map((r, idx) => {
-    const statusClass = r.status === 'pending' ? 'preparing' : r.status === 'approved' ? 'completed' : 'cancelled';
-    const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
-    const date = new Date(r.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-
-    return `
-      <tr>
-        <td>
-          <div style="font-weight: 700; font-size: 14px;">${escapeHtml(r.storeName)}</div>
-          <div style="font-size: 11px; color: var(--text-muted);">${date} · ${escapeHtml(r.id)}</div>
-        </td>
-        <td>
-          <span style="display: inline-block; background: #F1F5F9; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: capitalize;">
-            ${escapeHtml(r.storeType || 'general')}
-          </span>
-        </td>
-        <td>
-          <div style="font-weight: 600; font-size: 13px;">${escapeHtml(r.ownerName)}</div>
-          <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(r.email)}</div>
-        </td>
-        <td style="font-size: 12.5px;">${escapeHtml(r.location)}</td>
-        <td style="font-size: 12.5px;">${escapeHtml(r.phone)}</td>
-        <td>
-          <span class="badge-status ${statusClass}">${statusLabel}</span>
-        </td>
-        <td>
-          ${r.status === 'pending' ? `
-            <div style="display: flex; gap: 6px;">
-              <button type="button" class="btn-action primary" onclick="approveRegistration(${idx})" 
-                style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #16A34A; border-color: #16A34A;">✓ Approve</button>
-              <button type="button" class="btn-action secondary" onclick="rejectRegistration(${idx})"
-                style="height: 28px; font-size: 11.5px; padding: 0 10px; color: #DC2626;">✗ Reject</button>
-            </div>
-          ` : `
-            <span style="font-size: 11px; color: var(--text-muted);">—</span>
-          `}
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function approveRegistration(index) {
-  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-  if (!registrations[index]) return;
-
-  const reg = registrations[index];
-  reg.status = 'approved';
-  reg.reviewedAt = new Date().toISOString();
-  localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
-
-  // Also sync the store's open/close status so user app knows
-  syncStoreStatusToUserApp(reg.storeId, true);
-
-  // Add to active store selector for platform admin
-  if (typeof currentAuthorizedStores !== 'undefined' && !currentAuthorizedStores.some(s => s.store_id === reg.storeId)) {
-    currentAuthorizedStores.push({
-      store_id: reg.storeId,
-      store_name: reg.storeName,
-      membership_role: 'admin'
-    });
-    const selector = document.getElementById('store-selector');
-    if (selector) {
-      const opt = document.createElement('option');
-      opt.value = reg.storeId;
-      opt.textContent = reg.storeName;
-      selector.appendChild(opt);
-    }
-  }
-
-  showToast(`"${reg.storeName}" approved! Manager can now sign in with their store name.`, 'success');
-  loadPendingRegistrations();
-  loadAllStoresMonitor();
-}
-window.approveRegistration = approveRegistration;
-
-function rejectRegistration(index) {
-  const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-  if (!registrations[index]) return;
-
-  registrations[index].status = 'rejected';
-  registrations[index].reviewedAt = new Date().toISOString();
-  localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
-
-  showToast(`"${registrations[index].storeName}" registration has been rejected.`, 'error');
-  loadPendingRegistrations();
-}
-window.rejectRegistration = rejectRegistration;
-
-// ─── ALL STORES MONITOR ─────────────────────────────────────────
-
-function loadAllStoresMonitor() {
-  const tbody = document.getElementById('all-stores-tbody');
-  if (!tbody) return;
-
-  // Get stores from the current session's authorized stores list + approved registered stores
-  const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-  const approved = registeredStores.filter(r => r.status === 'approved').map(r => ({
-    store_id: r.storeId,
-    store_name: r.storeName,
-    category: r.storeType,
-    location: r.location
-  }));
-
-  const allStores = [...(currentAuthorizedStores || [])];
-  approved.forEach(appStore => {
-    if (!allStores.some(s => s.store_id === appStore.store_id)) {
-      allStores.push(appStore);
-    }
-  });
-
-  // Update active campus stores stat
-  const elStores = document.getElementById('founder-stat-stores');
-  if (elStores) elStores.textContent = allStores.length;
-
-  // Get store open/close statuses from localStorage
-  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
-
-  if (allStores.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6" style="color: var(--text-muted);">No stores found.</td></tr>';
-    return;
-  }
-
-  const STORE_META = {
-    'campus-cafe': { category: 'Food & Drinks', location: 'Ground Floor, Unimall' },
-    'book-corner': { category: 'Stationery', location: 'First Floor, Unimall' },
-    'techstop': { category: 'Electronics', location: 'Second Floor, Unimall' },
-    'campus-mart': { category: 'Groceries & Essentials', location: 'Ground Floor, Unimall' },
-    'campus-wear': { category: 'Fashion', location: 'First Floor, Unimall' },
-    'health-hub': { category: 'Health & Care', location: 'Ground Floor, Unimall' }
-  };
-
-  tbody.innerHTML = allStores.map(s => {
-    const meta = s.location ? { category: s.category || 'General', location: s.location } : (STORE_META[s.store_id] || { category: 'General', location: '—' });
-    const isOpen = storeStatuses[s.store_id] !== false; // Default to open
-    const statusClass = isOpen ? 'completed' : 'cancelled';
-    const statusLabel = isOpen ? '● Online' : '○ Offline';
-
-    return `
-      <tr>
-        <td style="font-weight: 700; font-size: 14px;">${escapeHtml(s.store_name)}</td>
-        <td style="font-size: 12.5px;">${meta.category}</td>
-        <td style="font-size: 12.5px;">${meta.location}</td>
-        <td>
-          <span class="badge-status ${statusClass}" style="font-size: 11px;">${statusLabel}</span>
-        </td>
-        <td>
-          <button type="button" class="btn-action ${isOpen ? 'secondary' : 'primary'}" 
-                  onclick="adminToggleStore('${s.store_id}', ${!isOpen})"
-                  style="height: 28px; font-size: 11.5px; padding: 0 10px;">
-            ${isOpen ? '⏸ Close Store' : '▶ Open Store'}
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function adminToggleStore(storeId, setOpen) {
-  syncStoreStatusToUserApp(storeId, setOpen);
-  showToast(`${storeId} is now ${setOpen ? 'OPEN' : 'CLOSED'}`, 'success');
-  loadAllStoresMonitor();
-}
-window.adminToggleStore = adminToggleStore;
-
-// ─── SYNC STORE STATUS TO USER APP ──────────────────────────────
-
-function syncStoreStatusToUserApp(storeId, isOpen) {
-  // 1. Update dedicated store statuses map
-  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
-  storeStatuses[storeId] = isOpen;
-  localStorage.setItem('unimall_store_statuses', JSON.stringify(storeStatuses));
-
-  // 2. Update unimall_v1 app data if it exists (so user app reacts immediately)
-  try {
-    const raw = localStorage.getItem('unimall_v1');
-    if (raw) {
-      const appData = JSON.parse(raw);
-      // If appData has store references, update openNow
-      if (appData.stores && Array.isArray(appData.stores)) {
-        const store = appData.stores.find(s => s.id === storeId);
-        if (store) {
-          store.openNow = isOpen;
-          localStorage.setItem('unimall_v1', JSON.stringify(appData));
-        }
-      }
-    }
-  } catch(e) {}
-
-  // 3. Dispatch event for same-tab reactivity
-  window.dispatchEvent(new CustomEvent('unimall:storeStatusChanged', {
-    detail: { storeId, isOpen }
-  }));
-
-  // 4. Cross-tab event
-  try {
-    localStorage.setItem('unimall_store_status_event', JSON.stringify({
-      storeId,
-      isOpen,
-      timestamp: Date.now()
-    }));
-  } catch(e) {}
-}
-
-// ─── CREATE STORE & OWNER HANDLERS ──────────────────────────────
-
-async function handleFounderCreateStore(e) {
-  e.preventDefault();
-  const name = document.getElementById('founder-store-name-input').value.trim();
-  const category = document.getElementById('founder-store-cat-input').value.trim();
-  const location = document.getElementById('founder-store-loc-input').value.trim();
-
-  const btn = document.getElementById('btn-founder-submit-store');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
-  }
-
-  try {
-    const res = await apiRequest('/admin/founder/stores', {
-      method: 'POST',
-      body: JSON.stringify({ name, category, location })
-    });
-
-    showToast(`Store "${name}" onboarded successfully!`, 'success');
-    document.getElementById('founder-create-store-form').reset();
-
-    // Refresh user store list
-    const meData = await apiRequest('/auth/me');
-    currentAuthorizedStores = meData.stores || [];
-    setupStoreContext();
-    loadFounderHub();
-
-  } catch {
-    // For static deployment — just show success
-    showToast(`Store "${name}" created locally!`, 'success');
-    document.getElementById('founder-create-store-form').reset();
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Create Store';
-    }
-  }
-}
-
-async function handleFounderCreateOwner(e) {
-  e.preventDefault();
-  const storeId = document.getElementById('founder-owner-store-select').value;
-  const name = document.getElementById('founder-owner-name').value.trim();
-  const email = document.getElementById('founder-owner-email').value.trim();
-  const password = document.getElementById('founder-owner-pass').value;
-
-  const btn = document.getElementById('btn-founder-submit-owner');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
-  }
-
-  try {
-    const res = await apiRequest('/admin/founder/owners', {
-      method: 'POST',
-      body: JSON.stringify({
-        store_id: storeId,
-        name,
-        email,
-        password
-      })
-    });
-
-    showToast(`Owner account for "${name}" created and assigned!`, 'success');
-    document.getElementById('founder-create-owner-form').reset();
-
-  } catch {
-    showToast(`Owner account for "${name}" created locally!`, 'success');
-    document.getElementById('founder-create-owner-form').reset();
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Create & Assign Owner';
-    }
-  }
-}

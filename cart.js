@@ -387,9 +387,9 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       } catch (e) { }
     }
 
-    const studentName = (user.name || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.name : '') || 'Ansh Sharma').trim();
-    const studentPhone = user.phone || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.phone : '+91 98765 43210');
-    const studentEmail = user.email || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.email : 'ansh.s@campus.edu');
+    const studentName = (user.name || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.name : '') || 'Campus Student').trim();
+    const studentPhone = user.phone || '';
+    const studentEmail = user.email || '';
 
     const CANONICAL_STORE_MAP = {
       'store-bakery':      'campus-cafe',
@@ -479,7 +479,17 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       });
     }
 
-    // 2. Add to beginning of local orders cache
+    // 2. Add to beginning of local orders cache while preserving existing terminal statuses
+    if (Array.isArray(appData.orders)) {
+      appData.orders.forEach(o => {
+        const s = (o.status || '').toLowerCase();
+        if (s === 'delivered' || s === 'completed') {
+          o.status = 'delivered';
+        }
+      });
+    } else {
+      appData.orders = [];
+    }
     appData.orders.unshift(newOrder);
 
     // 3. Clear cart ONLY AFTER order is securely registered
@@ -768,8 +778,14 @@ function syncSidebarProfile() {
     const roleEl = document.querySelector('.sidebar-profile-role');
     const avatarEl = document.querySelector('.sidebar-avatar');
 
-    if (nameEl && user.name) nameEl.textContent = user.name;
-    if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
+    if (nameEl) nameEl.textContent = user.name || 'Campus Student';
+    if (roleEl) {
+      if (user.hostel && user.room) {
+        roleEl.textContent = `${user.hostel} · ${user.room}`;
+      } else {
+        roleEl.textContent = user.email || 'Campus Account';
+      }
+    }
     if (avatarEl) {
       const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
       avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;

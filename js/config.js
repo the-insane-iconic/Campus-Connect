@@ -182,19 +182,23 @@ window.UniMallDB = {
     const paymentStatus = orderPayload.payment_status || (paymentMethod.includes('Counter') ? 'PENDING_AT_COUNTER' : 'PAID');
     const notes = orderPayload.notes || '';
 
+    const userPhone = orderPayload.user_phone || '';
+    const userHostel = orderPayload.user_hostel || '';
+    const userRoom = orderPayload.user_room || '';
+
     // 1. Insert into Neon PostgreSQL unimall_orders
     try {
       const orderSql = `
         INSERT INTO unimall_orders (
-          id, order_number, user_id, user_name, user_email, 
+          id, order_number, user_id, user_name, user_email, user_phone, user_hostel, user_room,
           store_id, status, fulfillment_type, subtotal, delivery_fee, 
           total, payment_method, payment_status, notes
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         ) RETURNING *;
       `;
       const orderParams = [
-        orderId, orderNumber, userId, userName, userEmail,
+        orderId, orderNumber, userId, userName, userEmail, userPhone, userHostel, userRoom,
         storeId, status, fulfillmentType, subtotal, deliveryFee,
         total, paymentMethod, paymentStatus, notes
       ];
@@ -233,20 +237,27 @@ window.UniMallDB = {
   },
 
   /* ── Get Orders for User ── */
-  async getUserOrders(userId) {
-    if (!userId) return [];
+  async getUserOrders(userId = 'usr_student') {
     try {
-      const orders = await this.neonSql(`
-        SELECT * FROM unimall_orders
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-      `, [userId]);
+      const query = userId && userId !== 'all'
+        ? `SELECT * FROM unimall_orders WHERE user_id = $1 OR user_id = 'usr_student' ORDER BY created_at DESC LIMIT 50`
+        : `SELECT * FROM unimall_orders ORDER BY created_at DESC LIMIT 50`;
+      const params = (userId && userId !== 'all') ? [userId] : [];
+
+      const orders = await this.neonSql(query, params);
 
       for (const ord of orders) {
         const items = await this.neonSql(`
           SELECT * FROM unimall_order_items WHERE order_id = $1
         `, [ord.id]);
-        ord.items = items;
+        const history = await this.neonSql(`
+          SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
+        `, [ord.id]);
+
+        ord.items = items || [];
+        ord.unimall_order_items = items || [];
+        ord.statusHistory = history || [];
+        ord.unimall_order_status_history = history || [];
       }
       return orders;
     } catch (e) {
@@ -293,28 +304,48 @@ window.UniMallDB = {
       `;
       const params = [];
       if (storeId && storeId !== 'all') {
-        query += ` WHERE store_id = $1`;
-        params.push(storeId);
+        const aliasMap = {
+          'campus-cafe': ['store-bakery', 'campus-cafe'],
+          'book-corner': ['store-stationery', 'book-corner'],
+          'techstop': ['store-electronics', 'techstop'],
+          'campus-mart': ['store-sports', 'campus-mart'],
+          'campus-wear': ['store-fashion', 'campus-wear'],
+          'health-hub': ['store-pharmacy', 'health-hub']
+        };
+        const targets = aliasMap[storeId] || [storeId];
+        query += ` WHERE store_id = ANY($1)`;
+        params.push(targets);
       }
       query += ` ORDER BY created_at DESC LIMIT 50`;
 
       const orders = await this.neonSql(query, params);
       if (orders && Array.isArray(orders)) {
-        for (const ord of orders) {
-          const items = await this.neonSql(`
-            SELECT product_id, product_name, price, qty, emoji, image 
+        const orderIds = orders.map(o => o.id);
+        let allItems = [];
+        if (orderIds.length > 0) {
+          allItems = await this.neonSql(`
+            SELECT order_id, product_id, product_name, price, qty, emoji, image 
             FROM unimall_order_items 
-            WHERE order_id = $1
-          `, [ord.id]);
-          ord.items = (items || []).map(i => ({
-            product_name: i.product_name,
-            name: i.product_name,
-            price: parseFloat(i.price || 0),
-            quantity: i.qty || 1,
-            qty: i.qty || 1,
-            emoji: i.emoji || '📦',
-            image: i.image || ''
-          }));
+            WHERE order_id = ANY($1)
+          `, [orderIds]).catch(() => []);
+        }
+
+        const itemsByOrder = {};
+        (allItems || []).forEach(it => {
+          if (!itemsByOrder[it.order_id]) itemsByOrder[it.order_id] = [];
+          itemsByOrder[it.order_id].push({
+            product_name: it.product_name,
+            name: it.product_name,
+            price: parseFloat(it.price || 0),
+            quantity: it.qty || 1,
+            qty: it.qty || 1,
+            emoji: it.emoji || '📦',
+            image: it.image || ''
+          });
+        });
+
+        for (const ord of orders) {
+          ord.items = itemsByOrder[ord.id] || [];
           ord.subtotal = parseFloat(ord.subtotal || ord.total || 0);
           ord.store_subtotal = parseFloat(ord.subtotal || ord.total || 0);
           ord.total_amount = parseFloat(ord.total || 0);
@@ -336,13 +367,13 @@ window.UniMallDB = {
     const isDelivered = (status.toUpperCase() === 'DELIVERED' || status.toUpperCase() === 'COMPLETED');
     const normStatus = isDelivered ? 'delivered' : status.toLowerCase();
     const nowIso = new Date().toISOString();
-
     try {
+      const cleanId = String(orderId || '').replace(/^#/, '');
       await this.neonSql(`
         UPDATE unimall_orders
         SET status = $1, updated_at = NOW()
-        WHERE id = $2
-      `, [normStatus, orderId]);
+        WHERE id = $2 OR order_number = $2 OR order_number = $3 OR order_number = '#' || $3
+      `, [normStatus, orderId, cleanId]);
 
       await this.neonSql(`
         INSERT INTO unimall_order_status_history (order_id, status, notes)
@@ -358,7 +389,7 @@ window.UniMallDB = {
       if (raw) {
         const appData = JSON.parse(raw);
         if (Array.isArray(appData.orders)) {
-          const ord = appData.orders.find(o => o.id === orderId);
+          const ord = appData.orders.find(o => o.id === orderId || o.order_number_display === orderId || o.order_number === orderId);
           if (ord) {
             ord.status = normStatus;
             if (isDelivered) ord.deliveredAt = nowIso;
@@ -400,15 +431,14 @@ window.UniMallDB = {
     return { id: orderId, status: normStatus };
   },
 
-  /* ── Realtime Listener for Order Status Updates ── */
+  /* ── Order Status Check (One-shot) ── */
   subscribeToOrder(orderId, onUpdate) {
-    const timer = setInterval(async () => {
-      try {
-        const order = await this.getOrderById(orderId);
-        if (order && onUpdate) onUpdate(order);
-      } catch (e) {}
-    }, 4000);
-
-    return () => clearInterval(timer);
+    // One-shot check on call; continuous polling removed per user request
+    if (orderId && onUpdate) {
+      this.getOrderById(orderId).then(order => {
+        if (order) onUpdate(order);
+      }).catch(() => {});
+    }
+    return () => {};
   }
 };
