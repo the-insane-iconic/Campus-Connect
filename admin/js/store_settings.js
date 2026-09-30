@@ -118,7 +118,16 @@ function renderHoursEditor(hoursObj) {
   const container = document.getElementById('hours-editor-container');
   if (!container) return;
 
-  container.innerHTML = DAYS_OF_WEEK.map(day => {
+  const headerHtml = `
+    <div class="day-row-header">
+      <span>Day</span>
+      <span>Opening</span>
+      <span>Closing</span>
+      <span>Closed?</span>
+    </div>
+  `;
+
+  const rowsHtml = DAYS_OF_WEEK.map(day => {
     const d = hoursObj[day] || { open: '09:00', close: '21:00', closed: false };
     const isClosed = Boolean(d.closed);
 
@@ -126,10 +135,10 @@ function renderHoursEditor(hoursObj) {
       <div class="day-row" id="day-row-${day}">
         <div class="day-name">${day}</div>
         <div>
-          <input type="time" class="hr-open" value="${d.open || '09:00'}" ${isClosed ? 'disabled' : ''} />
+          <input type="time" class="hr-open" value="${d.open || '09:00'}" ${isClosed ? 'disabled' : ''} aria-label="${day} opening time" />
         </div>
         <div>
-          <input type="time" class="hr-close" value="${d.close || '21:00'}" ${isClosed ? 'disabled' : ''} />
+          <input type="time" class="hr-close" value="${d.close || '21:00'}" ${isClosed ? 'disabled' : ''} aria-label="${day} closing time" />
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <input type="checkbox" class="hr-closed" id="chk-closed-${day}" ${isClosed ? 'checked' : ''}
@@ -139,6 +148,8 @@ function renderHoursEditor(hoursObj) {
       </div>
     `;
   }).join('');
+
+  container.innerHTML = headerHtml + rowsHtml;
 }
 
 function toggleDayClosed(day, isClosed) {

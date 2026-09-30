@@ -199,9 +199,9 @@ function loadPendingRegistrations() {
           ${r.status === 'pending' ? `
             <div style="display: flex; gap: 6px;">
               <button type="button" class="btn-action primary" onclick="approveRegistration(${idx})" 
-                style="font-size: 11px; padding: 4px 10px; background: #16A34A;">✓ Approve</button>
+                style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #16A34A; border-color: #16A34A;">✓ Approve</button>
               <button type="button" class="btn-action secondary" onclick="rejectRegistration(${idx})"
-                style="font-size: 11px; padding: 4px 10px; color: #DC2626;">✗ Reject</button>
+                style="height: 28px; font-size: 11.5px; padding: 0 10px; color: #DC2626;">✗ Reject</button>
             </div>
           ` : `
             <span style="font-size: 11px; color: var(--text-muted);">—</span>
@@ -319,7 +319,7 @@ function loadAllStoresMonitor() {
         <td>
           <button type="button" class="btn-action ${isOpen ? 'secondary' : 'primary'}" 
                   onclick="adminToggleStore('${s.store_id}', ${!isOpen})"
-                  style="font-size: 11px; padding: 4px 10px;">
+                  style="height: 28px; font-size: 11.5px; padding: 0 10px;">
             ${isOpen ? '⏸ Close Store' : '▶ Open Store'}
           </button>
         </td>

@@ -251,49 +251,71 @@
           </div>
         </section>
 
-        <!-- 2. ORDERS VIEW -->
+        <!-- 2. ORDERS VIEW (1-WINDOW ACTIVE ORDERS & CARD PROGRESSION) -->
         <section class="admin-view" id="view-orders">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Orders</h1>
-              <p class="view-subtitle">Process incoming student orders and update fulfillment</p>
+              <h1 class="view-title">Active Orders & Fulfillment</h1>
+              <p class="view-subtitle">Manage customer orders in one window — 1-click status progression</p>
             </div>
             <div class="view-actions">
               <button type="button" class="btn-action secondary" id="btn-refresh-orders">↻ Refresh</button>
             </div>
           </div>
 
-          <!-- STATUS FILTER TABS -->
-          <div class="filter-tabs-bar">
-            <button type="button" class="tab-btn active" data-status="ALL">All Orders</button>
-            <button type="button" class="tab-btn" data-status="PLACED">Placed</button>
-            <button type="button" class="tab-btn" data-status="ACCEPTED">Accepted</button>
-            <button type="button" class="tab-btn" data-status="PREPARING">Preparing</button>
-            <button type="button" class="tab-btn" data-status="READY">Ready</button>
-            <button type="button" class="tab-btn" data-status="COMPLETED">Completed</button>
-            <button type="button" class="tab-btn" data-status="CANCELLED">Cancelled</button>
+          <!-- VIEW MODE TABS: ACTIVE CARDS vs ALL TABLE -->
+          <div class="orders-mode-bar">
+            <div class="orders-mode-tabs">
+              <button type="button" class="order-mode-btn active" id="tab-mode-active" onclick="switchOrdersViewMode('active')">
+                ⚡ Active Orders (<span id="active-orders-counter">0</span>)
+              </button>
+              <button type="button" class="order-mode-btn" id="tab-mode-table" onclick="switchOrdersViewMode('table')">
+                📋 All Orders Table
+              </button>
+            </div>
           </div>
 
-          <!-- ORDERS LIST TABLE -->
-          <div class="card-panel">
-            <div class="table-responsive">
-              <table class="data-table" id="orders-table">
-                <thead>
-                  <tr>
-                    <th>Order #</th>
-                    <th>Customer</th>
-                    <th>Fulfillment</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Placed</th>
-                    <th>Status</th>
-                    <th>Next Action</th>
-                  </tr>
-                </thead>
-                <tbody id="orders-tbody">
-                  <tr><td colspan="8" class="text-center py-6">Loading orders...</td></tr>
-                </tbody>
-              </table>
+          <!-- 1. ACTIVE ORDERS LIVE CARDS BOARD (DEFAULT & RECOMMENDED) -->
+          <div id="active-orders-board" class="active-orders-board">
+            <div class="active-orders-grid" id="active-orders-cards-container">
+              <div class="empty-state-sm">Loading active orders...</div>
+            </div>
+          </div>
+
+          <!-- 2. ALL ORDERS TABLE (FOR AUDIT & SEARCH) -->
+          <div id="all-orders-table-wrapper" class="hidden">
+            <!-- STATUS FILTER TABS -->
+            <div class="filter-tabs-bar">
+              <button type="button" class="tab-btn active" data-status="ALL">All Orders</button>
+              <button type="button" class="tab-btn" data-status="PLACED">Placed</button>
+              <button type="button" class="tab-btn" data-status="ACCEPTED">Accepted</button>
+              <button type="button" class="tab-btn" data-status="PREPARING">Preparing</button>
+              <button type="button" class="tab-btn" data-status="READY">Ready</button>
+              <button type="button" class="tab-btn" data-status="COMPLETED">Completed</button>
+              <button type="button" class="tab-btn" data-status="CANCELLED">Cancelled</button>
+            </div>
+
+            <!-- ORDERS LIST TABLE -->
+            <div class="card-panel">
+              <div class="table-responsive">
+                <table class="data-table" id="orders-table">
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Customer</th>
+                      <th>Fulfillment</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Placed</th>
+                      <th>Status</th>
+                      <th>Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-tbody">
+                    <tr><td colspan="8" class="text-center py-6">Loading orders...</td></tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>
@@ -409,7 +431,7 @@
 
           <div class="settings-grid">
             <!-- LIVE STORE STATUS & ACCEPTING ORDERS BANNER -->
-            <div class="card-panel store-live-status-card" style="grid-column: 1 / -1; border-left: 4px solid #16A34A; padding: 16px 20px;">
+            <div class="card-panel store-live-status-card">
               <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
                 <div>
                   <div style="font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
@@ -729,6 +751,29 @@
       </main>
     </div>
   </div>
+
+  <!-- MOBILE BOTTOM NAVIGATION (Visible only on screens < 768px) -->
+  <nav class="admin-mobile-nav" id="admin-mobile-nav" aria-label="Store Navigation">
+    <button type="button" class="mobile-nav-item active" data-view="dashboard" id="mob-nav-dash">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-view="orders" id="mob-nav-orders">
+      <div class="mob-icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="mob-badge alert hidden" id="mob-badge-orders">0</span>
+      </div>
+      <span>Orders</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-view="products" id="mob-nav-products">
+      <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      <span>Products</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-view="store" id="mob-nav-store">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Store</span>
+    </button>
+  </nav>
 
   <!-- ════ MODALS ════ -->
 

@@ -630,3 +630,14 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 200);
   }, 3500);
 }
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+window.escapeHtml = escapeHtml;
+

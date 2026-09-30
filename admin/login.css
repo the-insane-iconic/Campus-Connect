@@ -370,21 +370,29 @@ body {
 
 /* ── REGISTRATION PAGE STYLES ──────────────────────────── */
 
+.register-container {
+  max-width: 660px;
+  width: 100%;
+}
+
 .register-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px 28px;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  padding: 36px 36px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .form-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
-@media (max-width: 440px) {
+@media (max-width: 600px) {
+  .register-card {
+    padding: 24px 18px;
+  }
   .form-row-2 {
     grid-template-columns: 1fr;
   }

@@ -134,23 +134,28 @@ function renderUrgentOrders(orders) {
 
   container.innerHTML = `
     <div style="display: flex; flex-direction: column; gap: 10px;">
-      ${orders.map(o => `
+      ${orders.map(o => {
+        const custName = o.user_name || o.customer_name || 'Student';
+        const itemCount = (o.items && Array.isArray(o.items)) ? o.items.length : 1;
+        const totalAmount = Number(o.store_subtotal || o.total || 0).toLocaleString('en-IN');
+        return `
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border);">
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <strong style="font-size: 13.5px;">#${o.id}</strong>
-              <span class="badge-status ${o.status.toLowerCase()}">${o.status}</span>
+              <span class="badge-status ${(o.status || 'placed').toLowerCase()}">${o.status || 'PLACED'}</span>
               <span style="font-size: 12px; color: var(--text-muted);">${o.delivery_method === 'delivery' ? '🛵 Hostel Delivery' : '🛍️ Pickup'}</span>
             </div>
             <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 3px;">
-              ${o.customer_name} · ${o.items.length} items (₹${o.store_subtotal || o.total})
+              ${escapeHtml(custName)} · ${itemCount} item${itemCount === 1 ? '' : 's'} (₹${totalAmount})
             </div>
           </div>
-          <button type="button" class="btn-action primary" onclick="window.viewOrderDetail('${o.id}')" style="height: 32px; font-size: 12px;">
+          <button type="button" class="btn-action primary" onclick="window.viewOrderDetail('${o.id}')" style="height: 32px; font-size: 12px; padding: 0 12px;">
             Process →
           </button>
         </div>
-      `).join('')}
+      `;
+      }).join('')}
     </div>
   `;
 }
