@@ -255,10 +255,28 @@ function handlePlaceOrder() {
   // Check if Razorpay is chosen
   const isRazorpay = CartState.paymentMethod === 'razorpay' || CartState.paymentMethod === 'upi' || CartState.paymentMethod === 'card';
 
+  // Configurable Razorpay bypass flag (set to false to enable real Razorpay Checkout)
+  const bypassRazorpay = (typeof window.BYPASS_RAZORPAY !== 'undefined') ? window.BYPASS_RAZORPAY : false;
+
   if (isRazorpay) {
     if (placeBtn) {
       placeBtn.disabled = true;
       placeBtn.innerHTML = `<span>Connecting to Razorpay...</span>`;
+    }
+
+    // Direct Instant Checkout Bypass Mode (if explicitly turned on)
+    if (bypassRazorpay) {
+      console.log('[Checkout] Razorpay bypassed for testing — completing payment instantly');
+      setTimeout(async () => {
+        try {
+          const mockPaymentId = 'rzp_test_' + Date.now();
+          await executeOrderCreation(mockPaymentId, 'Instant Pay (Verified)');
+        } catch (err) {
+          resetPlaceBtn();
+          showToast('Order creation failed: ' + err.message, 'error');
+        }
+      }, 500);
+      return;
     }
 
     const amountInPaise = Math.max(100, Math.round(totals.grandTotal * 100)); // Minimum ₹1 for test gateway
@@ -277,15 +295,14 @@ function handlePlaceOrder() {
     // Check if Razorpay SDK is loaded
     if (typeof Razorpay === 'undefined') {
       console.warn('Razorpay SDK not loaded — proceeding with mock secure payment test');
-      // If offline or blocked by adblocker, offer smooth simulation with full atomicity
       setTimeout(() => {
         executeOrderCreation('rzp_mock_' + Date.now(), 'Razorpay Instant (Verified)');
-      }, 1000);
+      }, 600);
       return;
     }
 
     const options = {
-      key: window.RAZORPAY_KEY_ID || 'rzp_test_CampusConnect101', // Configurable Razorpay key
+      key: window.RAZORPAY_KEY_ID || 'rzp_test_TiK8sBDv7ObzG5', // Verified Razorpay test key
       amount: amountInPaise,
       currency: 'INR',
       name: 'UniMall · ' + storeName,

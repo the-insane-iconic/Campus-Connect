@@ -257,12 +257,19 @@ function renderTopProducts(products) {
 /* ─── LIVE DASHBOARD POLLING & REALTIME SYNC ──────────────── */
 let dashboardPollTimer = null;
 
+function getCurrentlyActiveStoreId() {
+  const storeId = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+    || window.activeStoreId
+    || sessionStorage.getItem('unimall_admin_active_store');
+  return storeId || null;
+}
+
 function startDashboardPolling() {
   if (dashboardPollTimer) clearInterval(dashboardPollTimer);
   dashboardPollTimer = setInterval(() => {
     const currentActiveView = document.querySelector('.admin-view.active');
     if (currentActiveView && currentActiveView.id === 'view-dashboard') {
-      const storeId = window.activeStoreId || 'campus-cafe';
+      const storeId = getCurrentlyActiveStoreId();
       if (storeId) {
         loadDashboard(storeId, true);
       }
@@ -280,7 +287,7 @@ window.addEventListener('unimall:viewChanged', (e) => {
 // Real-time synchronization across browser tabs / mobile actions
 window.addEventListener('storage', (e) => {
   if (e.key === 'unimall_new_order_placed_event' || e.key === 'unimall_order_delivered_event' || e.key === 'unimall_v1') {
-    const storeId = window.activeStoreId || 'campus-cafe';
+    const storeId = getCurrentlyActiveStoreId();
     if (storeId) loadDashboard(storeId, true);
   }
 });
@@ -288,7 +295,7 @@ window.addEventListener('storage', (e) => {
 try {
   const ordersChannel = new BroadcastChannel('unimall_orders_channel');
   ordersChannel.onmessage = () => {
-    const storeId = window.activeStoreId || 'campus-cafe';
+    const storeId = getCurrentlyActiveStoreId();
     if (storeId) loadDashboard(storeId, true);
   };
 } catch (e) {}

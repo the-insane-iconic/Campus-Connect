@@ -26,18 +26,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── STORE DATABASE (maps lowercase store names to store IDs & data) ──
   const STORE_ACCOUNTS = {
-    'campus café':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
-    'campus cafe':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
-    'campus bakery':      { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
-    'book corner':        { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Store Manager',  icon: '📚' },
-    'stationery hub':     { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Store Manager',  icon: '📚' },
-    'techstop':           { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'Store Manager',  icon: '💻' },
-    'campus electronics': { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'Store Manager',  icon: '💻' },
-    'campus mart':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Store Manager',  icon: '🛒' },
-    'sports zone':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Store Manager',  icon: '🛒' },
-    'campus wear':        { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Store Manager',  icon: '👕' },
-    'style square':       { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Store Manager',  icon: '👕' },
-    'health hub':         { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Store Manager',  icon: '💊' },
+    'campus café':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
+    'campus cafe':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
+    'campus-cafe':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
+
+    'book corner':        { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Book Corner Manager',  icon: '📚' },
+    'book-corner':        { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Book Corner Manager',  icon: '📚' },
+
+    'techstop':           { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'TechStop Manager',  icon: '💻' },
+    'tech-stop':          { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'TechStop Manager',  icon: '💻' },
+
+    'campus mart':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Campus Mart Manager',  icon: '🛒' },
+    'campus-mart':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Campus Mart Manager',  icon: '🛒' },
+
+    'campus wear':        { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Campus Wear Manager',  icon: '👕' },
+    'campus-wear':        { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Campus Wear Manager',  icon: '👕' },
+
+    'health hub':         { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Health Hub Manager',  icon: '💊' },
+    'health-hub':         { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Health Hub Manager',  icon: '💊' },
   };
 
   // Handle login form submission
@@ -46,11 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
     hideError();
     setLoading(true);
 
-    const username = userInput.value.trim().toLowerCase();
-    const password = passInput.value.trim().toLowerCase();
+    const rawUser = userInput.value.trim().toLowerCase();
+    const rawPass = passInput.value.trim().toLowerCase();
 
     // ── 1. ADMIN LOGIN (username: admin, password: admin) ──
-    if (username === 'admin' && password === 'admin') {
+    if (rawUser === 'admin' && rawPass === 'admin') {
       // Collect all built-in stores + any approved registered stores
       const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
       const approvedStores = registeredStores.filter(s => s.status === 'approved').map(s => ({
@@ -83,8 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 2. STORE OWNER LOGIN (username: store name, password: store name) ──
-    const storeAccount = STORE_ACCOUNTS[username];
-    if (storeAccount && password === username) {
+    const normUser = rawUser.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normPass = rawPass.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const storeAccount = STORE_ACCOUNTS[rawUser] || STORE_ACCOUNTS[normUser];
+    if (storeAccount && (rawPass === rawUser || normPass === normUser)) {
       const sessionData = {
         token: 'unimall_store_' + Date.now(),
         user: {
@@ -104,9 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 3. Check for dynamically registered stores (from localStorage) ──
     const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-    const regStore = registeredStores.find(s => 
-      s.storeName.toLowerCase() === username && s.storeName.toLowerCase() === password && s.status === 'approved'
-    );
+    const regStore = registeredStores.find(s => {
+      const rName = s.storeName.toLowerCase().replace(/[-_]/g, ' ').trim();
+      return (rName === normUser || s.storeId.toLowerCase() === rawUser) && 
+             (rName === normPass || s.storeId.toLowerCase() === rawPass) && 
+             s.status === 'approved';
+    });
     if (regStore) {
       const sessionData = {
         token: 'unimall_reg_' + Date.now(),
@@ -126,10 +138,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Check if store was registered but is still pending or rejected
-    const pendingStore = registeredStores.find(s => s.storeName.toLowerCase() === username);
-    if (pendingStore && password === username) {
+    const pendingStore = registeredStores.find(s => s.storeName.toLowerCase() === normUser);
+    if (pendingStore && normPass === normUser) {
       if (pendingStore.status === 'pending') {
-        showError(`Application for "${pendingStore.storeName}" is currently pending review by the UniMall admin. You will be able to log in once approved.`);
+        showError(`Application for "${pendingStore.storeName}" is currently pending review by the UniMall admin.`);
         setLoading(false);
         return;
       }
@@ -140,34 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // ── 4. Try backend API fallback ──
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userInput.value.trim(), password: passInput.value })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        saveAdminSession(data);
-        window.location.href = 'index.html';
-        return;
-      }
-    } catch (err) {
-      // Backend offline — expected on static deployment
-    }
-
-    showError('Invalid credentials. For stores, use the store name as both username and password. For admin, use admin / admin.');
+    showError('Invalid credentials. For stores, use your store name as username and password (e.g. "campus mart" / "campus mart" or "techstop" / "techstop").');
     setLoading(false);
-  });
-
-  // ── QUICK DEMO LOGIN BUTTONS ──
-  document.querySelectorAll('.btn-demo').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      userInput.value = btn.getAttribute('data-user');
-      passInput.value = btn.getAttribute('data-pass');
-      form.dispatchEvent(new Event('submit'));
-    });
   });
 
   function showError(msg) {

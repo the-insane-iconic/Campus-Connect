@@ -174,7 +174,15 @@ function hideLogoutModal() {
 
 async function handleLogout() {
   hideLogoutModal();
-  if (firebaseAuth) {
+  if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
+    try {
+      await window.UniMallAuth.signOut();
+      return;
+    } catch (e) {
+      console.warn('[Profile] Neon Auth signOut error:', e);
+    }
+  }
+  if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
     try {
       await firebaseAuth.signOut();
     } catch (e) { }
@@ -188,7 +196,16 @@ async function handleLogout() {
 
 /* ─── CONNECT GOOGLE ACCOUNT (FROM GUEST) ────────────────── */
 async function handleConnectGoogle() {
-  if (firebaseAuth) {
+  if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signInWithGoogle === 'function') {
+    try {
+      await window.UniMallAuth.signInWithGoogle({ callbackURL: window.location.href });
+      return;
+    } catch (e) {
+      console.warn('[Profile] Neon Auth Google connect note:', e);
+    }
+  }
+
+  if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
     const provider = new firebase.auth.GoogleAuthProvider();
     try {
       const result = await firebaseAuth.signInWithPopup(provider);

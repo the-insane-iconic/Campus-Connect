@@ -319,8 +319,17 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       if (raw) {
         const appData = JSON.parse(raw);
         if (Array.isArray(appData.orders)) {
+          const aliasMap = {
+            'campus-cafe': ['store-bakery', 'campus-cafe'],
+            'book-corner': ['store-stationery', 'book-corner'],
+            'techstop': ['store-electronics', 'techstop'],
+            'campus-mart': ['store-sports', 'campus-mart'],
+            'campus-wear': ['store-fashion', 'campus-wear'],
+            'health-hub': ['store-pharmacy', 'health-hub']
+          };
+          const targetIds = aliasMap[storeId] || [storeId];
           const localOrders = appData.orders
-            .filter(o => storeId === 'all' || !o.storeId || o.storeId === storeId || (storeId === 'campus-cafe' && (o.storeId === 'store-bakery' || o.storeId === 'campus-cafe')))
+            .filter(o => storeId === 'all' || (o.storeId && targetIds.includes(o.storeId)))
             .map(o => {
               const custName = (o.user_name || o.customerName || o.customer_name || o.userName || o.customer?.name || 'Ansh Sharma').trim();
               const subtotalVal = parseFloat(o.subtotal || o.total || 0);

@@ -4,9 +4,12 @@
 
 'use strict';
 
-let currentAdminUser = null;
-let currentAuthorizedStores = [];
-let activeStoreId = null;
+var currentAdminUser = null;
+var currentAuthorizedStores = [];
+var activeStoreId = null;
+window.activeStoreId = null;
+window.currentAdminUser = null;
+window.currentAuthorizedStores = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
   const token = sessionStorage.getItem('unimall_admin_token');
@@ -92,6 +95,8 @@ function setupStoreContext() {
   if (currentAuthorizedStores.length > 0) {
     const matched = currentAuthorizedStores.find(s => s.store_id === storedActive);
     activeStoreId = matched ? matched.store_id : currentAuthorizedStores[0].store_id;
+    window.activeStoreId = activeStoreId;
+    sessionStorage.setItem('unimall_admin_active_store', activeStoreId);
   }
 
   // Populate dropdown
@@ -118,13 +123,19 @@ function setupStoreContext() {
 }
 
 function setActiveStore(storeId) {
+  if (!storeId) return;
   activeStoreId = storeId;
+  window.activeStoreId = storeId;
   sessionStorage.setItem('unimall_admin_active_store', storeId);
   updateStoreDisplay();
 
   // Dispatch custom event so modules reload for the new store
   window.dispatchEvent(new CustomEvent('unimall:storeChanged', { detail: { storeId } }));
 }
+
+window.getActiveStoreId = function() {
+  return window.activeStoreId || activeStoreId || sessionStorage.getItem('unimall_admin_active_store');
+};
 
 function updateStoreDisplay() {
   const currentStore = currentAuthorizedStores.find(s => s.store_id === activeStoreId);

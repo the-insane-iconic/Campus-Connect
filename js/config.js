@@ -9,6 +9,11 @@ window.UNIMALL_CONFIG = {
   NEON_SQL_URL: 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql',
   NEON_CONNECTION_STRING: 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
   NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
+  NEON_AUTH_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth',
+  NEON_AUTH_JWKS_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json',
+
+  // Razorpay Gateway Credentials
+  RAZORPAY_KEY_ID: 'rzp_test_TiK8sBDv7ObzG5',
 
   // Fallback providers & storage
   SUPABASE_URL: 'https://ncfhvkhthtrzrzvlpxdq.supabase.co',
@@ -25,6 +30,9 @@ window.UNIMALL_CONFIG = {
     measurementId: "G-28QZKVB4K1"
   }
 };
+
+window.RAZORPAY_KEY_ID = window.UNIMALL_CONFIG.RAZORPAY_KEY_ID;
+window.BYPASS_RAZORPAY = false;
 
 /**
  * Initial Avatar Generator

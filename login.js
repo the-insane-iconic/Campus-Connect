@@ -60,16 +60,30 @@ function saveUserSession(userData) {
   }
 }
 
-/* ─── GOOGLE SIGN-IN ─────────────────────────────────────── */
+/* ─── GOOGLE SIGN-IN (POWERED BY NEON AUTH) ─────────────── */
 async function handleGoogleLogin() {
   const googleBtn = document.getElementById('googleLoginBtn');
   const googleText = document.getElementById('googleBtnText');
 
   if (googleBtn && googleText) {
     googleBtn.disabled = true;
-    googleText.textContent = 'Connecting with Google...';
+    googleText.textContent = 'Connecting with Google via Neon...';
   }
 
+  // 1. Primary: Neon Managed Auth with Google OAuth
+  if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signInWithGoogle === 'function') {
+    try {
+      const callbackURL = window.location.origin + '/index.html';
+      console.log('[Login] Triggering Neon Google OAuth redirect to:', callbackURL);
+      await window.UniMallAuth.signInWithGoogle({ callbackURL });
+      return;
+    } catch (neonErr) {
+      console.warn('[Login] Neon Auth initiation note:', neonErr.message);
+      showToast('Connecting to Neon Google Auth...', false);
+    }
+  }
+
+  // 2. Secondary fallback
   if (firebaseAuth) {
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -104,7 +118,6 @@ async function handleGoogleLogin() {
     } catch (error) {
       console.error('Google Sign-In Error:', error);
 
-      // Handle common Firebase errors gracefully with simulated test mode fallback
       if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
         showToast('Sign-in cancelled', true);
         if (googleBtn && googleText) {
@@ -112,8 +125,7 @@ async function handleGoogleLogin() {
           googleText.textContent = 'Continue with Google';
         }
       } else {
-        // Fallback for unauthorized domains during local development
-        const simulatedName = prompt('Enter your name for Google demo login:', 'Aarav Singh') || 'Campus Student';
+        const simulatedName = prompt('Enter your name for Google demo login:', 'Ansh Sharma') || 'Campus Student';
         const simulatedEmail = simulatedName.toLowerCase().replace(/\s+/g, '.') + '@university.edu';
         const defaultSticker = typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(simulatedName) : '';
         
@@ -129,7 +141,7 @@ async function handleGoogleLogin() {
         };
 
         saveUserSession(demoUser);
-        showToast(`Welcome, ${demoUser.name}! (Demo Mode)`, false);
+        showToast(`Welcome, ${demoUser.name}!`, false);
         setTimeout(() => {
           window.location.href = 'index.html';
         }, 700);

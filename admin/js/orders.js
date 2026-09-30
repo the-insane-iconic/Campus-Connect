@@ -262,11 +262,19 @@ window.addEventListener('unimall:storeChanged', (e) => {
 
 // Real-time synchronization listeners across browser tabs / mobile actions
 window.addEventListener('storage', (e) => {
+  function getActiveAdminStoreId() {
+    return (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+      || window.activeStoreId
+      || (typeof activeStoreId !== 'undefined' ? activeStoreId : null)
+      || sessionStorage.getItem('unimall_admin_active_store');
+  }
+
   if (e.key === 'unimall_new_order_placed_event') {
     try {
       const orderEvt = JSON.parse(e.newValue || '{}');
       if (orderEvt && orderEvt.orderId) {
-        if (!activeStoreId || orderEvt.storeId === activeStoreId || activeStoreId === 'all') {
+        const currentStore = getActiveAdminStoreId();
+        if (!currentStore || orderEvt.storeId === currentStore || currentStore === 'all') {
           // Play chime and send system notification
           playOrderNotificationChime();
           sendOrderPushNotification(orderEvt);
@@ -274,18 +282,19 @@ window.addEventListener('storage', (e) => {
             showToast(`🔔 New Order received: ${orderEvt.displayNum || '#' + orderEvt.orderId} (₹${orderEvt.total})`);
           }
           knownOrderIds.add(orderEvt.orderId);
-          if (activeStoreId) {
-            loadOrders(activeStoreId, true);
+          if (currentStore) {
+            loadOrders(currentStore, true);
             if (typeof window.loadDashboard === 'function') {
-              window.loadDashboard(activeStoreId);
+              window.loadDashboard(currentStore);
             }
           }
         }
       }
     } catch (err) {}
   } else if (e.key === 'unimall_v1' || e.key === 'unimall_order_delivered_event') {
-    if (activeStoreId) {
-      loadOrders(activeStoreId, true);
+    const currentStore = getActiveAdminStoreId();
+    if (currentStore) {
+      loadOrders(currentStore, true);
     }
   }
 });
@@ -295,8 +304,13 @@ try {
   ordersChannel.onmessage = (event) => {
     if (event.data) {
       const { type, orderId, displayNum, storeId, total, customerName, itemsCount } = event.data;
+      const currentStore = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+        || window.activeStoreId
+        || (typeof activeStoreId !== 'undefined' ? activeStoreId : null)
+        || sessionStorage.getItem('unimall_admin_active_store');
+
       if (type === 'ORDER_PLACED') {
-        if (!activeStoreId || storeId === activeStoreId || activeStoreId === 'all') {
+        if (!currentStore || storeId === currentStore || currentStore === 'all') {
           playOrderNotificationChime();
           sendOrderPushNotification({
             orderId,
@@ -308,18 +322,18 @@ try {
           if (typeof showToast === 'function') {
             showToast(`🔔 New Order received: ${displayNum || '#' + orderId}`);
           }
-          if (activeStoreId) {
-            loadOrders(activeStoreId, true);
+          if (currentStore) {
+            loadOrders(currentStore, true);
             if (typeof window.loadDashboard === 'function') {
-              window.loadDashboard(activeStoreId);
+              window.loadDashboard(currentStore);
             }
           }
         }
       } else if (type === 'ORDER_STATUS_CHANGED') {
-        if (activeStoreId) {
-          loadOrders(activeStoreId, true);
+        if (currentStore) {
+          loadOrders(currentStore, true);
           if (typeof window.loadDashboard === 'function') {
-            window.loadDashboard(activeStoreId);
+            window.loadDashboard(currentStore);
           }
         }
       }
