@@ -23,6 +23,13 @@ def seed_database():
     cursor = conn.cursor()
     now_iso = datetime.utcnow().isoformat()
 
+    try:
+        cursor.execute("DELETE FROM stores WHERE id LIKE 'store_%'")
+        cursor.execute("DELETE FROM users WHERE email = 'cafe2@unimall.app'")
+        conn.commit()
+    except Exception:
+        pass
+
     print("Seeding categories...")
     categories = [
         ('food', 'Food & Drinks', '☕', 1),
@@ -84,46 +91,60 @@ def seed_database():
 
     stores = [
         (
-            'store-bakery', 'Campus Bakery', 'campus-bakery',
+            'campus-cafe', 'Campus Bakery & Café', 'campus-cafe',
+            'Fresh pastries, hot espresso, cold brews, and study snacks.',
+            'Food & Drinks', 'Block A, Food Court', '+91 98765 01001',
+            'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
+            1, 1, 0, 1, default_hours, now_iso, now_iso
+        ),
+        (
+            'store-bakery', 'Campus Bakery & Café', 'campus-bakery',
             'Fresh baked goods, hot snacks, sandwiches, teas, and cold beverages right near Hostel quad.',
             'Food & Drinks', 'Ground Floor, Student Activity Centre', '+91 98765 11111',
             'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         ),
         (
-            'store-stationery', 'Stationery Hub', 'stationery-hub',
+            'book-corner', 'Stationery Hub & Book Corner', 'book-corner',
+            'Course textbooks, notebooks, graphing paper, and fine pens.',
+            'Stationery', 'Block B, Academic Wing', '+91 98765 01002',
+            'https://images.unsplash.com/photo-1507842229451-79b1be886a20?w=800&auto=format&fit=crop&q=80',
+            1, 1, 0, 1, default_hours, now_iso, now_iso
+        ),
+        (
+            'store-stationery', 'Stationery Hub & Book Corner', 'stationery-hub',
             'Official campus notebooks, engineering sheets, lab record manuals, art tools, and pens.',
             'Stationery', 'Ground Floor, Academic Block B', '+91 98765 22222',
             'https://images.unsplash.com/photo-1507842229451-79b1be886a20?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         ),
         (
-            'techstop', 'TechStop', 'techstop',
-            'Chargers, cables, adapters, wireless mice, pendrives, calculators, and audio gear.',
-            'Electronics', 'Second Floor, Central Library Wing', '+91 98765 33333',
+            'techstop', 'TechStop Electronics', 'techstop',
+            'Laptop chargers, true wireless earbuds, mice, and accessories.',
+            'Electronics', 'Block C, Tech Hub', '+91 98765 01003',
             'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         ),
         (
-            'campus-mart', 'Campus Mart', 'campus-mart',
-            'Daily essentials, snacks, instant noodles, beverages, toiletries, and late-night munchies.',
-            'Essentials', 'Ground Floor, Near Dining Hall', '+91 98765 44444',
+            'campus-mart', 'Campus Mart & Groceries', 'campus-mart',
+            'Late night essentials, ramen, beverages, and daily supplies.',
+            'Essentials', 'Hostel Quadrangle', '+91 98765 01004',
             'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         ),
         (
-            'store-print', 'Print & Copy Center', 'print-copy-center',
-            'High-speed color printing, spiral binding, project dissertation printing, and scanning.',
-            'Printing & Services', 'Ground Floor, Academic Block A', '+91 98765 66666',
-            'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            'campus-wear', 'Campus Wear & Style Square', 'campus-wear',
+            'College hoodies, varsity jackets, caps, and casual joggers.',
+            'Fashion', 'Student Activity Center', '+91 98765 01005',
+            'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&auto=format&fit=crop&q=80',
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         ),
         (
-            'health-hub', 'Health Hub', 'health-hub',
-            'Basic first aid, pain relief, energy supplements, oral care, and personal hygiene products.',
-            'Essentials', 'Ground Floor, Medical Centre Annex', '+91 98765 77777',
+            'health-hub', 'Health Hub & Care', 'health-hub',
+            'Protein bars, electrolytes, first-aid kits, and sanitizers.',
+            'Essentials', 'Near Campus Clinic', '+91 98765 01006',
             'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80',
-            1, 1, 1, 1, default_hours, now_iso, now_iso
+            1, 1, 0, 1, default_hours, now_iso, now_iso
         )
     ]
     cursor.executemany(
@@ -135,10 +156,14 @@ def seed_database():
 
     print("Seeding store memberships...")
     memberships = [
+        ('mem_cafe_owner', 'usr_bakery', 'campus-cafe', 'owner', now_iso),
         ('mem_bakery_owner', 'usr_bakery', 'store-bakery', 'owner', now_iso),
+        ('mem_book_owner', 'usr_stationery', 'book-corner', 'owner', now_iso),
         ('mem_stationery_owner', 'usr_stationery', 'store-stationery', 'owner', now_iso),
         ('mem_tech_owner', 'usr_tech', 'techstop', 'owner', now_iso),
-        ('mem_mart_owner', 'usr_mart', 'campus-mart', 'owner', now_iso)
+        ('mem_mart_owner', 'usr_mart', 'campus-mart', 'owner', now_iso),
+        ('mem_wear_owner', 'usr_admin', 'campus-wear', 'owner', now_iso),
+        ('mem_health_owner', 'usr_admin', 'health-hub', 'owner', now_iso)
     ]
     cursor.executemany(
         "INSERT OR REPLACE INTO store_memberships (id, user_id, store_id, role, created_at) "

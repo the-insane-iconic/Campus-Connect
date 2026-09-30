@@ -148,6 +148,19 @@ function playOrderNotificationChime(force = false) {
 }
 window.playOrderNotificationChime = playOrderNotificationChime;
 
+// Register Service Worker for mobile background push notifications & lock-screen alerts
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(reg => console.log('[UniMall SW] Registered:', reg.scope))
+      .catch(() => {
+        navigator.serviceWorker.register('../sw.js')
+          .then(reg => console.log('[UniMall SW] Registered (rel):', reg.scope))
+          .catch(() => {});
+      });
+  });
+}
+
 /* ─── SYSTEM BACKGROUND PUSH NOTIFICATIONS ────────────────── */
 async function requestPushNotificationPermission() {
   if (!('Notification' in window)) return false;
@@ -177,24 +190,46 @@ async function requestPushNotificationPermission() {
 }
 window.requestPushNotificationPermission = requestPushNotificationPermission;
 
-function sendOrderPushNotification(orderInfo) {
+async function sendOrderPushNotification(orderInfo) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
+  const displayNum = orderInfo.displayNum || orderInfo.orderNumber || (orderInfo.orderId ? `#ORD-${String(orderInfo.orderId).slice(-2)}` : '#ORD');
+  const customer = orderInfo.customerName || 'Student';
+  const amount = Number(orderInfo.total || 0).toLocaleString('en-IN');
+  const itemsCount = orderInfo.itemsCount || 1;
+  const title = `🔔 New Order ${displayNum}! (₹${amount})`;
+  const options = {
+    body: `👤 ${customer} · ${itemsCount} item(s) · Counter Self-Pickup. Tap to prepare.`,
+    icon: '/faviicon.png',
+    badge: '/faviicon.png',
+    tag: `unimall-order-${orderInfo.orderId || Date.now()}`,
+    renotify: true,
+    vibrate: [300, 100, 300, 100, 450],
+    data: {
+      url: '/admin/index.html#view-orders',
+      orderId: orderInfo.orderId
+    },
+    actions: [
+      { action: 'open_orders', title: '⚡ View Order' }
+    ]
+  };
+
+  // 1. Try ServiceWorkerRegistration (REQUIRED for Android Chrome & mobile devices)
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options);
+        return;
+      }
+    } catch (swErr) {
+      console.warn('SW notification fallback to window.Notification:', swErr);
+    }
+  }
+
+  // 2. Desktop Browser Fallback
   try {
-    const displayNum = orderInfo.displayNum || orderInfo.orderNumber || (orderInfo.orderId ? `#${String(orderInfo.orderId).slice(-4)}` : '#ORD');
-    const customer = orderInfo.customerName || 'Student';
-    const amount = Number(orderInfo.total || 0).toLocaleString('en-IN');
-    const itemsCount = orderInfo.itemsCount || 1;
-
-    const notif = new Notification(`🔔 New Order ${displayNum}! (₹${amount})`, {
-      body: `👤 ${customer} · ${itemsCount} item(s) · Counter Self-Pickup. Tap to prepare.`,
-      icon: '../faviicon.png',
-      badge: '../faviicon.png',
-      tag: `unimall-order-${orderInfo.orderId || Date.now()}`,
-      renotify: true,
-      silent: false
-    });
-
+    const notif = new Notification(title, options);
     notif.onclick = () => {
       window.focus();
       if (typeof switchOrdersViewMode === 'function') {
@@ -206,7 +241,7 @@ function sendOrderPushNotification(orderInfo) {
       notif.close();
     };
   } catch (err) {
-    console.warn('Failed to send push notification:', err);
+    console.warn('Failed to send window push notification:', err);
   }
 }
 window.sendOrderPushNotification = sendOrderPushNotification;
@@ -254,6 +289,43 @@ window.addEventListener('storage', (e) => {
     }
   }
 });
+
+try {
+  const ordersChannel = new BroadcastChannel('unimall_orders_channel');
+  ordersChannel.onmessage = (event) => {
+    if (event.data) {
+      const { type, orderId, displayNum, storeId, total, customerName, itemsCount } = event.data;
+      if (type === 'ORDER_PLACED') {
+        if (!activeStoreId || storeId === activeStoreId || activeStoreId === 'all') {
+          playOrderNotificationChime();
+          sendOrderPushNotification({
+            orderId,
+            displayNum,
+            customerName: customerName || 'Ansh Sharma',
+            total: total || 0,
+            itemsCount: itemsCount || 1
+          });
+          if (typeof showToast === 'function') {
+            showToast(`🔔 New Order received: ${displayNum || '#' + orderId}`);
+          }
+          if (activeStoreId) {
+            loadOrders(activeStoreId, true);
+            if (typeof window.loadDashboard === 'function') {
+              window.loadDashboard(activeStoreId);
+            }
+          }
+        }
+      } else if (type === 'ORDER_STATUS_CHANGED') {
+        if (activeStoreId) {
+          loadOrders(activeStoreId, true);
+          if (typeof window.loadDashboard === 'function') {
+            window.loadDashboard(activeStoreId);
+          }
+        }
+      }
+    }
+  };
+} catch(e) {}
 
 window.addEventListener('unimall:orderStatusUpdated', () => {
   if (activeStoreId) {
@@ -346,8 +418,15 @@ function startOrdersPolling() {
     if (activeStoreId) {
       loadOrders(activeStoreId, true); // silent refresh & background order check
     }
-  }, 8000);
+  }, 4000);
 }
+
+// Reactivate and check immediately when mobile owner switches back to app
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && activeStoreId) {
+    loadOrders(activeStoreId, true);
+  }
+});
 
 function stopOrdersPolling() {
   if (ordersPollInterval) {

@@ -8,6 +8,9 @@ import os
 import sys
 import json
 
+# Ensure test suite runs in isolated test SQLite environment without affecting production Neon DB
+os.environ['DATABASE_URL'] = ''
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from backend.app import app

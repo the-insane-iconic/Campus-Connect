@@ -922,8 +922,8 @@ def place_order_safe():
     customer_name = data.get('customer_name', 'Campus Student')
     customer_email = data.get('customer_email', 'student@univ.edu')
     customer_phone = data.get('customer_phone', '')
-    delivery_method = data.get('delivery_method', 'delivery')
-    delivery_address = data.get('delivery_address', 'Hostel B, Room 214')
+    delivery_method = 'pickup'
+    delivery_address = data.get('delivery_address', 'Store Counter Pickup Station')
     notes = data.get('notes', '')
 
     if not items:
@@ -974,7 +974,7 @@ def place_order_safe():
                 conn=tx_conn
             )
 
-        delivery_fee = 15.0 if delivery_method == 'delivery' else 0.0
+        delivery_fee = 0.0  # Counter self-pickup only — ₹0 delivery fee
         total = subtotal + delivery_fee
 
         # Create Order

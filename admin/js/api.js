@@ -276,69 +276,82 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     const storeId = ordersMatch[1];
     let ordersList = [];
 
-    // Try Supabase first
-    if (typeof window.UniMallDB !== 'undefined') {
+    // 1. Query authoritative Neon PostgreSQL first
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStoreOrders === 'function') {
       try {
-        let query = `unimall_orders?order=created_at.desc&select=*,unimall_order_items(*),unimall_order_status_history(*)`;
-        if (storeId !== 'all') {
-          query += `&store_id=eq.${encodeURIComponent(storeId)}`;
-        }
-        const dbOrders = await window.UniMallDB.req(query);
+        const dbOrders = await window.UniMallDB.getStoreOrders(storeId);
         if (Array.isArray(dbOrders) && dbOrders.length > 0) {
           ordersList = dbOrders.map(o => ({
             id: o.id,
-            order_number: o.id,
-            user_name: o.user_name || 'Student',
-            user_phone: o.user_phone || 'N/A',
+            order_number: o.order_number || o.id,
+            order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-2)}`),
+            user_name: (o.user_name || o.customerName || 'Ansh Sharma').trim(),
+            user_phone: o.user_phone || '+91 98765 43210',
             store_id: o.store_id,
-            subtotal: parseFloat(o.subtotal || 0),
+            subtotal: parseFloat(o.subtotal || o.total || 0),
+            store_subtotal: parseFloat(o.subtotal || o.total || 0),
             delivery_fee: parseFloat(o.delivery_fee || 0),
             total_amount: parseFloat(o.total || 0),
             total: parseFloat(o.total || 0),
             status: (o.status || 'placed').toUpperCase(),
             fulfillment_type: o.fulfillment_type || 'counter-pickup',
-            delivery_location: o.user_hostel ? `${o.user_hostel} - ${o.user_room}` : 'Campus Counter',
+            delivery_location: o.delivery_location || 'Campus Counter',
             created_at: o.created_at,
-            items: (o.unimall_order_items || []).map(i => ({
-              product_name: i.product_name,
-              name: i.product_name,
-              quantity: i.qty || 1,
-              price: parseFloat(i.price || 0)
+            items: (o.items || []).map(i => ({
+              product_name: i.product_name || i.name,
+              name: i.product_name || i.name,
+              quantity: i.quantity || i.qty || 1,
+              qty: i.quantity || i.qty || 1,
+              price: parseFloat(i.price || 0),
+              emoji: i.emoji || '📦',
+              image: i.image || ''
             }))
           }));
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn('[Admin API] DB getStoreOrders warning:', err);
+      }
     }
 
-    // Merge with orders from localStorage unimall_v1
+    // 2. Merge with any local orders in unimall_v1 cache
     try {
       const raw = localStorage.getItem('unimall_v1');
       if (raw) {
         const appData = JSON.parse(raw);
         if (Array.isArray(appData.orders)) {
           const localOrders = appData.orders
-            .filter(o => storeId === 'all' || !o.storeId || o.storeId === storeId || storeId.includes('cafe'))
-            .map(o => ({
-              id: o.id,
-              order_number: o.id,
-              user_name: (o.customer?.name || o.userName || 'Student').trim(),
-              user_phone: o.customer?.phone || '+91 98765 00000',
-              store_id: o.storeId || storeId,
-              subtotal: parseFloat(o.subtotal || o.total || 0),
-              delivery_fee: parseFloat(o.deliveryFee || 0),
-              total_amount: parseFloat(o.total || 0),
-              total: parseFloat(o.total || 0),
-              status: (o.status || 'placed').toUpperCase(),
-              fulfillment_type: o.fulfillmentType || 'counter-pickup',
-              delivery_location: o.deliveryInfo ? `${o.deliveryInfo.hostel} - ${o.deliveryInfo.room}` : 'Counter Pickup',
-              created_at: o.createdAt || o.date || new Date().toISOString(),
-              items: (o.items || []).map(i => ({
-                product_name: i.name,
-                name: i.name,
-                quantity: i.qty || 1,
-                price: parseFloat(i.price || 0)
-              }))
-            }));
+            .filter(o => storeId === 'all' || !o.storeId || o.storeId === storeId || (storeId === 'campus-cafe' && (o.storeId === 'store-bakery' || o.storeId === 'campus-cafe')))
+            .map(o => {
+              const custName = (o.user_name || o.customerName || o.customer_name || o.userName || o.customer?.name || 'Ansh Sharma').trim();
+              const subtotalVal = parseFloat(o.subtotal || o.total || 0);
+              const totalVal = parseFloat(o.total || o.subtotal || 0);
+              return {
+                id: o.id,
+                order_number: o.order_number_display || o.order_number || o.id,
+                order_number_display: o.order_number_display || o.order_number || o.id,
+                user_name: custName,
+                user_phone: o.user_phone || o.customer?.phone || '+91 98765 43210',
+                store_id: o.storeId || storeId,
+                subtotal: subtotalVal,
+                store_subtotal: subtotalVal,
+                delivery_fee: parseFloat(o.deliveryFee || 0),
+                total_amount: totalVal,
+                total: totalVal,
+                status: (o.status || 'placed').toUpperCase(),
+                fulfillment_type: o.fulfillmentType || 'counter-pickup',
+                delivery_location: o.deliveryInfo ? `${o.deliveryInfo.hostel} - ${o.deliveryInfo.room}` : 'Counter Pickup',
+                created_at: o.createdAt || o.date || new Date().toISOString(),
+                items: (o.items || []).map(i => ({
+                  product_name: i.name || i.product_name,
+                  name: i.name || i.product_name,
+                  quantity: i.qty || i.quantity || 1,
+                  qty: i.qty || i.quantity || 1,
+                  price: parseFloat(i.price || 0),
+                  emoji: i.emoji || '📦',
+                  image: i.image || ''
+                }))
+              };
+            });
 
           // Deduplicate by ID
           const existingIds = new Set(ordersList.map(o => o.id));
@@ -426,6 +439,18 @@ async function handleClientAdminRequest(endpoint, options = {}) {
         deliveredAt: nowIso,
         timestamp: Date.now()
       }));
+    } catch(e) {}
+
+    // Broadcast on BroadcastChannel for instant cross-tab sync
+    try {
+      const bc = new BroadcastChannel('unimall_orders_channel');
+      bc.postMessage({
+        type: 'ORDER_STATUS_CHANGED',
+        orderId,
+        status: isDelivered ? 'delivered' : newStatus.toLowerCase(),
+        deliveredAt: nowIso,
+        timestamp: Date.now()
+      });
     } catch(e) {}
 
     // Also dispatch on window in case single tab/window

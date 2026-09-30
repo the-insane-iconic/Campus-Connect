@@ -70,9 +70,14 @@ async function loadDashboard(storeId) {
     const orders = ordersData.orders || [];
 
     const todayOrders = orders.filter(o => {
-      const orderDate = new Date(o.created_at).toDateString();
-      const todayDate = new Date().toDateString();
-      return orderDate === todayDate;
+      if (!o.created_at) return true;
+      try {
+        const orderDate = new Date(o.created_at).toDateString();
+        const todayDate = new Date().toDateString();
+        return orderDate === todayDate;
+      } catch (e) {
+        return true;
+      }
     });
 
     const activeOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes((o.status || '').toUpperCase()));
@@ -88,7 +93,9 @@ async function loadDashboard(storeId) {
     const readyOrders = orders.filter(o => (o.status || '').toUpperCase() === 'READY');
 
     const todaySales = todayOrders.reduce((sum, o) => {
-      return o.status !== 'CANCELLED' ? sum + (o.store_subtotal || 0) : sum;
+      const isCancelled = (o.status || '').toUpperCase() === 'CANCELLED';
+      const amt = Number(o.store_subtotal || o.total || o.total_amount || o.subtotal || 0);
+      return !isCancelled ? sum + amt : sum;
     }, 0);
 
     // Update metrics cards
@@ -246,4 +253,50 @@ function renderTopProducts(products) {
     </div>
   `;
 }
+
+/* ─── LIVE DASHBOARD POLLING & REALTIME SYNC ──────────────── */
+let dashboardPollTimer = null;
+
+function startDashboardPolling() {
+  if (dashboardPollTimer) clearInterval(dashboardPollTimer);
+  dashboardPollTimer = setInterval(() => {
+    const currentActiveView = document.querySelector('.admin-view.active');
+    if (currentActiveView && currentActiveView.id === 'view-dashboard') {
+      const storeId = window.activeStoreId || 'campus-cafe';
+      if (storeId) {
+        loadDashboard(storeId, true);
+      }
+    }
+  }, 4000);
+}
+
+// Listen for view changes
+window.addEventListener('unimall:viewChanged', (e) => {
+  if (e.detail.viewName === 'dashboard') {
+    startDashboardPolling();
+  }
+});
+
+// Real-time synchronization across browser tabs / mobile actions
+window.addEventListener('storage', (e) => {
+  if (e.key === 'unimall_new_order_placed_event' || e.key === 'unimall_order_delivered_event' || e.key === 'unimall_v1') {
+    const storeId = window.activeStoreId || 'campus-cafe';
+    if (storeId) loadDashboard(storeId, true);
+  }
+});
+
+try {
+  const ordersChannel = new BroadcastChannel('unimall_orders_channel');
+  ordersChannel.onmessage = () => {
+    const storeId = window.activeStoreId || 'campus-cafe';
+    if (storeId) loadDashboard(storeId, true);
+  };
+} catch (e) {}
+
+// Start polling on load
+document.addEventListener('DOMContentLoaded', () => {
+  startDashboardPolling();
+});
+
 window.loadDashboard = loadDashboard;
+

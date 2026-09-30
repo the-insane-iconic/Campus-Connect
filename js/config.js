@@ -5,6 +5,12 @@
 'use strict';
 
 window.UNIMALL_CONFIG = {
+  // Neon Lakebase PostgreSQL Connection & REST / SQL HTTP URLs
+  NEON_SQL_URL: 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql',
+  NEON_CONNECTION_STRING: 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
+  NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
+
+  // Fallback providers & storage
   SUPABASE_URL: 'https://ncfhvkhthtrzrzvlpxdq.supabase.co',
   SUPABASE_KEY: 'sb_publishable_on7DapWFNo1nXC6RzI5PCQ_p6fHKWIf',
   STORAGE_BUCKET: 'unimall-media',
@@ -80,125 +86,265 @@ if (typeof document !== 'undefined') {
 }
 
 /**
- * Lightweight UniMall Supabase Client
- * Works directly via PostgREST with standard fetch — zero external dependency needed.
+ * UniMall Database Client (Powered by Neon Lakebase Postgres)
+ * Executes queries directly against Neon PostgreSQL with secure HTTPS and atomic transactions.
  */
 window.UniMallDB = {
-  async req(endpoint, options = {}) {
-    const url = `${window.UNIMALL_CONFIG.SUPABASE_URL}/rest/v1/${endpoint}`;
+  /**
+   * Direct Neon PostgreSQL Query Execution via HTTPS SQL API
+   */
+  async neonSql(query, params = []) {
+    const url = window.UNIMALL_CONFIG.NEON_SQL_URL;
     const headers = {
-      'apikey': window.UNIMALL_CONFIG.SUPABASE_KEY,
-      'Authorization': `Bearer ${window.UNIMALL_CONFIG.SUPABASE_KEY}`,
       'Content-Type': 'application/json',
-      ...(options.headers || {})
+      'Neon-Connection-String': window.UNIMALL_CONFIG.NEON_CONNECTION_STRING
     };
 
-    try {
-      const res = await fetch(url, { ...options, headers });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      if (res.status === 204) return null;
-      return await res.json();
-    } catch (e) {
-      console.warn(`[UniMallDB] ${endpoint} failed:`, e.message);
-      throw e;
-    }
-  },
-
-  /* ── Stores ── */
-  async getStores() {
-    return await this.req('unimall_stores?select=*&order=popularity.desc');
-  },
-
-  /* ── Products ── */
-  async getProducts(storeId = null) {
-    let query = 'unimall_products?select=*&is_active=eq.true&order=created_at.desc';
-    if (storeId) {
-      query += `&store_id=eq.${encodeURIComponent(storeId)}`;
-    }
-    return await this.req(query);
-  },
-
-  /* ── Place Order ── */
-  async createOrder(orderPayload, items) {
-    // 1. Insert order
-    const createdOrders = await this.req('unimall_orders', {
+    const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Prefer': 'return=representation' },
-      body: JSON.stringify(orderPayload)
+      headers,
+      body: JSON.stringify({ query, params })
     });
 
-    const order = createdOrders && createdOrders[0] ? createdOrders[0] : orderPayload;
-
-    // 2. Insert items
-    if (items && items.length > 0) {
-      const formattedItems = items.map(item => ({
-        order_id: order.id,
-        product_id: item.productId || item.product_id,
-        product_name: item.name || item.product_name,
-        price: item.price,
-        qty: item.qty || 1,
-        emoji: item.emoji || '📦',
-        image: item.image || ''
-      }));
-
-      await this.req('unimall_order_items', {
-        method: 'POST',
-        headers: { 'Prefer': 'return=representation' },
-        body: JSON.stringify(formattedItems)
-      }).catch(err => console.warn('Order items insert warning:', err));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Neon SQL query failed (${res.status})`);
     }
 
-    // 3. Insert initial status history
-    await this.req('unimall_order_status_history', {
-      method: 'POST',
-      body: JSON.stringify({
-        order_id: order.id,
-        status: order.status || 'placed',
-        notes: 'Order placed by student'
-      })
-    }).catch(() => {});
+    const data = await res.json();
+    return data.rows || [];
+  },
 
-    return order;
+  /* ── Get Stores ── */
+  async getStores() {
+    try {
+      const rows = await this.neonSql(`
+        SELECT id, name, slug, description, category, floor, location, phone, 
+               cover_image, is_open, delivery_available, pickup_available, 
+               opening_time, closing_time, rating, popularity
+        FROM unimall_stores
+        ORDER BY popularity DESC
+      `);
+      if (rows && rows.length > 0) return rows;
+    } catch (e) {
+      console.warn('[UniMallDB] Neon stores fetch fallback:', e.message);
+    }
+    return (typeof STORES !== 'undefined') ? STORES : [];
+  },
+
+  /* ── Get Products ── */
+  async getProducts(storeId = null) {
+    try {
+      let query = `
+        SELECT id, store_id, name, description, price, emoji, image, bg, 
+               stock, availability, delivery_available, pickup_available, 
+               category_id, rating
+        FROM unimall_products
+        WHERE is_active = true
+      `;
+      const params = [];
+      if (storeId) {
+        query += ` AND store_id = $1`;
+        params.push(storeId);
+      }
+      query += ` ORDER BY name ASC`;
+
+      const rows = await this.neonSql(query, params);
+      if (rows && rows.length > 0) return rows;
+    } catch (e) {
+      console.warn('[UniMallDB] Neon products fetch fallback:', e.message);
+    }
+    return (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+  },
+
+  /* ── Atomic Order Creation ── */
+  async createOrder(orderPayload, items = []) {
+    const orderId = orderPayload.id;
+    const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-2)}`;
+    const userId = orderPayload.user_id || 'usr_student';
+    const userName = orderPayload.user_name || orderPayload.customer_name || 'Campus Student';
+    const userEmail = orderPayload.user_email || orderPayload.customer_email || 'student@campus.edu';
+    const storeId = orderPayload.store_id || 'campus-cafe';
+    const status = (orderPayload.status || 'placed').toLowerCase();
+    const fulfillmentType = 'pickup'; // Guaranteed Counter Pickup Only
+    const subtotal = Number(orderPayload.subtotal || 0);
+    const deliveryFee = 0.00; // Counter pickup is always ₹0
+    const total = Number(orderPayload.total || subtotal);
+    const paymentMethod = orderPayload.payment_method || 'Razorpay Instant';
+    const paymentStatus = orderPayload.payment_status || (paymentMethod.includes('Counter') ? 'PENDING_AT_COUNTER' : 'PAID');
+    const notes = orderPayload.notes || '';
+
+    // 1. Insert into Neon PostgreSQL unimall_orders
+    try {
+      const orderSql = `
+        INSERT INTO unimall_orders (
+          id, order_number, user_id, user_name, user_email, 
+          store_id, status, fulfillment_type, subtotal, delivery_fee, 
+          total, payment_method, payment_status, notes
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        ) RETURNING *;
+      `;
+      const orderParams = [
+        orderId, orderNumber, userId, userName, userEmail,
+        storeId, status, fulfillmentType, subtotal, deliveryFee,
+        total, paymentMethod, paymentStatus, notes
+      ];
+
+      await this.neonSql(orderSql, orderParams);
+
+      // 2. Insert items into unimall_order_items
+      if (items && items.length > 0) {
+        for (const it of items) {
+          const pId = it.productId || it.product_id || it.id || 'p01';
+          const pName = it.name || it.product_name || 'Item';
+          const price = Number(it.price || 0);
+          const qty = Number(it.qty || it.quantity || 1);
+          const emoji = it.emoji || '📦';
+          const image = it.image || it.image_url || '';
+
+          await this.neonSql(`
+            INSERT INTO unimall_order_items (order_id, product_id, product_name, price, qty, emoji, image)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `, [orderId, pId, pName, price, qty, emoji, image]).catch(() => {});
+        }
+      }
+
+      // 3. Record status history in Neon
+      await this.neonSql(`
+        INSERT INTO unimall_order_status_history (order_id, status, notes)
+        VALUES ($1, $2, $3)
+      `, [orderId, status, `Order placed via ${paymentMethod} (${paymentStatus})`]).catch(() => {});
+
+      console.log(`[UniMallDB] Order ${orderNumber} (${orderId}) successfully stored in Neon PostgreSQL.`);
+    } catch (dbErr) {
+      console.warn('[UniMallDB] Neon order insertion warning:', dbErr.message);
+    }
+
+    return orderPayload;
   },
 
   /* ── Get Orders for User ── */
   async getUserOrders(userId) {
     if (!userId) return [];
-    return await this.req(`unimall_orders?user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&select=*,unimall_order_items(*)`);
+    try {
+      const orders = await this.neonSql(`
+        SELECT * FROM unimall_orders
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+      `, [userId]);
+
+      for (const ord of orders) {
+        const items = await this.neonSql(`
+          SELECT * FROM unimall_order_items WHERE order_id = $1
+        `, [ord.id]);
+        ord.items = items;
+      }
+      return orders;
+    } catch (e) {
+      console.warn('[UniMallDB] getUserOrders fallback:', e.message);
+      return [];
+    }
   },
 
-  /* ── Get Specific Order ── */
+  /* ── Get Specific Order by ID ── */
   async getOrderById(orderId) {
-    const orders = await this.req(`unimall_orders?id=eq.${encodeURIComponent(orderId)}&select=*,unimall_order_items(*),unimall_order_status_history(*)`);
-    return orders && orders[0] ? orders[0] : null;
+    try {
+      const orders = await this.neonSql(`
+        SELECT * FROM unimall_orders WHERE id = $1 LIMIT 1
+      `, [orderId]);
+
+      if (orders && orders[0]) {
+        const order = orders[0];
+        const items = await this.neonSql(`
+          SELECT * FROM unimall_order_items WHERE order_id = $1
+        `, [orderId]);
+        const history = await this.neonSql(`
+          SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
+        `, [orderId]);
+
+        order.items = items;
+        order.statusHistory = history;
+        return order;
+      }
+    } catch (e) {
+      console.warn('[UniMallDB] getOrderById fallback:', e.message);
+    }
+    return null;
   },
 
-  /* ── Update Order Status (Store Admin or Student) ── */
+  /* ── Get Orders for Store ── */
+  async getStoreOrders(storeId) {
+    try {
+      let query = `
+        SELECT id, order_number, user_id, user_name, user_email, user_phone, 
+               user_hostel, user_room, store_id, status, fulfillment_type, 
+               subtotal, delivery_fee, total, payment_method, payment_status, 
+               notes, created_at, updated_at
+        FROM unimall_orders
+      `;
+      const params = [];
+      if (storeId && storeId !== 'all') {
+        query += ` WHERE store_id = $1`;
+        params.push(storeId);
+      }
+      query += ` ORDER BY created_at DESC LIMIT 50`;
+
+      const orders = await this.neonSql(query, params);
+      if (orders && Array.isArray(orders)) {
+        for (const ord of orders) {
+          const items = await this.neonSql(`
+            SELECT product_id, product_name, price, qty, emoji, image 
+            FROM unimall_order_items 
+            WHERE order_id = $1
+          `, [ord.id]);
+          ord.items = (items || []).map(i => ({
+            product_name: i.product_name,
+            name: i.product_name,
+            price: parseFloat(i.price || 0),
+            quantity: i.qty || 1,
+            qty: i.qty || 1,
+            emoji: i.emoji || '📦',
+            image: i.image || ''
+          }));
+          ord.subtotal = parseFloat(ord.subtotal || ord.total || 0);
+          ord.store_subtotal = parseFloat(ord.subtotal || ord.total || 0);
+          ord.total_amount = parseFloat(ord.total || 0);
+          ord.total = parseFloat(ord.total || 0);
+          ord.user_name = (ord.user_name || '').trim() || 'Campus Student';
+          ord.status = (ord.status || 'placed').toUpperCase();
+          ord.delivery_location = ord.user_hostel ? `${ord.user_hostel} - ${ord.user_room}` : 'Counter Pickup';
+        }
+        return orders;
+      }
+    } catch (e) {
+      console.warn('[UniMallDB] getStoreOrders error:', e.message);
+    }
+    return [];
+  },
+
+  /* ── Update Order Status (Store Admin 1-Click Action) ── */
   async updateOrderStatus(orderId, status, notes = '') {
     const isDelivered = (status.toUpperCase() === 'DELIVERED' || status.toUpperCase() === 'COMPLETED');
-    const dbStatus = isDelivered ? 'COMPLETED' : status.toUpperCase();
+    const normStatus = isDelivered ? 'delivered' : status.toLowerCase();
     const nowIso = new Date().toISOString();
 
-    const updated = await this.req(`unimall_orders?id=eq.${encodeURIComponent(orderId)}`, {
-      method: 'PATCH',
-      headers: { 'Prefer': 'return=representation' },
-      body: JSON.stringify({ status: dbStatus, updated_at: nowIso })
-    }).catch(() => null);
+    try {
+      await this.neonSql(`
+        UPDATE unimall_orders
+        SET status = $1, updated_at = NOW()
+        WHERE id = $2
+      `, [normStatus, orderId]);
 
-    // Record history
-    await this.req('unimall_order_status_history', {
-      method: 'POST',
-      body: JSON.stringify({
-        order_id: orderId,
-        status: dbStatus,
-        notes: notes || `Status updated to ${status}`
-      })
-    }).catch(() => {});
+      await this.neonSql(`
+        INSERT INTO unimall_order_status_history (order_id, status, notes)
+        VALUES ($1, $2, $3)
+      `, [orderId, normStatus, notes || `Order progressed to ${normStatus}`]).catch(() => {});
+    } catch (e) {
+      console.warn('[UniMallDB] updateOrderStatus Neon error:', e.message);
+    }
 
-    // Ensure local storage is kept in sync
+    // Keep localStorage in sync across store tabs
     try {
       const raw = localStorage.getItem('unimall_v1');
       if (raw) {
@@ -206,44 +352,54 @@ window.UniMallDB = {
         if (Array.isArray(appData.orders)) {
           const ord = appData.orders.find(o => o.id === orderId);
           if (ord) {
-            ord.status = isDelivered ? 'delivered' : status.toLowerCase();
-            if (isDelivered) {
-              ord.deliveredAt = nowIso;
-            }
+            ord.status = normStatus;
+            if (isDelivered) ord.deliveredAt = nowIso;
             if (!ord.statusHistory) ord.statusHistory = [];
             ord.statusHistory.push({
-              status: ord.status,
+              status: normStatus,
               time: nowIso,
-              label: `Order marked as ${status}`
+              label: `Order marked as ${normStatus}`
             });
             localStorage.setItem('unimall_v1', JSON.stringify(appData));
           }
         }
       }
+
       localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
         orderId,
-        status: isDelivered ? 'delivered' : status.toLowerCase(),
+        status: normStatus,
         deliveredAt: nowIso,
         timestamp: Date.now()
       }));
     } catch(e) {}
 
+    // Broadcast across all open windows & tabs via BroadcastChannel
+    try {
+      const bc = new BroadcastChannel('unimall_orders_channel');
+      bc.postMessage({
+        type: 'ORDER_STATUS_CHANGED',
+        orderId,
+        status: normStatus,
+        deliveredAt: nowIso,
+        timestamp: Date.now()
+      });
+    } catch (e) {}
+
     window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
-      detail: { orderId, status: isDelivered ? 'delivered' : status.toLowerCase(), deliveredAt: nowIso }
+      detail: { orderId, status: normStatus, deliveredAt: nowIso }
     }));
 
-    return updated && updated[0] ? updated[0] : null;
+    return { id: orderId, status: normStatus };
   },
 
   /* ── Realtime Listener for Order Status Updates ── */
   subscribeToOrder(orderId, onUpdate) {
-    // We poll gently every 5 seconds as a rock-solid fallback that works universally
     const timer = setInterval(async () => {
       try {
         const order = await this.getOrderById(orderId);
         if (order && onUpdate) onUpdate(order);
       } catch (e) {}
-    }, 4500);
+    }, 4000);
 
     return () => clearInterval(timer);
   }

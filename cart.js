@@ -370,6 +370,10 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       } catch (e) { }
     }
 
+    const studentName = (user.name || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.name : '') || 'Ansh Sharma').trim();
+    const studentPhone = user.phone || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.phone : '+91 98765 43210');
+    const studentEmail = user.email || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.email : 'ansh.s@campus.edu');
+
     const CANONICAL_STORE_MAP = {
       'store-bakery':      'campus-cafe',
       'store-stationery':  'book-corner',
@@ -386,7 +390,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
 
     const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
     const otp = String(Math.floor(1000 + Math.random() * 9000));
-    const userId = user.uid || user.id || 'guest_' + Date.now();
+    const userId = user.uid || user.id || 'usr_student';
     const storeOrders = (appData.orders || []).filter(o => o.storeId === firstStoreId);
     const seq = String(storeOrders.length + 1).padStart(2, '0');
     const displayOrderNum = '#ORD-' + seq;
@@ -394,7 +398,14 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     const newOrder = {
       id: orderId,
       order_number_display: displayOrderNum,
-      customerName: user.name || 'Campus Student',
+      customerName: studentName,
+      user_name: studentName,
+      user_phone: studentPhone,
+      customer: {
+        name: studentName,
+        phone: studentPhone,
+        email: studentEmail
+      },
       storeId: firstStoreId,
       storeName: storeObj ? storeObj.name : 'Campus Store',
       storeIcon: CartState.items[0]?.product?.emoji || '🛍️',
@@ -425,13 +436,15 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       createdAt: new Date().toISOString()
     };
 
-    // 1. Insert into Supabase if available
+    // 1. Insert into Neon PostgreSQL if available
     if (typeof window.UniMallDB !== 'undefined') {
       const supabasePayload = {
         id: orderId,
+        order_number: displayOrderNum,
         user_id: userId,
-        user_name: user.name || 'Campus Student',
-        user_email: user.email || '',
+        user_name: studentName,
+        user_email: studentEmail,
+        user_phone: studentPhone,
         user_hostel: 'Counter Pickup',
         user_room: 'Ground Floor Station',
         store_id: firstStoreId,
@@ -445,7 +458,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       };
 
       await window.UniMallDB.createOrder(supabasePayload, newOrder.items).catch(err => {
-        console.warn('[UniMall] Supabase order insert notice:', err.message);
+        console.warn('[UniMall] Neon DB order insert notice:', err.message);
       });
     }
 
@@ -463,10 +476,25 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         displayNum: newOrder.order_number_display,
         storeId: firstStoreId,
         total: newOrder.total,
-        customerName: newOrder.customerName,
+        customerName: studentName,
         itemsCount: newOrder.items.length,
         timestamp: Date.now()
       }));
+    } catch(e) {}
+
+    // 5. Broadcast on BroadcastChannel for instant live sync without reload
+    try {
+      const bc = new BroadcastChannel('unimall_orders_channel');
+      bc.postMessage({
+        type: 'ORDER_PLACED',
+        orderId: newOrder.id,
+        displayNum: newOrder.order_number_display,
+        storeId: firstStoreId,
+        total: newOrder.total,
+        customerName: studentName,
+        itemsCount: newOrder.items.length,
+        timestamp: Date.now()
+      });
     } catch(e) {}
 
     // 5. Celebration: Subtle chime + confetti + exciting pop-up

@@ -43,19 +43,19 @@ const INITIAL_DEMO_ORDERS = [
       { productId: 'p08', name: 'Gel Pen Set (Pack of 5)', price: 110, qty: 1, emoji: '🖊️' }
     ],
     subtotal: 240,
-    deliveryFee: 20,
-    total: 260,
-    fulfillmentType: 'delivery',
-    deliveryInfo: { hostel: 'Hostel B', room: 'Room 214' },
-    pickupLocation: null,
-    otp: null,
+    deliveryFee: 0,
+    total: 240,
+    fulfillmentType: 'pickup',
+    deliveryInfo: null,
+    pickupLocation: 'Ground floor, Stationery Hub counter',
+    otp: '5912',
     status: 'delivered',
     deliveredAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
     statusHistory: [
-      { status: 'placed', time: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), label: 'Order Placed' },
-      { status: 'preparing', time: new Date(Date.now() - 25.5 * 60 * 60 * 1000).toISOString(), label: 'Packed & Dispatched' },
-      { status: 'ready', time: new Date(Date.now() - 25.2 * 60 * 60 * 1000).toISOString(), label: 'Out for Delivery' },
-      { status: 'delivered', time: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), label: 'Delivered to Room 214' }
+      { status: 'placed', time: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), label: 'Order Placed & Paid' },
+      { status: 'preparing', time: new Date(Date.now() - 25.5 * 60 * 60 * 1000).toISOString(), label: 'Packed & Ready' },
+      { status: 'ready', time: new Date(Date.now() - 25.2 * 60 * 60 * 1000).toISOString(), label: 'Ready at Counter' },
+      { status: 'delivered', time: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), label: 'Collected by Student' }
     ],
     createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString()
   }
@@ -75,16 +75,14 @@ function loadStateFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed.orders) && parsed.orders.length > 0) {
+      if (Array.isArray(parsed.orders)) {
         OrdersState.orders = parsed.orders;
         return;
       }
     }
-    // Seed default demo orders if none exist
-    OrdersState.orders = [...INITIAL_DEMO_ORDERS];
-    saveOrdersToStorage();
+    OrdersState.orders = [];
   } catch (e) {
-    OrdersState.orders = [...INITIAL_DEMO_ORDERS];
+    OrdersState.orders = [];
   }
 }
 
@@ -104,65 +102,11 @@ function saveOrdersToStorage() {
 
 /* ─── LIVE STATUS SIMULATION ENGINE ──────────────────────── */
 /**
- * Automatically simulates order progress over time for active orders
+ * Status transitions are driven exclusively by authentic database & store owner actions.
+ * Fake client-side simulation is disabled to prevent inconsistent order state resets.
  */
 function startLiveStatusSimulator() {
-  setInterval(() => {
-    let changed = false;
-    const now = Date.now();
-
-    OrdersState.orders.forEach(order => {
-      if (order.status === 'cancelled' || order.status === 'delivered') return;
-
-      const createdTime = new Date(order.createdAt).getTime();
-      const elapsedSec = (now - createdTime) / 1000;
-
-      if (order.status === 'placed' && elapsedSec > 20) {
-        order.status = 'preparing';
-        order.statusHistory.push({
-          status: 'preparing',
-          time: new Date().toISOString(),
-          label: 'Store Preparing Order'
-        });
-        changed = true;
-      } else if (order.status === 'preparing' && elapsedSec > 50) {
-        order.status = 'ready';
-        order.statusHistory.push({
-          status: 'ready',
-          time: new Date().toISOString(),
-          label: order.fulfillmentType === 'delivery' ? 'Out for Delivery' : 'Ready for Pickup'
-        });
-        changed = true;
-      } else if (order.status === 'ready' && elapsedSec > 90) {
-        order.status = 'delivered';
-        order.deliveredAt = new Date().toISOString();
-        order.statusHistory.push({
-          status: 'delivered',
-          time: order.deliveredAt,
-          label: order.fulfillmentType === 'delivery' ? 'Delivered' : 'Picked up'
-        });
-        changed = true;
-        try {
-          localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
-            orderId: order.id,
-            status: 'delivered',
-            deliveredAt: order.deliveredAt,
-            timestamp: Date.now()
-          }));
-        } catch(e) {}
-      }
-    });
-
-    if (changed) {
-      saveOrdersToStorage();
-      updateTabCounts();
-      renderLiveTracker();
-      renderOrdersList();
-      if (OrdersState.selectedOrderId) {
-        renderModalContent(OrdersState.selectedOrderId);
-      }
-    }
-  }, 5000);
+  // Intentionally disabled. Realtime status comes from Neon DB & BroadcastChannel.
 }
 
 /* ─── FORMATTERS ─────────────────────────────────────────── */
@@ -878,13 +822,36 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOrdersList();
   syncCartBadge();
   syncSidebarProfile();
-  startLiveStatusSimulator();
 
-  // Supabase live sync (visibility aware)
+  // Supabase/Neon live sync (visibility aware)
   syncOrdersWithSupabase();
   setInterval(() => {
     if (document.visibilityState === 'visible') syncOrdersWithSupabase();
-  }, 15000);
+  }, 10000);
+
+  // Cross-tab and BroadcastChannel listeners for instant updates
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'unimall_order_delivered_event' || e.key === 'unimall_order_ready_event' || e.key === 'unimall_new_order_placed_event' || e.key === 'unimall_v1') {
+      loadStateFromStorage();
+      syncOrdersWithSupabase();
+      updateTabCounts();
+      renderLiveTracker();
+      renderOrdersList();
+      if (OrdersState.selectedOrderId) renderModalContent(OrdersState.selectedOrderId);
+    }
+  });
+
+  try {
+    const bc = new BroadcastChannel('unimall_orders_channel');
+    bc.onmessage = () => {
+      loadStateFromStorage();
+      syncOrdersWithSupabase();
+      updateTabCounts();
+      renderLiveTracker();
+      renderOrdersList();
+      if (OrdersState.selectedOrderId) renderModalContent(OrdersState.selectedOrderId);
+    };
+  } catch(e) {}
 
   // Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
   setInterval(() => {

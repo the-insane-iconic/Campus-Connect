@@ -1247,25 +1247,39 @@ function getActiveOrRecentOrder() {
 }
 
 /**
- * Renders the Active Order Pickup banner in the hero slot.
+/* ─── HERO DUAL-BANNER & ACTIVE ORDER ENGINE ────────────── */
+
+/**
+ * Renders the hero banners:
+ * Always keeps at least 2 banners:
+ * 1. Main Banner ("Class to Cart")
+ * 2. Active Order Banner (if active/delivered <24h) OR "Order something Bro" promotional banner
  */
 function renderActiveOrderBanner() {
   const banner = document.getElementById('active-order-banner');
   const slider = document.getElementById('hero-banners-slider');
   const dotsWrap = document.getElementById('hero-slider-dots');
   const utilityModule = document.getElementById('utility-module');
+  const emptyPromo = document.getElementById('empty-order-promo-banner');
 
   if (!banner || !slider) return;
 
   const orderData = getActiveOrRecentOrder();
 
   if (!orderData) {
-    // No active or <24h order: hide active order banner & dots
+    // No active or <24h order: show main banner + empty promo banner (strictly 2 banners)
     banner.style.display = 'none';
-    if (dotsWrap) dotsWrap.style.display = 'none';
+    if (emptyPromo) emptyPromo.style.display = 'flex';
     if (utilityModule) {
       utilityModule.style.display = 'flex';
       utilityModule.style.margin = '0';
+    }
+    if (dotsWrap) {
+      dotsWrap.style.display = 'flex';
+      dotsWrap.innerHTML = `
+        <span class="hero-dot active" data-slide="0"></span>
+        <span class="hero-dot" data-slide="1"></span>
+      `;
     }
     _currentDisplayedOrderId = null;
     _currentOrderDeliveredState = false;
@@ -1275,11 +1289,18 @@ function renderActiveOrderBanner() {
   const { order, isDelivered, elapsedMs } = orderData;
   _currentDisplayedOrderId = order.id;
 
-  // Ensure banner is displayed
+  // Active or <24h order exists: hide empty promo banner, show active order pass
   banner.style.display = 'flex';
-  if (dotsWrap) dotsWrap.style.display = 'flex';
+  if (emptyPromo) emptyPromo.style.display = 'none';
   if (utilityModule) {
     utilityModule.style.display = 'flex';
+  }
+  if (dotsWrap) {
+    dotsWrap.style.display = 'flex';
+    dotsWrap.innerHTML = `
+      <span class="hero-dot active" data-slide="0"></span>
+      <span class="hero-dot" data-slide="1"></span>
+    `;
   }
 
   // 1. Initial Avatar & Customer Name Priority (Dominant, Clearly Visible)
@@ -1690,7 +1711,7 @@ function triggerOrderDeliveredRipple(order) {
  */
 function initHeroBannersSlider() {
   const slider = document.getElementById('hero-banners-slider');
-  const dots = document.querySelectorAll('.hero-dot');
+  const dotsWrap = document.getElementById('hero-slider-dots');
   if (!slider) return;
 
   // Initialize sheet close interactions
@@ -1698,7 +1719,7 @@ function initHeroBannersSlider() {
 
   // Scroll listener strictly tracks manual user swipe
   slider.addEventListener('scroll', () => {
-    const slides = Array.from(slider.querySelectorAll('.active-order-banner:not([style*="display: none"]), .utility-module:not([style*="display: none"])'));
+    const slides = Array.from(slider.querySelectorAll('.utility-module:not([style*="display: none"]), .active-order-banner:not([style*="display: none"]), .empty-order-promo-banner:not([style*="display: none"])'));
     if (slides.length <= 1) return;
 
     const sliderRect = slider.getBoundingClientRect();
@@ -1714,21 +1735,24 @@ function initHeroBannersSlider() {
       }
     });
 
+    const dots = (dotsWrap || document).querySelectorAll('.hero-dot');
     dots.forEach((dot, idx) => {
       dot.classList.toggle('active', idx === bestIndex);
     });
   }, { passive: true });
 
   // Clicking dots manually navigates to the slide
-  dots.forEach(dot => {
-    dot.addEventListener('click', () => {
+  if (dotsWrap) {
+    dotsWrap.addEventListener('click', (e) => {
+      const dot = e.target.closest('.hero-dot');
+      if (!dot) return;
       const slideIndex = parseInt(dot.getAttribute('data-slide') || '0', 10);
-      const slides = Array.from(slider.querySelectorAll('.active-order-banner:not([style*="display: none"]), .utility-module:not([style*="display: none"])'));
+      const slides = Array.from(slider.querySelectorAll('.utility-module:not([style*="display: none"]), .active-order-banner:not([style*="display: none"]), .empty-order-promo-banner:not([style*="display: none"])'));
       if (slides[slideIndex]) {
         slides[slideIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
       }
     });
-  });
+  }
 }
 
 /**
@@ -1762,7 +1786,7 @@ function initRealtimeOrderListeners() {
           }
         }
       } catch(err) {}
-    } else if (e.key === 'unimall_v1') {
+    } else if (e.key === 'unimall_v1' || e.key === 'unimall_new_order_placed_event') {
       if (typeof Storage !== 'undefined') {
         const saved = Storage.load();
         if (saved.notifications) {
@@ -1779,7 +1803,32 @@ function initRealtimeOrderListeners() {
     }
   });
 
-  // 2. Intra-tab custom event
+  // 2. BroadcastChannel for instant cross-tab sync without reloads
+  try {
+    const bc = new BroadcastChannel('unimall_orders_channel');
+    bc.onmessage = (event) => {
+      const { type, orderId, status } = event.data || {};
+      if (type === 'ORDER_STATUS_CHANGED') {
+        if (status === 'ready') {
+          renderActiveOrderBanner();
+          showToast(`🔔 Your order is packed and ready to receive!`, 'info');
+        } else if (status === 'delivered' || status === 'completed') {
+          const orderData = getActiveOrRecentOrder();
+          if (orderData && orderData.order.id === orderId && !_currentOrderDeliveredState) {
+            triggerOrderDeliveredRipple(orderData.order);
+          } else {
+            renderActiveOrderBanner();
+          }
+        } else {
+          renderActiveOrderBanner();
+        }
+      } else if (type === 'ORDER_PLACED') {
+        renderActiveOrderBanner();
+      }
+    };
+  } catch(e) {}
+
+  // 3. Intra-tab custom event
   window.addEventListener('unimall:orderStatusUpdated', (e) => {
     const { orderId, status } = e.detail || {};
     if (typeof Storage !== 'undefined') {
@@ -1802,7 +1851,7 @@ function initRealtimeOrderListeners() {
     }
   });
 
-  // 3. Gentle background poll (every 3.5s)
+  // 4. Gentle background poll (every 3.5s)
   setInterval(() => {
     try {
       const orderData = getActiveOrRecentOrder();

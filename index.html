@@ -140,73 +140,7 @@
           <div class="hero-banners-area" id="hero-banners-area">
             <div class="hero-banners-slider" id="hero-banners-slider">
 
-              <!-- Active Order Pickup Banner (Styled like reference mockup) -->
-              <div class="active-order-banner" id="active-order-banner" style="display: none;"
-                   role="button" tabindex="0" aria-label="Active order pickup pass — tap to view details">
-                <!-- Center Ripple Expanding Disk -->
-                <div class="card-ripple-wave" id="card-ripple-wave" aria-hidden="true"></div>
-
-                <!-- 1. Header: Initial Avatar + Customer Name + Store & Location (Left), Status & ETA (Right) -->
-                <div class="active-order-header-row">
-                  <div class="active-order-profile-left">
-                    <div class="active-order-avatar-circle" id="orderBannerAvatar">A</div>
-                    <div class="active-order-user-meta">
-                      <span class="active-order-eyebrow">YOUR ORDER</span>
-                      <h3 class="active-order-name-priority" id="orderBannerCustomerName">Ansh Sharma</h3>
-                      <div class="active-order-store-inline">
-                        <span class="active-order-store-ico" id="orderBannerStoreIcon">☕</span>
-                        <span class="active-order-store-name" id="orderBannerStoreName">Campus Café</span>
-                        <span class="store-inline-chevron">›</span>
-                      </div>
-                      <div class="active-order-store-loc" id="orderBannerStoreLoc">Ground floor, near main entrance</div>
-                    </div>
-                  </div>
-
-                  <div class="active-order-status-right">
-                    <div class="active-order-status-pill" id="orderBannerStatusBadge">
-                      <span class="status-pulse-dots">
-                        <span class="pulse-dot"></span>
-                        <span class="pulse-dot"></span>
-                      </span>
-                      <span class="status-pill-text" id="orderBannerStatusText">Order Confirmed</span>
-                    </div>
-                    <div class="active-order-eta-text" id="orderBannerEtaText">Estimated pickup: 5–10 min</div>
-                  </div>
-                </div>
-
-                <!-- 2. Middle Row: Items White Tray (Utilising the space like the reference image) -->
-                <div class="active-order-items-tray" id="orderBannerItemsTray">
-                  <!-- Populated dynamically with item photos, 1x badges, item names & prices -->
-                </div>
-
-                <!-- 3. Bottom Row: Total (Left), Divider, and Show at Counter Button (Right) -->
-                <div class="active-order-footer-row">
-                  <div class="active-order-total-block">
-                    <span class="active-order-total-label">Total</span>
-                    <span class="active-order-total-val" id="orderBannerTotal">₹150</span>
-                  </div>
-
-                  <div class="active-order-footer-divider"></div>
-
-                  <button type="button" class="active-order-action-btn" id="orderBannerActionPill">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-                      <line x1="3" y1="6" x2="21" y2="6"/>
-                      <path d="M16 10a4 4 0 0 1-8 0"/>
-                    </svg>
-                    <span id="orderBannerActionText">Show at Counter</span>
-                    <span class="cta-chevron">›</span>
-                  </button>
-                </div>
-
-                <!-- Delivered celebration stamp (reveals on completion) -->
-                <div class="active-order-delivered-stamp" id="orderBannerDeliveredStamp" style="display: none;">
-                  <span class="stamp-check">✓</span>
-                  <span class="stamp-msg">Order Picked Up & Delivered · Active on home for 24h</span>
-                </div>
-              </div>
-
-              <!-- Original Class to Cart Utility Module (Unchanged style) -->
+              <!-- 1. MAIN BANNER: Class to Cart (Always First Banner) -->
               <div class="utility-module fade-up" id="utility-module"
                    role="region" aria-label="Class to Cart — how UniMall works">
                 <div class="utility-module-text">
@@ -257,10 +191,101 @@
                 </div>
               </div>
 
+              <!-- 2. ACTIVE ORDER BANNER: Displayed when an order is active or delivered < 24h -->
+              <div class="active-order-banner" id="active-order-banner" style="display: none;"
+                   role="button" tabindex="0" aria-label="Active order pickup pass — tap to view details">
+                <!-- Center Ripple Expanding Disk -->
+                <div class="card-ripple-wave" id="card-ripple-wave" aria-hidden="true"></div>
+
+                <!-- 1. Header: Initial Avatar + Customer Name + Store & Location (Left), Status & ETA (Right) -->
+                <div class="active-order-header-row">
+                  <div class="active-order-profile-left">
+                    <div class="active-order-avatar-circle" id="orderBannerAvatar">A</div>
+                    <div class="active-order-user-meta">
+                      <span class="active-order-eyebrow">YOUR ORDER</span>
+                      <h3 class="active-order-name-priority" id="orderBannerCustomerName">Ansh Sharma</h3>
+                      <div class="active-order-store-inline">
+                        <span class="active-order-store-ico" id="orderBannerStoreIcon">☕</span>
+                        <span class="active-order-store-name" id="orderBannerStoreName">Campus Café</span>
+                        <span class="store-inline-chevron">›</span>
+                      </div>
+                      <div class="active-order-store-loc" id="orderBannerStoreLoc">Ground floor, near main entrance</div>
+                    </div>
+                  </div>
+
+                  <div class="active-order-status-right">
+                    <div class="active-order-status-pill" id="orderBannerStatusBadge">
+                      <span class="status-pulse-dots">
+                        <span class="pulse-dot"></span>
+                        <span class="pulse-dot"></span>
+                      </span>
+                      <span class="status-pill-text" id="orderBannerStatusText">Order Confirmed</span>
+                    </div>
+                    <div class="active-order-eta-text" id="orderBannerEtaText">Estimated pickup: 5–10 min</div>
+                  </div>
+                </div>
+
+                <!-- 2. Middle Row: Items White Tray -->
+                <div class="active-order-items-tray" id="orderBannerItemsTray">
+                  <!-- Populated dynamically with item photos, 1x badges, item names & prices -->
+                </div>
+
+                <!-- 3. Bottom Row: Total (Left), Divider, and Show at Counter Button (Right) -->
+                <div class="active-order-footer-row">
+                  <div class="active-order-total-block">
+                    <span class="active-order-total-label">Total</span>
+                    <span class="active-order-total-val" id="orderBannerTotal">₹150</span>
+                  </div>
+
+                  <div class="active-order-footer-divider"></div>
+
+                  <button type="button" class="active-order-action-btn" id="orderBannerActionPill">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                      <line x1="3" y1="6" x2="21" y2="6"/>
+                      <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                    <span id="orderBannerActionText">Show at Counter</span>
+                    <span class="cta-chevron">›</span>
+                  </button>
+                </div>
+
+                <!-- Delivered celebration stamp (reveals on completion) -->
+                <div class="active-order-delivered-stamp" id="orderBannerDeliveredStamp" style="display: none;">
+                  <span class="stamp-check">✓</span>
+                  <span class="stamp-msg">Order Picked Up & Delivered · Active on home for 24h</span>
+                </div>
+              </div>
+
+              <!-- 3. EMPTY ORDER FALLBACK BANNER: Displayed when no active orders exist (always keeping 2 banners) -->
+              <div class="empty-order-promo-banner" id="empty-order-promo-banner" role="region" aria-label="Explore food and snacks">
+                <div class="empty-promo-badge">
+                  <span class="pulse-dot-orange"></span>
+                  <span>HUNGRY OR CRAVING?</span>
+                </div>
+                <div class="empty-promo-body">
+                  <div class="empty-promo-text">
+                    <h3 class="empty-promo-title">Order something Bro, Check Out New food! 🍔✨</h3>
+                    <p class="empty-promo-sub">Cold brews, hot samosas & late-night ramen ready for quick counter pickup.</p>
+                  </div>
+                  <div class="empty-promo-illu">
+                    <div class="floating-food-pill">☕ Cold Brew</div>
+                    <div class="floating-food-pill">🥪 Club Sandwich</div>
+                    <div class="floating-food-pill">🥐 Croissant</div>
+                  </div>
+                </div>
+                <div class="empty-promo-footer">
+                  <a href="stores.html" class="empty-promo-cta">
+                    <span>Browse Campus Stores</span>
+                    <span class="cta-chevron">›</span>
+                  </a>
+                </div>
+              </div>
+
             </div><!-- /hero-banners-slider -->
 
-            <!-- Dots indicator (only visible when active order exists) -->
-            <div class="hero-slider-dots" id="hero-slider-dots" style="display: none;" aria-hidden="true">
+            <!-- Dots indicator (always visible with at least 2 dots) -->
+            <div class="hero-slider-dots" id="hero-slider-dots" aria-hidden="true">
               <span class="hero-dot active" data-slide="0"></span>
               <span class="hero-dot" data-slide="1"></span>
             </div>
