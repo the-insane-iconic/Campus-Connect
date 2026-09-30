@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initNotifBtn();
   initProfileBtn();
   initPageLinks();
+  if (typeof initHeroBannersSlider === 'function') initHeroBannersSlider();
+  if (typeof initOrderBottomSheetEvents === 'function') initOrderBottomSheetEvents();
+  if (typeof initRealtimeOrderListeners === 'function') initRealtimeOrderListeners();
 
   /* 4. Render campus info panel */
   renderCampusInfo();
@@ -34,10 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 5. Render initial product sections */
   renderHome();
 
-  /* 5b. Sync live catalog from Supabase */
+  /* 5b. Sync live catalog from Supabase (only re-render if data updated) */
   if (typeof syncCatalogWithSupabase === 'function') {
-    syncCatalogWithSupabase().then(() => {
-      renderHome();
+    syncCatalogWithSupabase().then(hasChanged => {
+      if (hasChanged) renderHome();
     }).catch(() => {});
   }
 

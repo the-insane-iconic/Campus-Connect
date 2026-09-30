@@ -21,13 +21,63 @@ window.UNIMALL_CONFIG = {
 };
 
 /**
- * Sticker Avatar Generator
- * Returns a fun, colorful sticker avatar if no custom photo exists.
+ * Initial Avatar Generator
+ * Returns a sleek, high-res SVG initials avatar data URI with ZERO network overhead.
  */
-window.getStickerAvatar = function(seed = 'Student') {
-  const cleanSeed = encodeURIComponent(String(seed).trim() || 'Student');
-  return `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${cleanSeed}&radius=50&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+window.getInitialsAvatar = function(seed = 'Student') {
+  const clean = String(seed || '').trim();
+  const initial = (clean.length > 0 ? clean.charAt(0) : 'U').toUpperCase();
+  
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">`
+    + `<defs>`
+    + `<linearGradient id="ug" x1="0%" y1="0%" x2="100%" y2="100%">`
+    + `<stop offset="0%" stop-color="#2563eb"/>`
+    + `<stop offset="100%" stop-color="#1d4ed8"/>`
+    + `</linearGradient>`
+    + `</defs>`
+    + `<rect width="100" height="100" rx="50" fill="url(#ug)"/>`
+    + `<text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="-apple-system, BlinkMacSystemFont, 'DM Sans', 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="800">${initial}</text>`
+    + `</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
+window.getStickerAvatar = window.getInitialsAvatar;
+
+/**
+ * Instant Page Prefetcher for Silky Smooth Surfing
+ */
+window.prefetchPage = function(url) {
+  if (!url || url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('http')) return;
+  try {
+    if (!document.querySelector(`link[rel="prefetch"][href="${url}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = url;
+      document.head.appendChild(link);
+    }
+  } catch (e) {}
+};
+
+// Prefetch core routes on idle & hover
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const coreRoutes = ['index.html', 'stores.html', 'cart.html', 'orders.html', 'profile.html'];
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => coreRoutes.forEach(r => window.prefetchPage(r)));
+    } else {
+      setTimeout(() => coreRoutes.forEach(r => window.prefetchPage(r)), 800);
+    }
+
+    document.body.addEventListener('mouseover', (e) => {
+      const a = e.target.closest('a[href]');
+      if (a) {
+        const href = a.getAttribute('href');
+        if (href && !href.startsWith('http') && !href.startsWith('#') && !href.startsWith('mailto:')) {
+          window.prefetchPage(href);
+        }
+      }
+    }, { passive: true });
+  });
+}
 
 /**
  * Lightweight UniMall Supabase Client
@@ -128,21 +178,59 @@ window.UniMallDB = {
 
   /* ── Update Order Status (Store Admin or Student) ── */
   async updateOrderStatus(orderId, status, notes = '') {
+    const isDelivered = (status.toUpperCase() === 'DELIVERED' || status.toUpperCase() === 'COMPLETED');
+    const dbStatus = isDelivered ? 'COMPLETED' : status.toUpperCase();
+    const nowIso = new Date().toISOString();
+
     const updated = await this.req(`unimall_orders?id=eq.${encodeURIComponent(orderId)}`, {
       method: 'PATCH',
       headers: { 'Prefer': 'return=representation' },
-      body: JSON.stringify({ status, updated_at: new Date().toISOString() })
-    });
+      body: JSON.stringify({ status: dbStatus, updated_at: nowIso })
+    }).catch(() => null);
 
     // Record history
     await this.req('unimall_order_status_history', {
       method: 'POST',
       body: JSON.stringify({
         order_id: orderId,
-        status,
+        status: dbStatus,
         notes: notes || `Status updated to ${status}`
       })
     }).catch(() => {});
+
+    // Ensure local storage is kept in sync
+    try {
+      const raw = localStorage.getItem('unimall_v1');
+      if (raw) {
+        const appData = JSON.parse(raw);
+        if (Array.isArray(appData.orders)) {
+          const ord = appData.orders.find(o => o.id === orderId);
+          if (ord) {
+            ord.status = isDelivered ? 'delivered' : status.toLowerCase();
+            if (isDelivered) {
+              ord.deliveredAt = nowIso;
+            }
+            if (!ord.statusHistory) ord.statusHistory = [];
+            ord.statusHistory.push({
+              status: ord.status,
+              time: nowIso,
+              label: `Order marked as ${status}`
+            });
+            localStorage.setItem('unimall_v1', JSON.stringify(appData));
+          }
+        }
+      }
+      localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
+        orderId,
+        status: isDelivered ? 'delivered' : status.toLowerCase(),
+        deliveredAt: nowIso,
+        timestamp: Date.now()
+      }));
+    } catch(e) {}
+
+    window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
+      detail: { orderId, status: isDelivered ? 'delivered' : status.toLowerCase(), deliveredAt: nowIso }
+    }));
 
     return updated && updated[0] ? updated[0] : null;
   },

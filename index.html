@@ -136,56 +136,135 @@
         <!-- ── PAGE BODY ────────────────────────────────────── -->
         <main class="page-body" id="page-body">
 
-          <!-- ── 1. UTILITY MODULE (Class to Cart) ──────────── -->
-          <div class="utility-module fade-up" id="utility-module"
-               role="region" aria-label="Class to Cart — how UniMall works">
-            <div class="utility-module-text">
-              <div class="utility-eyebrow">Class to Cart</div>
-              <div class="utility-headline">Need something<br>right now?</div>
-              <div class="utility-steps">
-                <span class="utility-step">Check availability</span>
-                <span class="utility-step-arrow">→</span>
-                <span class="utility-step">Order</span>
-                <span class="utility-step-arrow">→</span>
-                <span class="utility-step">Get it at your hostel</span>
-              </div>
-            </div>
+          <!-- ── 1. HERO BANNERS AREA (Active Order Pickup & Class to Cart) ──── -->
+          <div class="hero-banners-area" id="hero-banners-area">
+            <div class="hero-banners-slider" id="hero-banners-slider">
 
-            <!-- Inline SVG illustration: mall path hostel -->
-            <div class="utility-illustration" aria-hidden="true">
-              <svg viewBox="0 0 88 78" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Mall building -->
-                <rect x="4"  y="28" width="34" height="28" rx="3" fill="#BFDBFE"/>
-                <rect x="4"  y="28" width="34" height="9"  rx="3" fill="#93C5FD"/>
-                <text x="10" y="37.5" font-family="DM Sans,sans-serif" font-size="5.5"
-                      font-weight="700" fill="#1D4ED8">UniMall</text>
-                <!-- Mall door -->
-                <rect x="16" y="46" width="8" height="10" rx="1.5" fill="#3B82F6"/>
-                <!-- Mall windows -->
-                <rect x="7"  y="40" width="6" height="5" rx="1" fill="#EFF6FF"/>
-                <rect x="29" y="40" width="6" height="5" rx="1" fill="#EFF6FF"/>
-                <!-- Dashed delivery path -->
-                <path d="M38 52 Q55 60 62 44" stroke="#93C5FD" stroke-width="1.5"
-                      stroke-dasharray="3 3" stroke-linecap="round"/>
-                <!-- Delivery figure -->
-                <circle cx="52" cy="55" r="4.5" fill="#BFDBFE"/>
-                <path d="M49 58.5 Q52 65 55 58.5" stroke="#93C5FD"
-                      stroke-width="1.5" stroke-linecap="round"/>
-                <!-- Hostel building -->
-                <rect x="63" y="38" width="21" height="22" rx="2" fill="#DBEAFE"/>
-                <rect x="63" y="38" width="21" height="7"  rx="2" fill="#93C5FD"/>
-                <!-- Hostel windows -->
-                <rect x="66" y="49" width="4" height="4" rx="1" fill="#3B82F6"/>
-                <rect x="76" y="49" width="4" height="4" rx="1" fill="#3B82F6"/>
-                <!-- Hostel door -->
-                <rect x="71" y="52" width="4" height="8" rx="1" fill="#60A5FA"/>
-                <!-- Location pin on mall -->
-                <path d="M21 27 C21 23 27 23 27 27 C27 30.5 24 33.5 24 33.5 C24 33.5 21 30.5 21 27Z"
-                      fill="#2563EB"/>
-                <circle cx="24" cy="27" r="2" fill="white"/>
-              </svg>
+              <!-- Active Order Pickup Banner (Styled like reference mockup) -->
+              <div class="active-order-banner" id="active-order-banner" style="display: none;"
+                   role="button" tabindex="0" aria-label="Active order pickup pass — tap to view details">
+                <!-- Center Ripple Expanding Disk -->
+                <div class="card-ripple-wave" id="card-ripple-wave" aria-hidden="true"></div>
+
+                <!-- 1. Header: Initial Avatar + Customer Name + Store & Location (Left), Status & ETA (Right) -->
+                <div class="active-order-header-row">
+                  <div class="active-order-profile-left">
+                    <div class="active-order-avatar-circle" id="orderBannerAvatar">A</div>
+                    <div class="active-order-user-meta">
+                      <span class="active-order-eyebrow">YOUR ORDER</span>
+                      <h3 class="active-order-name-priority" id="orderBannerCustomerName">Ansh Sharma</h3>
+                      <div class="active-order-store-inline">
+                        <span class="active-order-store-ico" id="orderBannerStoreIcon">☕</span>
+                        <span class="active-order-store-name" id="orderBannerStoreName">Campus Café</span>
+                        <span class="store-inline-chevron">›</span>
+                      </div>
+                      <div class="active-order-store-loc" id="orderBannerStoreLoc">Ground floor, near main entrance</div>
+                    </div>
+                  </div>
+
+                  <div class="active-order-status-right">
+                    <div class="active-order-status-pill" id="orderBannerStatusBadge">
+                      <span class="status-pulse-dots">
+                        <span class="pulse-dot"></span>
+                        <span class="pulse-dot"></span>
+                      </span>
+                      <span class="status-pill-text" id="orderBannerStatusText">Order Confirmed</span>
+                    </div>
+                    <div class="active-order-eta-text" id="orderBannerEtaText">Estimated pickup: 5–10 min</div>
+                  </div>
+                </div>
+
+                <!-- 2. Middle Row: Items White Tray (Utilising the space like the reference image) -->
+                <div class="active-order-items-tray" id="orderBannerItemsTray">
+                  <!-- Populated dynamically with item photos, 1x badges, item names & prices -->
+                </div>
+
+                <!-- 3. Bottom Row: Total (Left), Divider, and Show at Counter Button (Right) -->
+                <div class="active-order-footer-row">
+                  <div class="active-order-total-block">
+                    <span class="active-order-total-label">Total</span>
+                    <span class="active-order-total-val" id="orderBannerTotal">₹150</span>
+                  </div>
+
+                  <div class="active-order-footer-divider"></div>
+
+                  <button type="button" class="active-order-action-btn" id="orderBannerActionPill">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                      <line x1="3" y1="6" x2="21" y2="6"/>
+                      <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                    <span id="orderBannerActionText">Show at Counter</span>
+                    <span class="cta-chevron">›</span>
+                  </button>
+                </div>
+
+                <!-- Delivered celebration stamp (reveals on completion) -->
+                <div class="active-order-delivered-stamp" id="orderBannerDeliveredStamp" style="display: none;">
+                  <span class="stamp-check">✓</span>
+                  <span class="stamp-msg">Order Picked Up & Delivered · Active on home for 24h</span>
+                </div>
+              </div>
+
+              <!-- Original Class to Cart Utility Module (Unchanged style) -->
+              <div class="utility-module fade-up" id="utility-module"
+                   role="region" aria-label="Class to Cart — how UniMall works">
+                <div class="utility-module-text">
+                  <div class="utility-eyebrow">Class to Cart</div>
+                  <div class="utility-headline">Need something<br>right now?</div>
+                  <div class="utility-steps">
+                    <span class="utility-step">Check availability</span>
+                    <span class="utility-step-arrow">→</span>
+                    <span class="utility-step">Order</span>
+                    <span class="utility-step-arrow">→</span>
+                    <span class="utility-step">Get it at your hostel</span>
+                  </div>
+                </div>
+
+                <!-- Inline SVG illustration: mall path hostel -->
+                <div class="utility-illustration" aria-hidden="true">
+                  <svg viewBox="0 0 88 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Mall building -->
+                    <rect x="4"  y="28" width="34" height="28" rx="3" fill="#BFDBFE"/>
+                    <rect x="4"  y="28" width="34" height="9"  rx="3" fill="#93C5FD"/>
+                    <text x="10" y="37.5" font-family="DM Sans,sans-serif" font-size="5.5"
+                          font-weight="700" fill="#1D4ED8">UniMall</text>
+                    <!-- Mall door -->
+                    <rect x="16" y="46" width="8" height="10" rx="1.5" fill="#3B82F6"/>
+                    <!-- Mall windows -->
+                    <rect x="7"  y="40" width="6" height="5" rx="1" fill="#EFF6FF"/>
+                    <rect x="29" y="40" width="6" height="5" rx="1" fill="#EFF6FF"/>
+                    <!-- Dashed delivery path -->
+                    <path d="M38 52 Q55 60 62 44" stroke="#93C5FD" stroke-width="1.5"
+                          stroke-dasharray="3 3" stroke-linecap="round"/>
+                    <!-- Delivery figure -->
+                    <circle cx="52" cy="55" r="4.5" fill="#BFDBFE"/>
+                    <path d="M49 58.5 Q52 65 55 58.5" stroke="#93C5FD"
+                          stroke-width="1.5" stroke-linecap="round"/>
+                    <!-- Hostel building -->
+                    <rect x="63" y="38" width="21" height="22" rx="2" fill="#DBEAFE"/>
+                    <rect x="63" y="38" width="21" height="7"  rx="2" fill="#93C5FD"/>
+                    <!-- Hostel windows -->
+                    <rect x="66" y="49" width="4" height="4" rx="1" fill="#3B82F6"/>
+                    <rect x="76" y="49" width="4" height="4" rx="1" fill="#3B82F6"/>
+                    <!-- Hostel door -->
+                    <rect x="71" y="52" width="4" height="8" rx="1" fill="#60A5FA"/>
+                    <!-- Location pin on mall -->
+                    <path d="M21 27 C21 23 27 23 27 27 C27 30.5 24 33.5 24 33.5 C24 33.5 21 30.5 21 27Z"
+                          fill="#2563EB"/>
+                    <circle cx="24" cy="27" r="2" fill="white"/>
+                  </svg>
+                </div>
+              </div>
+
+            </div><!-- /hero-banners-slider -->
+
+            <!-- Dots indicator (only visible when active order exists) -->
+            <div class="hero-slider-dots" id="hero-slider-dots" style="display: none;" aria-hidden="true">
+              <span class="hero-dot active" data-slide="0"></span>
+              <span class="hero-dot" data-slide="1"></span>
             </div>
-          </div>
+          </div><!-- /hero-banners-area -->
 
           <!-- ── 2. CATEGORIES ───────────────────────────────── -->
           <section class="categories-section fade-up delay-1"
@@ -441,6 +520,93 @@
     </div><!-- /main-content -->
   </div><!-- /desktop-wrapper -->
 </div><!-- /shell -->
+
+<!-- ── ORDER PICKUP PASS BOTTOM SHEET (In-Home 3/4 Screen Modal) ── -->
+<div class="order-sheet-backdrop" id="orderSheetBackdrop" aria-hidden="true"></div>
+<aside class="order-bottom-sheet" id="orderBottomSheet" role="dialog" aria-modal="true" aria-label="Order Pickup Pass">
+  <div class="sheet-drag-handle" id="sheetDragHandle"></div>
+
+  <div class="sheet-content">
+    <!-- Top Header: Store Info & Close -->
+    <div class="sheet-header">
+      <div class="sheet-store-info">
+        <span class="sheet-store-icon" id="sheetStoreIcon">☕</span>
+        <div>
+          <div class="sheet-store-name" id="sheetStoreName">Campus Café</div>
+          <div class="sheet-store-location" id="sheetStoreLocation">Ground Floor, Near Main Entrance</div>
+        </div>
+      </div>
+      <button type="button" class="sheet-close-btn" id="sheetCloseBtn" aria-label="Close Pickup Pass">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Pickup Pass Counter Badge -->
+    <div class="sheet-pass-card" id="sheetPassCard">
+      <div class="sheet-pass-left">
+        <div class="sheet-pass-eyebrow">COUNTER PICKUP PASS</div>
+        <div class="sheet-pass-customer-name" id="sheetCustomerName">ANSH SHARMA</div>
+        <div class="sheet-pass-sub">Order <strong id="sheetOrderId">#UM1024</strong> · Flash at counter</div>
+      </div>
+      <div class="sheet-pass-right">
+        <div class="sheet-otp-box">
+          <span class="sheet-otp-label">PICKUP OTP</span>
+          <span class="sheet-otp-code" id="sheetOtpCode">4829</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stepper Tracker -->
+    <div class="sheet-stepper" id="sheetStepper">
+      <div class="stepper-step completed">
+        <div class="step-dot">✓</div>
+        <span class="step-label">Placed</span>
+      </div>
+      <div class="stepper-line completed"></div>
+      <div class="stepper-step completed">
+        <div class="step-dot">✓</div>
+        <span class="step-label">Preparing</span>
+      </div>
+      <div class="stepper-line active" id="sheetStepReadyLine"></div>
+      <div class="stepper-step active" id="sheetStepReady">
+        <div class="step-dot">●</div>
+        <span class="step-label">Ready</span>
+      </div>
+      <div class="stepper-line" id="sheetStepDeliveredLine"></div>
+      <div class="stepper-step" id="sheetStepDelivered">
+        <div class="step-dot">○</div>
+        <span class="step-label">Delivered</span>
+      </div>
+    </div>
+
+    <!-- Ordered Items List -->
+    <div class="sheet-items-box">
+      <div class="sheet-items-header">ORDERED ITEMS</div>
+      <div class="sheet-items-list" id="sheetItemsList">
+        <!-- populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Bill Breakdown Summary -->
+    <div class="sheet-bill-row">
+      <div class="sheet-bill-method">
+        <span class="bill-badge">PAID</span>
+        <span class="bill-method-text">UPI / Campus Wallet</span>
+      </div>
+      <div class="sheet-bill-total">
+        <span class="bill-total-label">Grand Total:</span>
+        <span class="bill-total-val" id="sheetTotalVal">₹150</span>
+      </div>
+    </div>
+
+    <!-- Quick Store Delivery Simulator Button (For Demo & Testing) -->
+    <div class="sheet-actions-row">
+      <button type="button" class="btn-sheet-simulate" id="btnSheetSimulateDelivery">
+        <span>⚡ Store Manager: Mark Delivered (Test Ripple)</span>
+      </button>
+    </div>
+  </div>
+</aside>
 
 <!-- Scripts — load order matters (each file depends on those above it) -->
 <script src="js/config.js"></script>

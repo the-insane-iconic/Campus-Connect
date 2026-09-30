@@ -101,7 +101,52 @@ async function handleSupabaseAdminRequest(endpoint, options = {}) {
     const orderId = statusMatch[1];
     const newStatus = body.status;
     const notes = body.notes || `Status changed to ${newStatus}`;
-    await window.UniMallDB.updateOrderStatus(orderId, newStatus, notes);
+    const isDelivered = (newStatus.toUpperCase() === 'DELIVERED' || newStatus.toUpperCase() === 'COMPLETED');
+    const nowIso = new Date().toISOString();
+
+    if (window.UniMallDB && typeof window.UniMallDB.updateOrderStatus === 'function') {
+      await window.UniMallDB.updateOrderStatus(orderId, newStatus, notes).catch(() => {});
+    }
+
+    // Sync localStorage unimall_v1 directly so customer app gets the update immediately
+    try {
+      const raw = localStorage.getItem('unimall_v1');
+      if (raw) {
+        const appData = JSON.parse(raw);
+        if (Array.isArray(appData.orders)) {
+          const ord = appData.orders.find(o => o.id === orderId);
+          if (ord) {
+            ord.status = isDelivered ? 'delivered' : newStatus.toLowerCase();
+            if (isDelivered) {
+              ord.deliveredAt = nowIso;
+            }
+            if (!ord.statusHistory) ord.statusHistory = [];
+            ord.statusHistory.push({
+              status: ord.status,
+              time: nowIso,
+              label: `Order marked as ${newStatus}`
+            });
+            localStorage.setItem('unimall_v1', JSON.stringify(appData));
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Broadcast storage event for cross-tab realtime reaction
+    try {
+      localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
+        orderId,
+        status: isDelivered ? 'delivered' : newStatus.toLowerCase(),
+        deliveredAt: nowIso,
+        timestamp: Date.now()
+      }));
+    } catch(e) {}
+
+    // Also dispatch on window in case single tab/window
+    window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
+      detail: { orderId, status: isDelivered ? 'delivered' : newStatus.toLowerCase(), deliveredAt: nowIso }
+    }));
+
     return { success: true, status: newStatus };
   }
 

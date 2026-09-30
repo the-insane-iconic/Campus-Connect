@@ -11,6 +11,7 @@ const STORAGE_KEY = 'unimall_v1';
 const INITIAL_DEMO_ORDERS = [
   {
     id: 'UM1024',
+    customerName: 'Ansh Sharma',
     storeName: 'Campus Café',
     storeIcon: '☕',
     items: [
@@ -24,15 +25,17 @@ const INITIAL_DEMO_ORDERS = [
     deliveryInfo: null,
     pickupLocation: 'Ground floor, near main entrance',
     otp: '4829',
-    status: 'preparing', // 'placed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
+    status: 'ready', // 'placed' | 'preparing' | 'ready' | 'delivered' | 'cancelled'
     statusHistory: [
-      { status: 'placed', time: new Date(Date.now() - 8 * 60 * 1000).toISOString(), label: 'Order Placed' },
-      { status: 'preparing', time: new Date(Date.now() - 4 * 60 * 1000).toISOString(), label: 'Store Preparing Order' }
+      { status: 'placed', time: new Date(Date.now() - 10 * 60 * 1000).toISOString(), label: 'Order Placed' },
+      { status: 'preparing', time: new Date(Date.now() - 5 * 60 * 1000).toISOString(), label: 'Store Preparing Order' },
+      { status: 'ready', time: new Date(Date.now() - 1 * 60 * 1000).toISOString(), label: 'Ready for Pickup' }
     ],
-    createdAt: new Date(Date.now() - 8 * 60 * 1000).toISOString()
+    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString()
   },
   {
     id: 'UM1019',
+    customerName: 'Ansh Sharma',
     storeName: 'Book Corner',
     storeIcon: '📓',
     items: [
@@ -47,6 +50,7 @@ const INITIAL_DEMO_ORDERS = [
     pickupLocation: null,
     otp: null,
     status: 'delivered',
+    deliveredAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
     statusHistory: [
       { status: 'placed', time: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), label: 'Order Placed' },
       { status: 'preparing', time: new Date(Date.now() - 25.5 * 60 * 60 * 1000).toISOString(), label: 'Packed & Dispatched' },
@@ -131,12 +135,21 @@ function startLiveStatusSimulator() {
         changed = true;
       } else if (order.status === 'ready' && elapsedSec > 90) {
         order.status = 'delivered';
+        order.deliveredAt = new Date().toISOString();
         order.statusHistory.push({
           status: 'delivered',
-          time: new Date().toISOString(),
+          time: order.deliveredAt,
           label: order.fulfillmentType === 'delivery' ? 'Delivered' : 'Picked up'
         });
         changed = true;
+        try {
+          localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
+            orderId: order.id,
+            status: 'delivered',
+            deliveredAt: order.deliveredAt,
+            timestamp: Date.now()
+          }));
+        } catch(e) {}
       }
     });
 
@@ -711,12 +724,13 @@ function syncSidebarProfile() {
     if (nameEl && user.name) nameEl.textContent = user.name;
     if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
     if (avatarEl) {
-      const avatarSrc = user.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(user.name || 'User') : '');
-      if (avatarSrc) {
-        avatarEl.innerHTML = `<img src="${avatarSrc}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-      } else if (user.name) {
-        avatarEl.textContent = user.name.trim()[0].toUpperCase();
-      }
+      const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
+      avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+      avatarEl.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+      avatarEl.style.display = 'flex';
+      avatarEl.style.alignItems = 'center';
+      avatarEl.style.justifyContent = 'center';
+      avatarEl.style.borderRadius = '50%';
     }
   } catch (e) { }
 }
@@ -866,9 +880,11 @@ document.addEventListener('DOMContentLoaded', () => {
   syncSidebarProfile();
   startLiveStatusSimulator();
 
-  // Supabase live sync
+  // Supabase live sync (visibility aware)
   syncOrdersWithSupabase();
-  setInterval(syncOrdersWithSupabase, 5000);
+  setInterval(() => {
+    if (document.visibilityState === 'visible') syncOrdersWithSupabase();
+  }, 15000);
 
   // Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
   setInterval(() => {

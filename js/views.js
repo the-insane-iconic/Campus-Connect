@@ -103,6 +103,11 @@ function renderHome() {
   } else {
     _renderDefaultHomeSections();
   }
+
+  // Render hero active order pickup pass banner
+  if (typeof renderActiveOrderBanner === 'function') {
+    renderActiveOrderBanner();
+  }
 }
 
 function _renderCategoryView(categoryId) {
@@ -930,10 +935,8 @@ function _openOrderDetail(orderId) {
 function _openProfile() {
   const u = AppState.currentUser || {};
   const orderCount = AppState.orders.length;
-  const avatarSrc = u.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(u.name || 'Student') : '');
-  const avatarEl = avatarSrc
-    ? `<img src="${avatarSrc}" alt="${u.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-    : (u.name ? u.name[0].toUpperCase() : 'A');
+  const initial = (u.name && u.name.trim()) ? u.name.trim().charAt(0).toUpperCase() : 'A';
+  const avatarEl = `<span style="font-weight:800;font-size:24px;color:#ffffff;line-height:1;">${initial}</span>`;
 
   const html = `
     <div class="profile-header">
@@ -1175,3 +1178,689 @@ function _resetChipHighlight() {
     defaultChip.setAttribute('aria-pressed', 'true');
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   HERO ACTIVE ORDER PICKUP PASS CONTROLLER
+   Matches exact rectangle size of utility banner.
+   - User Name priority with dominant font size
+   - Organised counter pickup details
+   - Center ripple animation & light green transition on store delivery
+   - 24-hour retention post-delivery
+   ═══════════════════════════════════════════════════════════ */
+
+let _currentDisplayedOrderId = null;
+let _currentOrderDeliveredState = false;
+
+/**
+ * Returns active order or recent delivered order within 24 hours.
+ */
+function getActiveOrRecentOrder() {
+  let orders = [];
+  try {
+    const raw = localStorage.getItem('unimall_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.orders)) orders = parsed.orders;
+    }
+  } catch(e) {}
+
+  if ((!orders || orders.length === 0) && typeof AppState !== 'undefined' && Array.isArray(AppState.orders)) {
+    orders = AppState.orders;
+  }
+
+  if (!orders || orders.length === 0) return null;
+
+  const now = Date.now();
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+  // 1. First priority: any active order ('placed', 'accepted', 'preparing', 'ready')
+  const activeOrder = orders.find(o => {
+    const s = (o.status || '').toLowerCase();
+    return ['placed', 'accepted', 'preparing', 'ready'].includes(s);
+  });
+
+  if (activeOrder) {
+    return { order: activeOrder, isDelivered: false };
+  }
+
+  // 2. Second priority: any delivered / completed order within the last 24 hours
+  const recentDelivered = orders.find(o => {
+    const s = (o.status || '').toLowerCase();
+    if (s === 'delivered' || s === 'completed') {
+      const timeVal = o.deliveredAt || o.updatedAt || o.createdAt;
+      const deliveredTime = timeVal ? new Date(timeVal).getTime() : NaN;
+      if (!isNaN(deliveredTime)) {
+        const elapsed = now - deliveredTime;
+        return elapsed >= -60000 && elapsed < TWENTY_FOUR_HOURS_MS;
+      }
+    }
+    return false;
+  });
+
+  if (recentDelivered) {
+    const timeVal = recentDelivered.deliveredAt || recentDelivered.updatedAt || recentDelivered.createdAt;
+    const elapsedMs = Math.max(0, now - new Date(timeVal).getTime());
+    return { order: recentDelivered, isDelivered: true, elapsedMs };
+  }
+
+  return null;
+}
+
+/**
+ * Renders the Active Order Pickup banner in the hero slot.
+ */
+function renderActiveOrderBanner() {
+  const banner = document.getElementById('active-order-banner');
+  const slider = document.getElementById('hero-banners-slider');
+  const dotsWrap = document.getElementById('hero-slider-dots');
+  const utilityModule = document.getElementById('utility-module');
+
+  if (!banner || !slider) return;
+
+  const orderData = getActiveOrRecentOrder();
+
+  if (!orderData) {
+    // No active or <24h order: hide active order banner & dots
+    banner.style.display = 'none';
+    if (dotsWrap) dotsWrap.style.display = 'none';
+    if (utilityModule) {
+      utilityModule.style.display = 'flex';
+      utilityModule.style.margin = '0';
+    }
+    _currentDisplayedOrderId = null;
+    _currentOrderDeliveredState = false;
+    return;
+  }
+
+  const { order, isDelivered, elapsedMs } = orderData;
+  _currentDisplayedOrderId = order.id;
+
+  // Ensure banner is displayed
+  banner.style.display = 'flex';
+  if (dotsWrap) dotsWrap.style.display = 'flex';
+  if (utilityModule) {
+    utilityModule.style.display = 'flex';
+  }
+
+  // 1. Initial Avatar & Customer Name Priority (Dominant, Clearly Visible)
+  const avatarEl = document.getElementById('orderBannerAvatar');
+  const customerNameEl = document.getElementById('orderBannerCustomerName');
+  const rawName = order.customerName || order.user_name || order.customer_name ||
+                  (typeof AppState !== 'undefined' && AppState.currentUser && AppState.currentUser.name) ||
+                  'Ansh Sharma';
+
+  if (avatarEl) {
+    avatarEl.textContent = (rawName.trim()[0] || 'A').toUpperCase();
+  }
+  if (customerNameEl) {
+    customerNameEl.textContent = rawName;
+    customerNameEl.title = rawName;
+  }
+
+  // 2. Store Info & Pickup Location
+  const storeIconEl = document.getElementById('orderBannerStoreIcon');
+  const storeNameEl = document.getElementById('orderBannerStoreName');
+  const storeLocEl = document.getElementById('orderBannerStoreLoc');
+
+  if (storeIconEl) storeIconEl.textContent = order.storeIcon || '☕';
+  if (storeNameEl) storeNameEl.textContent = order.storeName || 'Campus Café';
+  if (storeLocEl) {
+    storeLocEl.textContent = order.pickupLocation || (order.fulfillmentType === 'delivery' ? (order.deliveryInfo ? `${order.deliveryInfo.hostel} · ${order.deliveryInfo.room}` : 'Hostel Delivery') : 'Ground floor, near main entrance');
+  }
+
+  // 3. Live Status Badge & ETA
+  const statusBadge = document.getElementById('orderBannerStatusBadge');
+  const statusText = document.getElementById('orderBannerStatusText');
+  const etaText = document.getElementById('orderBannerEtaText');
+
+  const s = (order.status || '').toLowerCase();
+  let badgeLabel = 'Order Confirmed';
+  let etaLabel = 'Estimated pickup: 5–10 min';
+
+  if (isDelivered || s === 'delivered' || s === 'completed') {
+    badgeLabel = '✓ Order Collected';
+    etaLabel = 'Picked up successfully';
+  } else if (s === 'ready') {
+    badgeLabel = '● Ready for Pickup';
+    etaLabel = 'Ready at counter now!';
+  } else if (s === 'preparing') {
+    badgeLabel = '● Preparing Order';
+    etaLabel = 'Estimated pickup: 3–7 min';
+  } else if (s === 'placed' || s === 'accepted') {
+    badgeLabel = '● Order Confirmed';
+    etaLabel = 'Estimated pickup: 5–10 min';
+  }
+
+  if (statusText) statusText.textContent = badgeLabel;
+  if (etaText) etaText.textContent = etaLabel;
+
+  // 4. Utilise Extra Space: Items Tray with Food Thumbnails, 1x Badges & Prices
+  const trayEl = document.getElementById('orderBannerItemsTray');
+  if (trayEl) {
+    const items = (Array.isArray(order.items) && order.items.length > 0) ? order.items : [
+      { name: 'Cold Brew Coffee', price: 120, qty: 1 },
+      { name: 'Classic Chips Snack Pack', price: 30, qty: 1 }
+    ];
+
+    // Show up to 2 items in the tray (like reference image: Cold Brew Coffee & Sandwich/Chips)
+    const displayItems = items.slice(0, 2);
+    const extraCount = items.length - 2;
+
+    let trayHtml = displayItems.map((it, idx) => {
+      const qty = it.qty || it.quantity || 1;
+      const name = it.name || it.product_name || 'Item';
+      const price = it.price || 0;
+      const imgSrc = getItemThumbnail(it);
+
+      return `
+        ${idx > 0 ? '<div class="tray-item-divider" aria-hidden="true"></div>' : ''}
+        <div class="tray-item">
+          <span class="tray-qty-pill">${qty}x</span>
+          <img class="tray-item-thumb" src="${imgSrc}" alt="${escapeHtml(name)}" onerror="this.src='https://images.unsplash.com/photo-1541167760496-1628856ab772?w=120&auto=format&fit=crop&q=80'">
+          <div class="tray-item-info">
+            <div class="tray-item-name">${escapeHtml(name)}</div>
+            <div class="tray-item-price">₹${price * qty}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (extraCount > 0) {
+      trayHtml += `<div class="tray-extra-pill">+${extraCount} more</div>`;
+    }
+
+    trayEl.innerHTML = trayHtml;
+  }
+
+  // 5. Total Paid Amount
+  const totalEl = document.getElementById('orderBannerTotal');
+  if (totalEl) {
+    const totalAmount = order.total || order.total_amount || order.subtotal || 150;
+    totalEl.textContent = `₹${totalAmount}`;
+  }
+
+  // 6. Delivered State styling & 24h retention notice
+  const deliveredStamp = document.getElementById('orderBannerDeliveredStamp');
+  const actionPill = document.getElementById('orderBannerActionPill');
+  const actionText = document.getElementById('orderBannerActionText');
+
+  if (isDelivered) {
+    banner.classList.add('is-delivered');
+    if (deliveredStamp) {
+      deliveredStamp.style.display = 'flex';
+      let timeAgo = 'Just now';
+      if (elapsedMs) {
+        const mins = Math.floor(elapsedMs / (60 * 1000));
+        const hours = Math.floor(mins / 60);
+        if (hours > 0) {
+          timeAgo = `${hours}h ago`;
+        } else if (mins > 0) {
+          timeAgo = `${mins}m ago`;
+        }
+      }
+      deliveredStamp.innerHTML = `
+        <span class="stamp-check">✓</span>
+        <span class="stamp-msg">Order Picked Up · Collected ${timeAgo} (Active on home for 24h)</span>
+      `;
+    }
+    if (actionText) actionText.textContent = 'View Pass';
+    _currentOrderDeliveredState = true;
+  } else {
+    banner.classList.remove('is-delivered');
+    if (deliveredStamp) deliveredStamp.style.display = 'none';
+    if (actionText) actionText.textContent = 'Show at Counter';
+    _currentOrderDeliveredState = false;
+  }
+
+  // 7. Click Banner opens In-Home 3/4 Screen Bottom Sheet (NO REDIRECT!)
+  banner.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openOrderBottomSheet(order);
+  };
+
+  if (actionPill) {
+    actionPill.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openOrderBottomSheet(order);
+    };
+  }
+
+  banner.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openOrderBottomSheet(order);
+    }
+  };
+
+  // Ensure slider starts firmly on the active banner with zero auto-swiping
+  if (slider.scrollLeft > 0) {
+    slider.scrollLeft = 0;
+  }
+}
+
+/**
+ * Resolves or falls back to a clean product photo for the tray thumbnail
+ */
+function getItemThumbnail(item) {
+  if (item && item.image) return item.image;
+  const name = (item && item.name) ? item.name.toLowerCase() : '';
+  const id = (item && (item.productId || item.id)) ? (item.productId || item.id) : '';
+
+  if (typeof PRODUCTS !== 'undefined' && Array.isArray(PRODUCTS)) {
+    const prod = PRODUCTS.find(p => p.id === id || (p.name && p.name.toLowerCase() === name));
+    if (prod && prod.image) return prod.image;
+  }
+
+  if (name.includes('coffee') || name.includes('brew')) {
+    return 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=120&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('chips') || name.includes('snack')) {
+    return 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=120&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('sandwich')) {
+    return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=120&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=120&auto=format&fit=crop&q=80';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Opens the in-home 3/4 screen Order Pickup Pass bottom sheet.
+ * All details fit within 75vh with zero scrolling!
+ */
+function openOrderBottomSheet(orderData) {
+  let order = orderData;
+  if (!order) {
+    const activeData = getActiveOrRecentOrder();
+    order = activeData ? activeData.order : null;
+  }
+  if (!order) return;
+
+  const sheet = document.getElementById('orderBottomSheet');
+  const backdrop = document.getElementById('orderSheetBackdrop');
+  if (!sheet || !backdrop) return;
+
+  // 1. Populate store info
+  const storeIconEl = document.getElementById('sheetStoreIcon');
+  const storeNameEl = document.getElementById('sheetStoreName');
+  const storeLocEl = document.getElementById('sheetStoreLocation');
+  if (storeIconEl) storeIconEl.textContent = order.storeIcon || '☕';
+  if (storeNameEl) storeNameEl.textContent = order.storeName || 'Campus Café';
+  if (storeLocEl) {
+    storeLocEl.textContent = order.pickupLocation || 'Ground Floor, Near Main Entrance';
+  }
+
+  // 2. Populate pass card
+  const passCustEl = document.getElementById('sheetCustomerName');
+  const passOrderEl = document.getElementById('sheetOrderId');
+  const passOtpEl = document.getElementById('sheetOtpCode');
+  const passCardEl = document.getElementById('sheetPassCard');
+
+  const rawName = order.customerName || order.user_name || order.customer_name ||
+                  (typeof AppState !== 'undefined' && AppState.currentUser && AppState.currentUser.name) ||
+                  'Ansh Sharma';
+  if (passCustEl) passCustEl.textContent = rawName.toUpperCase();
+  if (passOrderEl) passOrderEl.textContent = `#${order.id || 'UM1024'}`;
+
+  const s = (order.status || '').toLowerCase();
+  const isDelivered = s === 'delivered' || s === 'completed' || !!order.deliveredAt;
+  const isReady = isDelivered || s === 'ready';
+  const isPreparing = isReady || s === 'preparing';
+
+  if (passOtpEl) {
+    passOtpEl.textContent = isDelivered ? '✓ OK' : (order.otp || '4829');
+  }
+
+  if (passCardEl) {
+    if (isDelivered) {
+      passCardEl.classList.add('is-delivered');
+    } else {
+      passCardEl.classList.remove('is-delivered');
+    }
+  }
+
+  // 3. Update stepper
+  const stepReadyLine = document.getElementById('sheetStepReadyLine');
+  const stepReady = document.getElementById('sheetStepReady');
+  const stepDeliveredLine = document.getElementById('sheetStepDeliveredLine');
+  const stepDelivered = document.getElementById('sheetStepDelivered');
+
+  if (stepReadyLine) {
+    stepReadyLine.className = 'stepper-line ' + (isReady ? 'completed' : (isPreparing ? 'active' : ''));
+  }
+  if (stepReady) {
+    stepReady.className = 'stepper-step ' + (isDelivered ? 'completed' : (isReady ? 'active' : ''));
+    const dot = stepReady.querySelector('.step-dot');
+    if (dot) dot.textContent = isDelivered ? '✓' : (isReady ? '●' : '○');
+  }
+  if (stepDeliveredLine) {
+    stepDeliveredLine.className = 'stepper-line ' + (isDelivered ? 'completed' : '');
+  }
+  if (stepDelivered) {
+    stepDelivered.className = 'stepper-step ' + (isDelivered ? 'completed' : '');
+    const dot = stepDelivered.querySelector('.step-dot');
+    if (dot) dot.textContent = isDelivered ? '✓' : '○';
+  }
+
+  // 4. Ordered Items list (compact single-screen rows)
+  const itemsListEl = document.getElementById('sheetItemsList');
+  if (itemsListEl) {
+    const items = (Array.isArray(order.items) && order.items.length > 0) ? order.items : [
+      { name: 'Cold Brew Coffee', price: 120, qty: 1 },
+      { name: 'Classic Chips Snack Pack', price: 30, qty: 1 }
+    ];
+    itemsListEl.innerHTML = items.map(it => `
+      <div class="sheet-item-row">
+        <span class="sheet-item-qty">${it.qty || it.quantity || 1}×</span>
+        <span class="sheet-item-name">${escapeHtml(it.name || 'Item')}</span>
+        <span class="sheet-item-price">₹${(it.price || 0) * (it.qty || it.quantity || 1)}</span>
+      </div>
+    `).join('');
+  }
+
+  // 5. Total
+  const totalValEl = document.getElementById('sheetTotalVal');
+  if (totalValEl) {
+    totalValEl.textContent = `₹${order.total || order.total_amount || 150}`;
+  }
+
+  // 6. Test simulator button
+  const simBtn = document.getElementById('btnSheetSimulateDelivery');
+  if (simBtn) {
+    if (isDelivered) {
+      simBtn.innerHTML = '<span>🔄 Reset Order for Testing (Set Ready)</span>';
+      simBtn.onclick = (e) => {
+        e.preventDefault();
+        if (typeof window.resetActiveOrderForTesting === 'function') {
+          window.resetActiveOrderForTesting();
+          openOrderBottomSheet();
+        }
+      };
+    } else {
+      simBtn.innerHTML = '<span>⚡ Store Manager: Mark Delivered (Test Ripple)</span>';
+      simBtn.onclick = (e) => {
+        e.preventDefault();
+        if (typeof window.simulateStoreDelivered === 'function') {
+          window.simulateStoreDelivered();
+          openOrderBottomSheet();
+        }
+      };
+    }
+  }
+
+  // 7. Show bottom sheet
+  backdrop.classList.add('active');
+  sheet.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Closes the 3/4 screen Order Pickup Pass bottom sheet.
+ */
+function closeOrderBottomSheet() {
+  const sheet = document.getElementById('orderBottomSheet');
+  const backdrop = document.getElementById('orderSheetBackdrop');
+  if (sheet) sheet.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+/**
+ * Initializes listeners for closing the bottom sheet.
+ */
+function initOrderBottomSheetEvents() {
+  const sheet = document.getElementById('orderBottomSheet');
+  const backdrop = document.getElementById('orderSheetBackdrop');
+  const closeBtn = document.getElementById('sheetCloseBtn');
+  const handle = document.getElementById('sheetDragHandle');
+
+  if (closeBtn) closeBtn.onclick = closeOrderBottomSheet;
+  if (backdrop) backdrop.onclick = closeOrderBottomSheet;
+  if (handle) handle.onclick = closeOrderBottomSheet;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sheet && sheet.classList.contains('open')) {
+      closeOrderBottomSheet();
+    }
+  });
+}
+
+// Make open & close methods available globally
+window.openOrderBottomSheet = openOrderBottomSheet;
+window.closeOrderBottomSheet = closeOrderBottomSheet;
+
+/**
+ * Triggers the center ripple animation and transitions the card to satisfaction light green.
+ */
+function triggerOrderDeliveredRipple(order) {
+  const banner = document.getElementById('active-order-banner');
+  if (!banner) return;
+
+  const rippleWave = document.getElementById('card-ripple-wave');
+  if (rippleWave) {
+    rippleWave.classList.remove('rippling');
+    void rippleWave.offsetWidth; // Force CSS reflow to replay keyframe
+    rippleWave.classList.add('rippling');
+  }
+
+  // Smoothly turn card light green
+  banner.classList.add('is-delivered');
+
+  // Play sweet success chime audio
+  if (window.UniMallSound && typeof window.UniMallSound.play === 'function') {
+    try {
+      window.UniMallSound.play('success');
+    } catch(e) {}
+  }
+
+  // Confetti burst
+  if (typeof window.UniMallConfetti === 'function') {
+    try {
+      window.UniMallConfetti();
+    } catch(e) {}
+  }
+
+  // Update order in state and storage
+  if (order) {
+    if (!order.deliveredAt) order.deliveredAt = new Date().toISOString();
+    order.status = 'delivered';
+    renderActiveOrderBanner();
+    // If the bottom sheet is currently open, live update it as well
+    const sheet = document.getElementById('orderBottomSheet');
+    if (sheet && sheet.classList.contains('open')) {
+      openOrderBottomSheet(order);
+    }
+  }
+}
+
+/**
+ * Initializes slider scroll synchronization & pagination dots.
+ * Strictly manual interaction — NO auto-swiping!
+ */
+function initHeroBannersSlider() {
+  const slider = document.getElementById('hero-banners-slider');
+  const dots = document.querySelectorAll('.hero-dot');
+  if (!slider) return;
+
+  // Initialize sheet close interactions
+  initOrderBottomSheetEvents();
+
+  // Scroll listener strictly tracks manual user swipe
+  slider.addEventListener('scroll', () => {
+    const slides = Array.from(slider.querySelectorAll('.active-order-banner:not([style*="display: none"]), .utility-module:not([style*="display: none"])'));
+    if (slides.length <= 1) return;
+
+    const sliderRect = slider.getBoundingClientRect();
+    let bestIndex = 0;
+    let minDiff = Infinity;
+
+    slides.forEach((sl, idx) => {
+      const r = sl.getBoundingClientRect();
+      const diff = Math.abs(r.left - sliderRect.left);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIndex = idx;
+      }
+    });
+
+    dots.forEach((dot, idx) => {
+      dot.classList.toggle('active', idx === bestIndex);
+    });
+  }, { passive: true });
+
+  // Clicking dots manually navigates to the slide
+  dots.forEach(dot => {
+    dot.addEventListener('click', () => {
+      const slideIndex = parseInt(dot.getAttribute('data-slide') || '0', 10);
+      const slides = Array.from(slider.querySelectorAll('.active-order-banner:not([style*="display: none"]), .utility-module:not([style*="display: none"])'));
+      if (slides[slideIndex]) {
+        slides[slideIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+      }
+    });
+  });
+}
+
+/**
+ * Realtime synchronization: detects store manager delivering the order.
+ */
+function initRealtimeOrderListeners() {
+  // 1. Cross-tab storage event
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'unimall_order_delivered_event' && e.newValue) {
+      try {
+        const payload = JSON.parse(e.newValue);
+        if (payload.status === 'delivered' || payload.status === 'completed') {
+          const orderData = getActiveOrRecentOrder();
+          if (orderData && orderData.order.id === payload.orderId && !_currentOrderDeliveredState) {
+            triggerOrderDeliveredRipple(orderData.order);
+          } else {
+            renderActiveOrderBanner();
+          }
+        }
+      } catch(err) {}
+    } else if (e.key === 'unimall_v1') {
+      const orderData = getActiveOrRecentOrder();
+      if (orderData && orderData.isDelivered && !_currentOrderDeliveredState) {
+        triggerOrderDeliveredRipple(orderData.order);
+      } else {
+        renderActiveOrderBanner();
+      }
+    }
+  });
+
+  // 2. Intra-tab custom event
+  window.addEventListener('unimall:orderStatusUpdated', (e) => {
+    const { orderId, status } = e.detail || {};
+    if (status === 'delivered' || status === 'completed') {
+      const orderData = getActiveOrRecentOrder();
+      if (orderData && orderData.order.id === orderId && !_currentOrderDeliveredState) {
+        triggerOrderDeliveredRipple(orderData.order);
+      } else {
+        renderActiveOrderBanner();
+      }
+    }
+  });
+
+  // 3. Gentle background poll (every 3.5s)
+  setInterval(() => {
+    try {
+      const orderData = getActiveOrRecentOrder();
+      if (!orderData) {
+        if (_currentDisplayedOrderId) renderActiveOrderBanner();
+        return;
+      }
+      if (orderData.isDelivered && !_currentOrderDeliveredState) {
+        triggerOrderDeliveredRipple(orderData.order);
+      } else if (!orderData.isDelivered && _currentOrderDeliveredState) {
+        renderActiveOrderBanner();
+      }
+    } catch(err) {}
+  }, 3500);
+}
+
+/**
+ * Developer & Testing Simulation:
+ * Call window.simulateStoreDelivered() in console or via test trigger
+ * to see the satisfaction center ripple and light-green transition!
+ */
+window.simulateStoreDelivered = function() {
+  let appData = {};
+  const raw = localStorage.getItem('unimall_v1');
+  if (raw) {
+    try { appData = JSON.parse(raw); } catch(e) {}
+  }
+  if (!Array.isArray(appData.orders) || appData.orders.length === 0) {
+    if (typeof AppState !== 'undefined' && Array.isArray(AppState.orders) && AppState.orders.length > 0) {
+      appData.orders = [...AppState.orders];
+    } else {
+      console.warn('[UniMall] No orders available to simulate delivery.');
+      return;
+    }
+  }
+
+  // Find active order or first order
+  let order = appData.orders.find(o => ['placed', 'accepted', 'preparing', 'ready'].includes((o.status || '').toLowerCase()));
+  if (!order) order = appData.orders[0];
+
+  const nowIso = new Date().toISOString();
+  order.status = 'delivered';
+  order.deliveredAt = nowIso;
+  if (!order.statusHistory) order.statusHistory = [];
+  order.statusHistory.push({
+    status: 'delivered',
+    time: nowIso,
+    label: 'Order Delivered by Store Manager'
+  });
+
+  localStorage.setItem('unimall_v1', JSON.stringify(appData));
+  if (typeof AppState !== 'undefined') {
+    AppState.orders = appData.orders;
+  }
+
+  try {
+    localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
+      orderId: order.id,
+      status: 'delivered',
+      deliveredAt: nowIso,
+      timestamp: Date.now()
+    }));
+  } catch(e) {}
+
+  window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
+    detail: { orderId: order.id, status: 'delivered', deliveredAt: nowIso }
+  }));
+
+  triggerOrderDeliveredRipple(order);
+  console.log(`%c[UniMall] Store Manager marked #${order.id} Delivered! Center ripple triggered!`, 'color: #059669; font-weight: bold;');
+};
+
+/**
+ * Reset test order back to 'ready' for repeated testing
+ */
+window.resetActiveOrderForTesting = function() {
+  let appData = {};
+  const raw = localStorage.getItem('unimall_v1');
+  if (raw) {
+    try { appData = JSON.parse(raw); } catch(e) {}
+  }
+  if (Array.isArray(appData.orders) && appData.orders[0]) {
+    appData.orders[0].status = 'ready';
+    delete appData.orders[0].deliveredAt;
+    localStorage.setItem('unimall_v1', JSON.stringify(appData));
+    if (typeof AppState !== 'undefined') AppState.orders = appData.orders;
+    _currentOrderDeliveredState = false;
+    renderActiveOrderBanner();
+    console.log(`%c[UniMall] Order #${appData.orders[0].id} reset to READY FOR PICKUP`, 'color: #2563eb; font-weight: bold;');
+  }
+};

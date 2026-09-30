@@ -64,7 +64,13 @@ function renderOrdersTable() {
 
   let filtered = currentOrdersList;
   if (currentOrderStatusFilter !== 'ALL') {
-    filtered = currentOrdersList.filter(o => o.status === currentOrderStatusFilter);
+    filtered = currentOrdersList.filter(o => {
+      const s = (o.status || '').toUpperCase();
+      if (currentOrderStatusFilter === 'COMPLETED') {
+        return s === 'COMPLETED' || s === 'DELIVERED';
+      }
+      return s === currentOrderStatusFilter;
+    });
   }
 
   if (filtered.length === 0) {
@@ -104,14 +110,15 @@ function renderOrdersTable() {
 }
 
 function getNextActionButton(order) {
+  const s = (order.status || '').toUpperCase();
   const transitions = {
     'PLACED': { next: 'ACCEPTED', label: 'Accept', class: 'primary' },
     'ACCEPTED': { next: 'PREPARING', label: 'Start Prep', class: 'primary' },
     'PREPARING': { next: 'READY', label: 'Mark Ready', class: 'primary' },
-    'READY': { next: 'COMPLETED', label: 'Complete', class: 'primary' }
+    'READY': { next: 'DELIVERED', label: 'Mark Delivered', class: 'primary' }
   };
 
-  const action = transitions[order.status];
+  const action = transitions[s];
   if (!action) return '<span style="font-size: 12px; color: var(--text-muted);">—</span>';
 
   return `
@@ -220,17 +227,18 @@ async function viewOrderDetail(orderId) {
     `;
 
     // Next action buttons in modal footer
+    const s = (order.status || '').toUpperCase();
     const nextTransitions = {
       'PLACED': { next: 'ACCEPTED', label: 'Accept Order', btnClass: 'primary' },
       'ACCEPTED': { next: 'PREPARING', label: 'Start Preparing', btnClass: 'primary' },
       'PREPARING': { next: 'READY', label: 'Mark Ready', btnClass: 'primary' },
-      'READY': { next: 'COMPLETED', label: 'Complete Order', btnClass: 'primary' }
+      'READY': { next: 'DELIVERED', label: 'Mark Delivered', btnClass: 'primary' }
     };
 
     let actionsHtml = `<button type="button" class="btn-action secondary" data-close="modal-order-detail">Close</button>`;
 
-    if (nextTransitions[order.status]) {
-      const trans = nextTransitions[order.status];
+    if (nextTransitions[s]) {
+      const trans = nextTransitions[s];
       actionsHtml += `
         <button type="button" class="btn-action ${trans.btnClass}" onclick="executeOrderTransition('${order.id}', '${trans.next}')">
           ${trans.label}

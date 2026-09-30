@@ -619,60 +619,74 @@ const INITIAL_NOTIFICATIONS = [
 
 /* ─── MOCK USER ──────────────────────────────────────────── */
 const DEFAULT_USER = {
-  name:   'Aarav Singh',
-  email:  'aarav.s@university.edu',
+  name:   'Ansh Sharma',
+  email:  'ansh.s@campus.edu',
   hostel: 'Hostel B',
   room:   'Room 214',
   avatar: 'A',
-  phone:  '',
+  phone:  '+91 98765 43210',
 };
 
 /* ─── SUPABASE LIVE SYNC ─────────────────────────────────── */
 async function syncCatalogWithSupabase() {
-  if (typeof window.UniMallDB === 'undefined') return;
+  if (typeof window.UniMallDB === 'undefined') return false;
   try {
     const [dbStores, dbProducts] = await Promise.all([
       window.UniMallDB.getStores().catch(() => null),
       window.UniMallDB.getProducts().catch(() => null)
     ]);
 
+    let hasChanged = false;
+
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
-      STORES = dbStores.map(s => ({
-        id: s.id,
-        name: s.name,
-        floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
-        openNow: s.is_open !== false,
-        hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
-        category: s.category || 'essentials',
-        location: s.location || 'Campus Center',
-        coverImage: s.cover_image || '',
-        rating: Number(s.rating) || 4.5
-      }));
+      const prevIds = STORES.map(s => s.id).sort().join(',');
+      const newIds = dbStores.map(s => s.id).sort().join(',');
+      if (prevIds !== newIds || dbStores.length !== STORES.length) {
+        hasChanged = true;
+        STORES = dbStores.map(s => ({
+          id: s.id,
+          name: s.name,
+          floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
+          openNow: s.is_open !== false,
+          hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
+          category: s.category || 'essentials',
+          location: s.location || 'Campus Center',
+          coverImage: s.cover_image || '',
+          rating: Number(s.rating) || 4.5
+        }));
+      }
     }
 
     if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
-      PRODUCTS = dbProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: parseFloat(p.price) || 0,
-        emoji: p.emoji || '📦',
-        bg: p.bg || '#F8FAFC',
-        image: p.image || '',
-        categoryId: p.category_id,
-        storeId: p.store_id,
-        description: p.description || '',
-        stock: p.stock ?? 20,
-        availability: p.availability || 'in-stock',
-        deliveryAvailable: p.delivery_available !== false,
-        pickupAvailable: p.pickup_available !== false,
-        rating: Number(p.rating) || 4.5,
-        isNearby: Boolean(p.is_nearby),
-        isPopular: Boolean(p.is_popular),
-        isRestocked: Boolean(p.is_restocked)
-      }));
+      const prevProdIds = PRODUCTS.map(p => p.id).sort().join(',');
+      const newProdIds = dbProducts.map(p => p.id).sort().join(',');
+      if (prevProdIds !== newProdIds || dbProducts.length !== PRODUCTS.length) {
+        hasChanged = true;
+        PRODUCTS = dbProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: parseFloat(p.price) || 0,
+          emoji: p.emoji || '📦',
+          bg: p.bg || '#F8FAFC',
+          image: p.image || '',
+          categoryId: p.category_id,
+          storeId: p.store_id,
+          description: p.description || '',
+          stock: p.stock ?? 20,
+          availability: p.availability || 'in-stock',
+          deliveryAvailable: p.delivery_available !== false,
+          pickupAvailable: p.pickup_available !== false,
+          rating: Number(p.rating) || 4.5,
+          isNearby: Boolean(p.is_nearby),
+          isPopular: Boolean(p.is_popular),
+          isRestocked: Boolean(p.is_restocked)
+        }));
+      }
     }
+    return hasChanged;
   } catch (err) {
     console.warn('[UniMall] Supabase catalog sync note:', err.message);
+    return false;
   }
 }
 

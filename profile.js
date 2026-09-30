@@ -107,17 +107,10 @@ function renderProfile() {
   if (userEmailText) userEmailText.textContent = u.email || 'student@university.edu';
   if (userHostelSub) userHostelSub.textContent = `${u.hostel || 'Hostel'} · ${u.room || 'Room'}`;
 
-  // Avatar
-  const avatarSrc = u.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(u.name || 'Student') : '');
-  if (avatarSrc && avatarImg) {
-    avatarImg.src = avatarSrc;
-    avatarImg.classList.remove('hidden');
-    if (avatarPlaceholder) avatarPlaceholder.classList.add('hidden');
-  } else if (avatarPlaceholder && avatarImg) {
-    avatarPlaceholder.textContent = (u.name && u.name.trim()[0]) ? u.name.trim()[0].toUpperCase() : 'U';
-    avatarPlaceholder.classList.remove('hidden');
-    avatarImg.classList.add('hidden');
-  }
+  // Avatar — display clean initial of the name
+  const initial = (u.name && u.name.trim()) ? u.name.trim().charAt(0).toUpperCase() : 'U';
+  const avatarInitial = document.getElementById('avatarInitial');
+  if (avatarInitial) avatarInitial.textContent = initial;
 
   // Auth badge & connect button
   if (authStatusPill) {
@@ -157,22 +150,40 @@ function renderProfile() {
   if (profPhone) profPhone.value = u.phone || '';
   if (profHostel) profHostel.value = u.hostel || '';
   if (profRoom) profRoom.value = u.room || '';
+
+  // Sync hostel chips state
+  document.querySelectorAll('.h-chip').forEach(chip => {
+    if (u.hostel && chip.dataset.hostel.toLowerCase() === u.hostel.toLowerCase()) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
 }
 
-/* ─── LOGOUT ─────────────────────────────────────────────── */
+/* ─── LOGOUT MODAL CONTROLLER ────────────────────────────── */
+function showLogoutModal() {
+  const modal = document.getElementById('logoutModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function hideLogoutModal() {
+  const modal = document.getElementById('logoutModal');
+  if (modal) modal.classList.add('hidden');
+}
+
 async function handleLogout() {
-  if (confirm('Are you sure you want to log out from UniMall?')) {
-    if (firebaseAuth) {
-      try {
-        await firebaseAuth.signOut();
-      } catch (e) { }
-    }
-    localStorage.removeItem(AUTH_KEY);
-    showToast('Logged out');
-    setTimeout(() => {
-      window.location.href = 'login.html';
-    }, 500);
+  hideLogoutModal();
+  if (firebaseAuth) {
+    try {
+      await firebaseAuth.signOut();
+    } catch (e) { }
   }
+  localStorage.removeItem(AUTH_KEY);
+  showToast('Logged out successfully');
+  setTimeout(() => {
+    window.location.href = 'login.html';
+  }, 400);
 }
 
 /* ─── CONNECT GOOGLE ACCOUNT (FROM GUEST) ────────────────── */
@@ -254,11 +265,13 @@ function syncSidebarProfile() {
     if (nameEl && u.name) nameEl.textContent = u.name;
     if (roleEl) roleEl.textContent = `${u.hostel || 'Hostel B'} · ${u.room || 'Room 214'}`;
     if (avatarEl) {
-      if (u.avatar) {
-        avatarEl.innerHTML = `<img src="${u.avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-      } else if (u.name) {
-        avatarEl.textContent = u.name.trim()[0].toUpperCase();
-      }
+      const initial = (u.name && u.name.trim()) ? u.name.trim().charAt(0).toUpperCase() : 'U';
+      avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+      avatarEl.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+      avatarEl.style.display = 'flex';
+      avatarEl.style.alignItems = 'center';
+      avatarEl.style.justifyContent = 'center';
+      avatarEl.style.borderRadius = '50%';
     }
   } catch (e) { }
 }
@@ -274,7 +287,40 @@ function initEvents() {
     }
   });
 
-  // Save profile form
+  // Real-time live avatar initial & name update as user types!
+  const profNameInput = document.getElementById('profName');
+  profNameInput?.addEventListener('input', (e) => {
+    const val = e.target.value.trim();
+    const initial = val ? val.charAt(0).toUpperCase() : 'U';
+    const avatarInitial = document.getElementById('avatarInitial');
+    if (avatarInitial) avatarInitial.textContent = initial;
+
+    const userDisplayName = document.getElementById('userDisplayName');
+    if (userDisplayName) userDisplayName.textContent = val || 'Campus Student';
+
+    const sbName = document.querySelector('.sidebar-profile-name');
+    if (sbName && val) sbName.textContent = val;
+
+    const sbAvatar = document.querySelector('.sidebar-avatar');
+    if (sbAvatar) {
+      sbAvatar.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+    }
+  });
+
+  // Quick hostel chips selection
+  document.querySelectorAll('.h-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.h-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const hostelInput = document.getElementById('profHostel');
+      if (hostelInput) {
+        hostelInput.value = chip.dataset.hostel;
+        if (window.UniMallSound) window.UniMallSound.play('pop');
+      }
+    });
+  });
+
+  // Save profile form with interactive button state
   document.getElementById('profileForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const profName = document.getElementById('profName')?.value?.trim();
@@ -282,24 +328,68 @@ function initEvents() {
     const profHostel = document.getElementById('profHostel')?.value?.trim();
     const profRoom = document.getElementById('profRoom')?.value?.trim();
 
+    const saveBtn = document.getElementById('saveProfileBtn');
+    const saveLabel = document.getElementById('saveBtnLabel');
+
+    if (saveBtn && saveLabel) {
+      saveLabel.textContent = 'Saving...';
+      saveBtn.disabled = true;
+    }
+
     if (profName) ProfileState.user.name = profName;
     if (profPhone !== undefined) ProfileState.user.phone = profPhone;
     if (profHostel) ProfileState.user.hostel = profHostel;
     if (profRoom) ProfileState.user.room = profRoom;
 
-    saveProfileData();
-    renderProfile();
+    setTimeout(() => {
+      saveProfileData();
+      renderProfile();
+      syncSidebarProfile();
+
+      if (window.UniMallSound) window.UniMallSound.play('pop');
+
+      if (saveBtn && saveLabel) {
+        saveBtn.classList.add('saved');
+        saveLabel.textContent = 'Saved ✓';
+        setTimeout(() => {
+          saveBtn.classList.remove('saved');
+          saveLabel.textContent = 'Save Campus Details';
+          saveBtn.disabled = false;
+        }, 1800);
+      }
+    }, 250);
   });
 
-  // Logout button
-  document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
+  // Logout button triggers beautiful modal
+  document.getElementById('logoutBtn')?.addEventListener('click', showLogoutModal);
+  document.getElementById('cancelLogoutBtn')?.addEventListener('click', hideLogoutModal);
+  document.getElementById('confirmLogoutBtn')?.addEventListener('click', handleLogout);
+
+  // Click outside logout modal to close
+  document.getElementById('logoutModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'logoutModal') hideLogoutModal();
+  });
 
   // Connect Google button
   document.getElementById('switchGoogleBtn')?.addEventListener('click', handleConnectGoogle);
 
-  // Helpdesk button
+  // Helpdesk modal triggers
+  const helpdeskModal = document.getElementById('helpdeskModal');
   document.getElementById('campusHelpdeskBtn')?.addEventListener('click', () => {
-    showToast('UniMall Helpdesk: Ground Floor, Main Entrance');
+    if (helpdeskModal) helpdeskModal.classList.remove('hidden');
+    if (window.UniMallSound) window.UniMallSound.play('pop');
+  });
+
+  document.getElementById('closeHelpdeskBtn')?.addEventListener('click', () => {
+    if (helpdeskModal) helpdeskModal.classList.add('hidden');
+  });
+
+  document.getElementById('helpdeskGotItBtn')?.addEventListener('click', () => {
+    if (helpdeskModal) helpdeskModal.classList.add('hidden');
+  });
+
+  helpdeskModal?.addEventListener('click', (e) => {
+    if (e.target.id === 'helpdeskModal') helpdeskModal.classList.add('hidden');
   });
 
   // Sound FX toggle

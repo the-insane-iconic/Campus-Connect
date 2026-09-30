@@ -21,10 +21,6 @@
 
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="profile.css">
-
-  <!-- Firebase SDK for Auth Sign-out -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 </head>
 
 <body>
@@ -110,9 +106,9 @@
         <div class="profile-left-col">
           <!-- PROFILE HERO CARD -->
           <section class="profile-hero-card fade-up delay-1">
-            <div class="avatar-wrap" id="avatarWrap">
-              <div class="avatar-placeholder" id="avatarPlaceholder">A</div>
-              <img class="avatar-img hidden" id="avatarImg" src="" alt="Profile Photo">
+            <div class="avatar-wrap" id="avatarWrap" aria-label="Profile Initial Avatar">
+              <span class="avatar-initial" id="avatarInitial">A</span>
+              <span class="avatar-badge-dot" id="avatarBadgeDot" title="Verified Campus Student"></span>
             </div>
 
             <div class="profile-hero-details">
@@ -124,7 +120,10 @@
               </div>
 
               <p class="user-email-text" id="userEmailText">aarav.s@university.edu</p>
-              <p class="user-hostel-sub" id="userHostelSub">Hostel B · Room 214</p>
+              <div class="user-campus-meta-row">
+                <span class="user-hostel-sub" id="userHostelSub">Hostel B · Room 214</span>
+                <span class="campus-resident-tag">🎓 Campus Resident</span>
+              </div>
             </div>
           </section>
 
@@ -193,20 +192,25 @@
                 <input type="tel" id="profPhone" placeholder="+91 98765 43210">
               </div>
 
-              <div class="form-row-2">
-                <div class="form-group">
-                  <label for="profHostel">Hostel / Block</label>
-                  <input type="text" id="profHostel" placeholder="e.g. Hostel B" required>
+              <div class="form-group">
+                <label for="profHostel">Hostel / Block</label>
+                <div class="hostel-quick-chips" id="hostelQuickChips" aria-label="Quick hostel select">
+                  <button type="button" class="h-chip" data-hostel="Hostel A">Hostel A</button>
+                  <button type="button" class="h-chip" data-hostel="Hostel B">Hostel B</button>
+                  <button type="button" class="h-chip" data-hostel="Hostel C">Hostel C</button>
+                  <button type="button" class="h-chip" data-hostel="Hostel D">Hostel D</button>
+                  <button type="button" class="h-chip" data-hostel="Day Scholar">Day Scholar</button>
                 </div>
+                <input type="text" id="profHostel" placeholder="e.g. Hostel B" required>
+              </div>
 
-                <div class="form-group">
-                  <label for="profRoom">Room Number</label>
-                  <input type="text" id="profRoom" placeholder="e.g. Room 214" required>
-                </div>
+              <div class="form-group">
+                <label for="profRoom">Room Number / Cabin</label>
+                <input type="text" id="profRoom" placeholder="e.g. Room 214" required>
               </div>
 
               <button type="submit" class="save-profile-btn" id="saveProfileBtn">
-                Save Campus Details
+                <span class="btn-label" id="saveBtnLabel">Save Campus Details</span>
               </button>
             </form>
           </section>
@@ -293,6 +297,63 @@
         <span class="toast-message" id="toastMessage">Changes saved</span>
       </div>
 
+      <!-- CAMPUS HELPDESK MODAL -->
+      <div class="modal-overlay hidden" id="helpdeskModal" role="dialog" aria-modal="true" aria-labelledby="helpdeskTitle">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div class="modal-icon-badge">📍</div>
+            <div class="modal-header-text">
+              <h3 id="helpdeskTitle">Campus Mall Helpdesk</h3>
+              <p>Ground Floor, Student Activity Center</p>
+            </div>
+            <button class="modal-close-icon" id="closeHelpdeskBtn" aria-label="Close modal">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-info-row">
+              <div class="m-icon">🕒</div>
+              <div>
+                <strong>Operating Hours</strong>
+                <p>Monday – Sunday · 8:00 AM – 10:00 PM</p>
+              </div>
+            </div>
+            <div class="modal-info-row">
+              <div class="m-icon">📞</div>
+              <div>
+                <strong>Campus Helpline</strong>
+                <p>+91 98765 43210 (Direct Extension)</p>
+              </div>
+            </div>
+            <div class="modal-info-row">
+              <div class="m-icon">🛵</div>
+              <div>
+                <strong>Hostel Delivery Assistance</strong>
+                <p>Ground floor runner desk active till 11 PM</p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="modal-btn-primary" id="helpdeskGotItBtn">Got It</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGOUT CONFIRMATION MODAL -->
+      <div class="modal-overlay hidden" id="logoutModal" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="modal-card modal-logout-card">
+          <div class="modal-header">
+            <div class="modal-icon-badge logout-badge">🚪</div>
+            <div class="modal-header-text">
+              <h3 id="logoutModalTitle">Log out of UniMall?</h3>
+              <p>You can sign back in anytime with your university Google account.</p>
+            </div>
+          </div>
+          <div class="modal-actions-dual">
+            <button class="modal-btn-cancel" id="cancelLogoutBtn">Cancel</button>
+            <button class="modal-btn-logout" id="confirmLogoutBtn">Yes, Log Out</button>
+          </div>
+        </div>
+      </div>
+
       <!-- BOTTOM NAVIGATION (Canonical across all pages) -->
       <nav class="bottom-nav" id="bottom-nav" aria-label="Main navigation">
         <a href="index.html" class="nav-item" id="nav-home" aria-label="Home">
@@ -354,6 +415,9 @@
     </main>
   </div>
 
+  <!-- Non-blocking deferred Firebase Auth for logout / connect -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js" defer></script>
   <script src="js/config.js"></script>
   <script src="js/sound.js"></script>
   <script src="profile.js"></script>

@@ -699,13 +699,13 @@ function syncSidebarProfile() {
     if (nameEl && user.name) nameEl.textContent = user.name;
     if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
     if (avatarEl) {
-      const stickerFallback = typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(user.name || 'User') : '';
-      const avatarSrc = user.avatar || stickerFallback;
-      if (avatarSrc) {
-        avatarEl.innerHTML = `<img src="${avatarSrc}" alt="${user.name || 'User'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='${stickerFallback}';" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-      } else if (user.name) {
-        avatarEl.textContent = user.name.trim()[0].toUpperCase();
-      }
+      const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
+      avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+      avatarEl.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+      avatarEl.style.display = 'flex';
+      avatarEl.style.alignItems = 'center';
+      avatarEl.style.justifyContent = 'center';
+      avatarEl.style.borderRadius = '50%';
     }
   } catch (e) {}
 }
@@ -715,7 +715,7 @@ syncSidebarProfile();
 
 
 /* =========================================================
-   INITIAL RENDER & LIVE SYNC
+   INITIAL RENDER & LIVE SYNC (NO FLICKER)
 ========================================================= */
 
 renderStores();
@@ -723,23 +723,27 @@ renderStores();
 if (typeof window.UniMallDB !== 'undefined') {
   window.UniMallDB.getStores().then(dbStores => {
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
-      STORES = dbStores.map(s => ({
-        id: s.id,
-        name: s.name,
-        categories: [s.category || 'food'],
-        categoryLabel: s.description || 'Campus Store',
-        coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
-        status: s.is_open ? 'open' : 'closed',
-        statusLabel: s.is_open ? 'Open' : 'Closed',
-        openingTime: s.opening_time || '8:00 AM',
-        closingTime: s.closing_time || '10:00 PM',
-        distance: 2,
-        walkingTime: 3,
-        floor: s.floor || 'Ground Floor',
-        rating: Number(s.rating) || 4.5,
-        popularity: s.popularity || 85
-      }));
-      renderStores();
+      const currentIds = STORES.map(s => s.id).sort().join(',');
+      const incomingIds = dbStores.map(s => s.id).sort().join(',');
+      if (currentIds !== incomingIds || dbStores.length !== STORES.length) {
+        STORES = dbStores.map(s => ({
+          id: s.id,
+          name: s.name,
+          categories: [s.category || 'food'],
+          categoryLabel: s.description || 'Campus Store',
+          coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
+          status: s.is_open ? 'open' : 'closed',
+          statusLabel: s.is_open ? 'Open' : 'Closed',
+          openingTime: s.opening_time || '8:00 AM',
+          closingTime: s.closing_time || '10:00 PM',
+          distance: 2,
+          walkingTime: 3,
+          floor: s.floor || 'Ground Floor',
+          rating: Number(s.rating) || 4.5,
+          popularity: s.popularity || 85
+        }));
+        renderStores();
+      }
     }
   }).catch(() => {});
 }

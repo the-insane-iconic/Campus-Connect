@@ -305,6 +305,7 @@ function handlePlaceOrder() {
 
       const newOrder = {
         id: orderId,
+        customerName: user.name || 'Ansh Sharma',
         storeId: firstStoreId,
         storeName: storeObj ? storeObj.name : 'Campus Store',
         storeIcon: CartState.items[0]?.product?.emoji || '🛍️',
@@ -623,21 +624,102 @@ function syncSidebarProfile() {
     if (nameEl && user.name) nameEl.textContent = user.name;
     if (roleEl) roleEl.textContent = `${user.hostel || 'Hostel B'} · ${user.room || 'Room 214'}`;
     if (avatarEl) {
-      const avatarSrc = user.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(user.name || 'User') : '');
-      if (avatarSrc) {
-        avatarEl.innerHTML = `<img src="${avatarSrc}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-      } else if (user.name) {
-        avatarEl.textContent = user.name.trim()[0].toUpperCase();
-      }
+      const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
+      avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+      avatarEl.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+      avatarEl.style.display = 'flex';
+      avatarEl.style.alignItems = 'center';
+      avatarEl.style.justifyContent = 'center';
+      avatarEl.style.borderRadius = '50%';
     }
   } catch (e) { }
 }
 
+/* ─── CONTEXTUAL STORE NAVIGATION ────────────────────────── */
+function syncStoreNavigation() {
+  try {
+    let targetStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
+    let targetStoreName = sessionStorage.getItem('unimall_active_store_name') || localStorage.getItem('unimall_last_store_name');
+
+    // If not in storage, detect store from cart items
+    if (!targetStoreId && CartState.items.length > 0) {
+      const itemWithStore = CartState.items.find(i => i.product && (i.product.storeId || i.storeId));
+      if (itemWithStore) {
+        targetStoreId = itemWithStore.product?.storeId || itemWithStore.storeId;
+        targetStoreName = itemWithStore.product?.storeName || itemWithStore.storeName;
+      }
+    }
+
+    // Map store ID to catalog ID if using dataId
+    const storeMap = {
+      'campus-cafe': 'store-bakery',
+      'book-corner': 'store-stationery',
+      'campus-mart': 'store-sports',
+      'tech-hub': 'store-electronics',
+      'fashion-point': 'store-fashion'
+    };
+    if (storeMap[targetStoreId]) {
+      targetStoreId = storeMap[targetStoreId];
+    }
+
+    if (targetStoreId) {
+      const targetUrl = `store.html?id=${encodeURIComponent(targetStoreId)}`;
+
+      // 1. Bottom nav "Stores" option takes user back to that particular store
+      const navStores = document.getElementById('nav-stores');
+      if (navStores) {
+        navStores.href = targetUrl;
+        navStores.setAttribute('aria-label', targetStoreName ? `Return to ${targetStoreName}` : 'Store');
+        const navLabel = navStores.querySelector('.nav-label');
+        if (navLabel) navLabel.textContent = 'Store';
+      }
+
+      // 2. Sidebar "Stores" option takes user back to that particular store
+      const sbStores = document.getElementById('sb-stores');
+      if (sbStores) {
+        sbStores.href = targetUrl;
+        sbStores.setAttribute('title', targetStoreName ? `Return to ${targetStoreName}` : 'Store');
+      }
+
+      // 3. Contextual banner at top of cart
+      const bannerWrap = document.getElementById('cartStoreBannerWrap');
+      const bannerLink = document.getElementById('cartStoreBannerLink');
+      const bannerName = document.getElementById('cartStoreBannerName');
+      if (bannerWrap && bannerLink && bannerName) {
+        bannerWrap.style.display = 'block';
+        bannerLink.href = targetUrl;
+        bannerName.textContent = targetStoreName || 'Campus Store';
+      }
+
+      // 4. Empty state button
+      const emptyStoreBtn = document.querySelector('.browse-btn-secondary');
+      if (emptyStoreBtn) {
+        emptyStoreBtn.href = targetUrl;
+        emptyStoreBtn.textContent = `Return to ${targetStoreName || 'Campus Store'}`;
+      }
+    }
+  } catch (e) {
+    console.warn('Store nav sync note:', e);
+  }
+}
+
 /* ─── EVENT LISTENERS ────────────────────────────────────── */
 function initEvents() {
-  // Back button
+  // Back button returns to specific store if available, else browser back
   document.getElementById('backButton')?.addEventListener('click', () => {
-    if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
+    let targetStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
+    const storeMap = {
+      'campus-cafe': 'store-bakery',
+      'book-corner': 'store-stationery',
+      'campus-mart': 'store-sports',
+      'tech-hub': 'store-electronics',
+      'fashion-point': 'store-fashion'
+    };
+    if (storeMap[targetStoreId]) targetStoreId = storeMap[targetStoreId];
+
+    if (targetStoreId) {
+      window.location.href = `store.html?id=${encodeURIComponent(targetStoreId)}`;
+    } else if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
       window.history.back();
     } else {
       window.location.href = 'index.html';
@@ -730,4 +812,5 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCartView();
   syncCartBadge();
   syncSidebarProfile();
+  syncStoreNavigation();
 });

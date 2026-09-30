@@ -14,10 +14,8 @@ function renderSidebar() {
 
   const count = getCartCount();
   const user = AppState.currentUser || {};
-  const avatarSrc = user.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(user.name || 'User') : '');
-  const avatarHtml = avatarSrc
-    ? `<img src="${avatarSrc}" alt="${user.name || 'User'}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`
-    : (user.name ? user.name[0].toUpperCase() : 'A');
+  const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'A';
+  const avatarHtml = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
 
   sidebar.innerHTML = `
     <div class="sidebar-brand">
@@ -237,12 +235,13 @@ function initProfileBtn() {
   const btn = document.getElementById('profile-btn');
   const user = AppState.currentUser;
   if (btn && user) {
-    const avatarSrc = user.avatar || (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(user.name || 'User') : '');
-    if (avatarSrc) {
-      btn.innerHTML = `<img src="${avatarSrc}" alt="${user.name}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;">`;
-    } else {
-      btn.textContent = (user.name && user.name.trim()[0]) ? user.name.trim()[0].toUpperCase() : 'A';
-    }
+    const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'A';
+    btn.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+    btn.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+    btn.style.display = 'flex';
+    btn.style.alignItems = 'center';
+    btn.style.justifyContent = 'center';
+    btn.style.borderRadius = '50%';
     btn.addEventListener('click', () => navigate('profile'));
   }
 }

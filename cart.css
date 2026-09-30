@@ -152,6 +152,50 @@ button {
   padding: 0 18px;
 }
 
+.cart-store-banner-wrap {
+  width: 100%;
+}
+
+.cart-store-banner-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 14px;
+  text-decoration: none;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.06);
+}
+
+.cart-store-banner-link:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.store-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.store-banner-content svg {
+  stroke: #2563eb;
+  flex-shrink: 0;
+}
+
+.store-banner-action {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2563eb;
+  white-space: nowrap;
+}
+
 .cart-section, .cart-items-section {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -884,8 +928,8 @@ button {
 
 @keyframes fadeUp {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    opacity: 0.9;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -894,12 +938,12 @@ button {
 }
 
 .fade-up {
-  animation: fadeUp 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeUp 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.delay-1 { animation-delay: 35ms; }
-.delay-2 { animation-delay: 70ms; }
-.delay-3 { animation-delay: 105ms; }
+.delay-1 { animation-delay: 15ms; }
+.delay-2 { animation-delay: 30ms; }
+.delay-3 { animation-delay: 45ms; }
 
 .cart-left-col,
 .cart-right-col {

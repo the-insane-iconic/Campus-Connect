@@ -185,6 +185,7 @@ function placeOrder(fulfillmentType, deliveryInfo) {
 
   const order   = {
     id,
+    customerName:  (AppState.currentUser && AppState.currentUser.name) || 'Ansh Sharma',
     storeName:     firstStore ? firstStore.name : 'UniMall Store',
     storeIcon:     items.length > 0 && items[0].product ? (items[0].product.emoji || '🛍️') : '🛍️',
     items:         items.map(l => ({
@@ -234,8 +235,65 @@ function submitItemRequest(data) {
 function hydrateState() {
   const saved = Storage.load();
   if (saved.cart)          AppState.cart          = saved.cart;
-  if (saved.orders)        AppState.orders        = saved.orders;
   if (saved.currentUser)   AppState.currentUser   = { ...DEFAULT_USER, ...saved.currentUser };
+
+  if (saved.orders && Array.isArray(saved.orders) && saved.orders.length > 0) {
+    AppState.orders = saved.orders;
+  } else {
+    // Seed initial active order pass
+    AppState.orders = [
+      {
+        id: 'UM1024',
+        customerName: AppState.currentUser.name || 'Ansh Sharma',
+        storeName: 'Campus Café',
+        storeIcon: '☕',
+        items: [
+          { productId: 'p01', name: 'Cold Brew Coffee', price: 120, qty: 1, emoji: '☕' },
+          { productId: 'p03', name: 'Classic Chips Snack Pack', price: 30, qty: 1, emoji: '🥔' }
+        ],
+        subtotal: 150,
+        deliveryFee: 0,
+        total: 150,
+        fulfillmentType: 'pickup',
+        deliveryInfo: null,
+        pickupLocation: 'Ground floor, near main entrance',
+        otp: '4829',
+        status: 'ready',
+        statusHistory: [
+          { status: 'placed', time: new Date(Date.now() - 10 * 60 * 1000).toISOString(), label: 'Order Placed' },
+          { status: 'preparing', time: new Date(Date.now() - 5 * 60 * 1000).toISOString(), label: 'Store Preparing Order' },
+          { status: 'ready', time: new Date(Date.now() - 1 * 60 * 1000).toISOString(), label: 'Ready for Pickup' }
+        ],
+        createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'UM1019',
+        customerName: AppState.currentUser.name || 'Ansh Sharma',
+        storeName: 'Book Corner',
+        storeIcon: '📓',
+        items: [
+          { productId: 'p07', name: 'A4 Spiral Notebook', price: 65, qty: 2, emoji: '📓' },
+          { productId: 'p08', name: 'Gel Pen Set (Pack of 5)', price: 110, qty: 1, emoji: '🖊️' }
+        ],
+        subtotal: 240,
+        deliveryFee: 20,
+        total: 260,
+        fulfillmentType: 'delivery',
+        deliveryInfo: { hostel: 'Hostel B', room: 'Room 214' },
+        pickupLocation: null,
+        otp: null,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+        statusHistory: [
+          { status: 'placed', time: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), label: 'Order Placed' },
+          { status: 'delivered', time: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), label: 'Delivered to Room 214' }
+        ],
+        createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString()
+      }
+    ];
+    Storage.save(AppState);
+  }
+
   if (saved.itemRequests)  AppState.itemRequests  = saved.itemRequests;
   if (saved.notifications) AppState.notifications = saved.notifications;
 }
