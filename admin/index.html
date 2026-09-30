@@ -147,6 +147,12 @@
             <span class="status-label" id="topbar-status-text">Store Open</span>
           </button>
 
+          <!-- ORDER SOUND & NOTIFICATION CHIME TOGGLE -->
+          <button type="button" id="btn-sound-toggle" class="btn-icon-topbar sound-on" title="Order Alert Chime: ON (Click to toggle / test sound)" aria-label="Toggle Sound Alert">
+            <svg class="icon-sound-on" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <svg class="icon-sound-off hidden" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+          </button>
+
           <!-- IN-APP NOTIFICATIONS -->
           <button type="button" id="btn-notifications" class="btn-icon-topbar" title="Notifications" aria-label="Notifications">
             <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -260,6 +266,19 @@
             </div>
             <div class="view-actions">
               <button type="button" class="btn-action secondary" id="btn-refresh-orders">↻ Refresh</button>
+            </div>
+          </div>
+
+          <!-- MOBILE BACKGROUND ALERT PERMISSION BANNER -->
+          <div id="mobile-notif-banner" class="mobile-notif-banner hidden">
+            <div class="notif-banner-icon">🔔</div>
+            <div class="notif-banner-content">
+              <strong>Order Chime & Mobile Alerts</strong>
+              <p>Hear pleasant audio chimes & receive lock screen alerts even when your phone is on WhatsApp or another app.</p>
+            </div>
+            <div class="notif-banner-actions">
+              <button type="button" id="btn-enable-push" class="btn-banner primary">Enable Alerts</button>
+              <button type="button" id="btn-dismiss-push" class="btn-banner">Dismiss</button>
             </div>
           </div>
 

@@ -21,6 +21,8 @@
 
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="cart.css">
+  <!-- Razorpay Checkout Gateway SDK -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 
 <body>
@@ -122,54 +124,24 @@
             </div>
           </section>
 
-          <!-- FULFILLMENT METHOD -->
+          <!-- FULFILLMENT METHOD: COUNTER SELF-PICKUP ONLY -->
           <section class="cart-section fade-up delay-2">
-            <div class="section-label">Fulfillment Choice</div>
+            <div class="section-label">Fulfillment Method</div>
             
-            <div class="fulfillment-toggle-row">
-              <button class="fulfillment-btn active" id="btnPickup" data-type="pickup">
-                <span class="fulfillment-icon">📦</span>
-                <div class="fulfillment-info">
-                  <span class="fulfillment-title">Campus Pickup</span>
-                  <span class="fulfillment-sub">Free · Ready in 10-15m</span>
+            <div class="pickup-card-highlight">
+              <div class="pickup-header-row">
+                <div class="pickup-icon-wrap">🛍️</div>
+                <div class="pickup-main-info">
+                  <div class="pickup-title">Campus Counter Self-Pickup</div>
+                  <div class="pickup-sub">Pay for your order, get instant confirmation, and collect at counter</div>
                 </div>
-                <span class="fulfillment-badge">FREE</span>
-              </button>
-
-              <button class="fulfillment-btn" id="btnDelivery" data-type="delivery">
-                <span class="fulfillment-icon">🛵</span>
-                <div class="fulfillment-info">
-                  <span class="fulfillment-title">Hostel Delivery</span>
-                  <span class="fulfillment-sub">₹20 · Straight to room</span>
-                </div>
-                <span class="fulfillment-price">₹20</span>
-              </button>
-            </div>
-
-            <!-- HOSTEL FORM (Shown only for delivery) -->
-            <div class="hostel-form hidden" id="hostelDeliveryForm">
-              <div class="form-row">
-                <div class="form-field">
-                  <label for="hostelInput">Hostel / Block</label>
-                  <input type="text" id="hostelInput" placeholder="e.g. Hostel B" value="Hostel B">
-                </div>
-                <div class="form-field">
-                  <label for="roomInput">Room No.</label>
-                  <input type="text" id="roomInput" placeholder="e.g. 214" value="Room 214">
-                </div>
+                <span class="pickup-free-pill">FREE</span>
               </div>
-              <div class="campus-delivery-estimate" id="campusDeliveryEstimate">
-                <span id="deliveryEstimateText"><strong>⚡ Express Delivery:</strong> ~15–20 mins to Hostel B</span>
-              </div>
-            </div>
-
-            <!-- PICKUP POINT INFO (Shown for pickup) -->
-            <div class="pickup-info-box" id="pickupInfoBox">
-              <div class="pickup-location-row">
+              <div class="pickup-station-row">
                 <span class="loc-pin">📍</span>
                 <div>
-                  <strong>Ground Floor Pickup Station</strong>
-                  <p>Near main university mall entrance</p>
+                  <strong>Store Counter Pickup Station</strong>
+                  <p>Ground Floor, University Mall · Show your simple #ORD token to collect</p>
                 </div>
               </div>
             </div>
@@ -216,8 +188,8 @@
                 <span id="billSubtotal">₹0</span>
               </div>
               <div class="bill-row">
-                <span>Delivery Fee</span>
-                <span id="billDeliveryFee">FREE</span>
+                <span>Counter Self-Pickup</span>
+                <span id="billDeliveryFee" style="color: #059669; font-weight: 700;">FREE</span>
               </div>
               <div class="bill-row hidden" id="billDiscountRow">
                 <span class="discount-label">Coupon Discount</span>
@@ -236,28 +208,18 @@
 
           <!-- PAYMENT METHOD -->
           <section class="cart-section fade-up delay-3">
-            <div class="section-label">Payment Method <span class="test-badge">TEST MODE</span></div>
+            <div class="section-label">Payment Gateway <span class="test-badge">SECURE ATOMIC</span></div>
 
             <div class="payment-methods-grid">
               <label class="payment-method-card active">
-                <input type="radio" name="paymentMethod" value="upi" checked>
+                <input type="radio" name="paymentMethod" value="razorpay" checked>
                 <div class="payment-content">
                   <span class="pay-icon">⚡</span>
                   <div class="pay-info">
-                    <strong>UPI / QR</strong>
-                    <p>Google Pay, PhonePe, Paytm</p>
+                    <strong>Razorpay Instant (UPI / GPay / Cards)</strong>
+                    <p>Google Pay, PhonePe, Paytm, Debit/Credit Card</p>
                   </div>
-                </div>
-              </label>
-
-              <label class="payment-method-card">
-                <input type="radio" name="paymentMethod" value="card">
-                <div class="payment-content">
-                  <span class="pay-icon">💳</span>
-                  <div class="pay-info">
-                    <strong>Card</strong>
-                    <p>Debit / Credit Card</p>
-                  </div>
+                  <span class="pay-secure-tag" style="font-size: 11px; background: #DCFCE7; color: #166534; font-weight: 700; padding: 2px 8px; border-radius: 999px;">🔒 100% Secure</span>
                 </div>
               </label>
 
@@ -266,8 +228,8 @@
                 <div class="payment-content">
                   <span class="pay-icon">💵</span>
                   <div class="pay-info">
-                    <strong>Pay on Pickup / COD</strong>
-                    <p>Cash at the counter</p>
+                    <strong>Pay at Counter</strong>
+                    <p>Cash or scan QR at counter upon collection</p>
                   </div>
                 </div>
               </label>
@@ -281,7 +243,7 @@
               <span class="preview-price" id="checkoutFooterPrice">₹0</span>
             </div>
             <button class="place-order-btn" id="placeOrderBtn">
-              <span>Place Order</span>
+              <span>Pay & Place Order</span>
               <svg viewBox="0 0 24 24">
                 <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>

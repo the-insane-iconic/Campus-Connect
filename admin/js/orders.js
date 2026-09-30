@@ -9,13 +9,212 @@ let currentOrdersList = [];
 let currentOrdersViewMode = 'active'; // 'active' | 'table'
 let currentOrderStatusFilter = 'ALL';
 let ordersPollInterval = null;
+const knownOrderIds = new Set();
+
+/* ─── WEB AUDIO API ORDER CHIME SYNTHESIZER ──────────────── */
+let audioCtx = null;
+let isAudioUnlocked = false;
+
+function initAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+  }
+  return audioCtx;
+}
+
+function unlockAudioContext() {
+  if (isAudioUnlocked) return;
+  const ctx = initAudioContext();
+  if (!ctx) return;
+
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+
+  // Play an inaudible 1ms buffer to satisfy iOS & Android autoplay security
+  try {
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    isAudioUnlocked = true;
+  } catch (e) {}
+
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.removeEventListener(evt, unlockAudioContext, true);
+  });
+}
+
+function isSoundAlertEnabled() {
+  return localStorage.getItem('unimall_admin_sound_enabled') !== 'false';
+}
+
+function setSoundAlertEnabled(enabled) {
+  localStorage.setItem('unimall_admin_sound_enabled', enabled ? 'true' : 'false');
+  updateSoundToggleButton();
+}
+
+function updateSoundToggleButton() {
+  const btn = document.getElementById('btn-sound-toggle');
+  if (!btn) return;
+  const enabled = isSoundAlertEnabled();
+
+  btn.classList.toggle('sound-on', enabled);
+  btn.classList.toggle('sound-off', !enabled);
+  btn.title = enabled
+    ? 'Order Alert Chime: ON (Click to mute)'
+    : 'Order Alert Chime: MUTED (Click to enable)';
+
+  const iconOn = btn.querySelector('.icon-sound-on');
+  const iconOff = btn.querySelector('.icon-sound-off');
+  if (iconOn) iconOn.classList.toggle('hidden', !enabled);
+  if (iconOff) iconOff.classList.toggle('hidden', enabled);
+}
+
+/**
+ * Plays a smooth, pleasant acoustic chime for store owners.
+ * Uses a 4-tone ascending marimba/bell harmonic scale (E5 -> G#5 -> B5 -> E6)
+ * with dual oscillators (sine warmth + triangle presence) and natural exponential decay.
+ */
+function playOrderNotificationChime(force = false) {
+  if (!force && !isSoundAlertEnabled()) return;
+
+  // Tactile haptic vibration for mobile in pocket
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate([220, 90, 220, 90, 380]);
+    } catch (e) {}
+  }
+
+  // Pulse animation on the topbar sound button
+  const btn = document.getElementById('btn-sound-toggle');
+  if (btn) {
+    btn.classList.add('chime-ringing');
+    setTimeout(() => btn.classList.remove('chime-ringing'), 2500);
+  }
+
+  try {
+    const ctx = initAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+    // Pleasant acoustic 4-note ascending chime: E5 -> G#5 -> B5 -> E6
+    const melody = [
+      { freq: 659.25, time: 0.00, dur: 0.42, gain: 0.22 }, // E5
+      { freq: 830.61, time: 0.11, dur: 0.42, gain: 0.24 }, // G#5
+      { freq: 987.77, time: 0.22, dur: 0.48, gain: 0.26 }, // B5
+      { freq: 1318.51, time: 0.35, dur: 0.70, gain: 0.28 } // E6
+    ];
+
+    melody.forEach(note => {
+      const startTime = now + note.time;
+      const stopTime = startTime + note.dur;
+
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.001, startTime);
+      masterGain.gain.linearRampToValueAtTime(note.gain, startTime + 0.012);
+      masterGain.gain.exponentialRampToValueAtTime(0.0001, stopTime);
+      masterGain.connect(ctx.destination);
+
+      // Primary sine oscillator for smooth body
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(note.freq, startTime);
+      osc1.connect(masterGain);
+      osc1.start(startTime);
+      osc1.stop(stopTime);
+
+      // Triangle overtone for clarity on mobile phone speakers
+      const osc2 = ctx.createOscillator();
+      const osc2Gain = ctx.createGain();
+      osc2Gain.gain.setValueAtTime(0.18, startTime);
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(note.freq * 2, startTime);
+      osc2.connect(osc2Gain);
+      osc2Gain.connect(masterGain);
+      osc2.start(startTime);
+      osc2.stop(stopTime);
+    });
+  } catch (err) {
+    console.warn('Audio playback error:', err);
+  }
+}
+window.playOrderNotificationChime = playOrderNotificationChime;
+
+/* ─── SYSTEM BACKGROUND PUSH NOTIFICATIONS ────────────────── */
+async function requestPushNotificationPermission() {
+  if (!('Notification' in window)) return false;
+
+  try {
+    const permission = await Notification.requestPermission();
+    const banner = document.getElementById('mobile-notif-banner');
+    if (banner) {
+      banner.classList.add('hidden');
+    }
+
+    if (permission === 'granted') {
+      if (typeof showToast === 'function') {
+        showToast('🔔 Order alerts enabled! You will be notified on incoming orders.');
+      }
+      playOrderNotificationChime(true);
+      return true;
+    } else {
+      if (typeof showToast === 'function') {
+        showToast('Notifications blocked in browser settings.', 'warn');
+      }
+      return false;
+    }
+  } catch (e) {
+    return false;
+  }
+}
+window.requestPushNotificationPermission = requestPushNotificationPermission;
+
+function sendOrderPushNotification(orderInfo) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  try {
+    const displayNum = orderInfo.displayNum || orderInfo.orderNumber || (orderInfo.orderId ? `#${String(orderInfo.orderId).slice(-4)}` : '#ORD');
+    const customer = orderInfo.customerName || 'Student';
+    const amount = Number(orderInfo.total || 0).toLocaleString('en-IN');
+    const itemsCount = orderInfo.itemsCount || 1;
+
+    const notif = new Notification(`🔔 New Order ${displayNum}! (₹${amount})`, {
+      body: `👤 ${customer} · ${itemsCount} item(s) · Counter Self-Pickup. Tap to prepare.`,
+      icon: '../faviicon.png',
+      badge: '../faviicon.png',
+      tag: `unimall-order-${orderInfo.orderId || Date.now()}`,
+      renotify: true,
+      silent: false
+    });
+
+    notif.onclick = () => {
+      window.focus();
+      if (typeof switchOrdersViewMode === 'function') {
+        switchOrdersViewMode('active');
+      }
+      if (typeof window.switchView === 'function') {
+        window.switchView('orders');
+      }
+      notif.close();
+    };
+  } catch (err) {
+    console.warn('Failed to send push notification:', err);
+  }
+}
+window.sendOrderPushNotification = sendOrderPushNotification;
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'orders') {
     loadOrders(e.detail.storeId);
     startOrdersPolling();
-  } else {
-    stopOrdersPolling();
   }
 });
 
@@ -26,23 +225,101 @@ window.addEventListener('unimall:storeChanged', (e) => {
   }
 });
 
-// Real-time synchronization listeners
+// Real-time synchronization listeners across browser tabs / mobile actions
 window.addEventListener('storage', (e) => {
-  if (e.key === 'unimall_v1' || e.key === 'unimall_order_delivered_event') {
+  if (e.key === 'unimall_new_order_placed_event') {
+    try {
+      const orderEvt = JSON.parse(e.newValue || '{}');
+      if (orderEvt && orderEvt.orderId) {
+        if (!activeStoreId || orderEvt.storeId === activeStoreId || activeStoreId === 'all') {
+          // Play chime and send system notification
+          playOrderNotificationChime();
+          sendOrderPushNotification(orderEvt);
+          if (typeof showToast === 'function') {
+            showToast(`🔔 New Order received: ${orderEvt.displayNum || '#' + orderEvt.orderId} (₹${orderEvt.total})`);
+          }
+          knownOrderIds.add(orderEvt.orderId);
+          if (activeStoreId) {
+            loadOrders(activeStoreId, true);
+            if (typeof window.loadDashboard === 'function') {
+              window.loadDashboard(activeStoreId);
+            }
+          }
+        }
+      }
+    } catch (err) {}
+  } else if (e.key === 'unimall_v1' || e.key === 'unimall_order_delivered_event') {
     if (activeStoreId) {
-      loadOrders(activeStoreId);
+      loadOrders(activeStoreId, true);
     }
   }
 });
 
 window.addEventListener('unimall:orderStatusUpdated', () => {
   if (activeStoreId) {
-    loadOrders(activeStoreId);
+    loadOrders(activeStoreId, true);
   }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Status filter tabs for table view
+  // 1. Mobile Audio Unlock on user first touch/interaction
+  ['click', 'touchstart', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, unlockAudioContext, { once: true, capture: true });
+  });
+
+  // 2. Sound Toggle button
+  const btnSound = document.getElementById('btn-sound-toggle');
+  if (btnSound) {
+    updateSoundToggleButton();
+    btnSound.addEventListener('click', () => {
+      unlockAudioContext();
+      const current = isSoundAlertEnabled();
+      setSoundAlertEnabled(!current);
+      if (!current) {
+        playOrderNotificationChime(true);
+        if (typeof showToast === 'function') {
+          showToast('🔊 Order chime enabled! Testing sound...');
+        }
+        if ('Notification' in window && Notification.permission === 'default') {
+          requestPushNotificationPermission();
+        }
+      } else {
+        if (typeof showToast === 'function') {
+          showToast('🔇 Order sound muted');
+        }
+      }
+    });
+  }
+
+  // 3. Mobile background notification permission banner
+  const banner = document.getElementById('mobile-notif-banner');
+  if (banner) {
+    const isDismissed = localStorage.getItem('unimall_dismiss_notif_banner') === '1';
+    const canPrompt = ('Notification' in window) && Notification.permission === 'default';
+    if (canPrompt && !isDismissed) {
+      banner.classList.remove('hidden');
+    } else {
+      banner.classList.add('hidden');
+    }
+
+    const btnEnable = document.getElementById('btn-enable-push');
+    if (btnEnable) {
+      btnEnable.addEventListener('click', () => {
+        unlockAudioContext();
+        requestPushNotificationPermission();
+      });
+    }
+
+    const btnDismiss = document.getElementById('btn-dismiss-push');
+    if (btnDismiss) {
+      btnDismiss.addEventListener('click', () => {
+        banner.classList.add('hidden');
+        localStorage.setItem('unimall_dismiss_notif_banner', '1');
+      });
+    }
+  }
+
+  // 4. Status filter tabs for table view
   document.querySelectorAll('.filter-tabs-bar .tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-tabs-bar .tab-btn').forEach(b => b.classList.remove('active'));
@@ -58,18 +335,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (activeStoreId) loadOrders(activeStoreId);
     });
   }
+
+  // 5. Start persistent polling right away
+  startOrdersPolling();
 });
 
 function startOrdersPolling() {
   stopOrdersPolling();
   ordersPollInterval = setInterval(() => {
     if (activeStoreId) {
-      const activeView = document.querySelector('.admin-view.active');
-      if (activeView && (activeView.id === 'view-orders' || activeView.id === 'view-dashboard')) {
-        loadOrders(activeStoreId, true); // silent refresh
-      }
+      loadOrders(activeStoreId, true); // silent refresh & background order check
     }
-  }, 10000);
+  }, 8000);
 }
 
 function stopOrdersPolling() {
@@ -117,7 +394,33 @@ async function loadOrders(storeId, silent = false) {
 
   try {
     const data = await apiRequest(`/admin/stores/${storeId}/orders`);
-    currentOrdersList = data.orders || [];
+    const fetchedOrders = data.orders || [];
+
+    // Background arrival detection: if we already have known IDs, detect new PLACED orders
+    if (knownOrderIds.size > 0) {
+      fetchedOrders.forEach(o => {
+        const statusUpper = (o.status || '').toUpperCase();
+        if (!knownOrderIds.has(o.id) && statusUpper === 'PLACED') {
+          playOrderNotificationChime();
+          sendOrderPushNotification({
+            orderId: o.id,
+            orderNumber: o.order_number || o.id,
+            displayNum: o.order_number_display || (o.order_number ? `#ORD-${String(o.order_number).slice(-2)}` : '#' + String(o.id).slice(-4)),
+            customerName: o.user_name || o.customer_name || 'Student',
+            total: o.store_subtotal || o.total || o.total_amount || 0,
+            itemsCount: (o.items || []).length || 1
+          });
+          if (typeof showToast === 'function') {
+            showToast(`🔔 New Order received: #${o.order_number || o.id}`);
+          }
+        }
+      });
+    }
+
+    // Populate all fetched IDs into knownOrderIds
+    fetchedOrders.forEach(o => knownOrderIds.add(o.id));
+
+    currentOrdersList = fetchedOrders;
 
     // Render both views
     renderActiveOrdersBoard();
