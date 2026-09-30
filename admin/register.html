@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>UniMall — Register Your Store</title>
+  <link rel="icon" type="image/png" href="../faviicon.png" />
+  <link rel="apple-touch-icon" href="../faviicon.png" />
+  <meta name="theme-color" content="#0F172A" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+
+  <div class="login-container">
+    <div class="register-card">
+
+      <!-- REGISTRATION FORM -->
+      <div id="register-form-section">
+        <div class="brand-header">
+          <div class="brand-badge">New Store Registration</div>
+          <h1 class="brand-title">Join Uni<span>Mall</span></h1>
+          <p class="brand-subtitle">Register your campus store and start getting orders from students</p>
+        </div>
+
+        <div id="register-error" class="alert-box error hidden" role="alert"></div>
+
+        <form id="store-register-form" class="login-form">
+          <!-- Store Name -->
+          <div class="form-group">
+            <label for="reg-store-name">Store Name *</label>
+            <input type="text" id="reg-store-name" placeholder="e.g. Campus Juice Bar" required />
+          </div>
+
+          <!-- Store Type Pills -->
+          <div class="form-group">
+            <label>Store Type *</label>
+            <div class="store-type-pills" id="store-type-pills">
+              <label class="type-pill" data-type="food">
+                <input type="radio" name="store-type" value="food" />
+                🍔 Food & Drinks
+              </label>
+              <label class="type-pill" data-type="electronics">
+                <input type="radio" name="store-type" value="electronics" />
+                💻 Electronics
+              </label>
+              <label class="type-pill" data-type="stationery">
+                <input type="radio" name="store-type" value="stationery" />
+                📚 Stationery
+              </label>
+              <label class="type-pill" data-type="fashion">
+                <input type="radio" name="store-type" value="fashion" />
+                👕 Fashion
+              </label>
+              <label class="type-pill" data-type="essentials">
+                <input type="radio" name="store-type" value="essentials" />
+                🧴 Essentials
+              </label>
+              <label class="type-pill" data-type="health">
+                <input type="radio" name="store-type" value="health" />
+                💊 Health & Care
+              </label>
+              <label class="type-pill" data-type="services">
+                <input type="radio" name="store-type" value="services" />
+                ✂️ Services
+              </label>
+              <label class="type-pill" data-type="other">
+                <input type="radio" name="store-type" value="other" />
+                📦 Other
+              </label>
+            </div>
+          </div>
+
+          <!-- Owner Info -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="reg-owner-name">Owner / Manager Name *</label>
+              <input type="text" id="reg-owner-name" placeholder="e.g. Rajiv Menon" required />
+            </div>
+            <div class="form-group">
+              <label for="reg-owner-email">Email Address *</label>
+              <input type="email" id="reg-owner-email" placeholder="owner@email.com" required />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="reg-phone">Phone Number *</label>
+              <input type="tel" id="reg-phone" placeholder="+91 98765 43210" required />
+            </div>
+            <div class="form-group">
+              <label for="reg-location">Store Location *</label>
+              <input type="text" id="reg-location" placeholder="e.g. Building 34, Floor 2" required />
+            </div>
+          </div>
+
+          <!-- GST / License Number (optional but useful for real stores) -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="reg-gst">GST / License No. <span style="color: var(--text-muted); font-weight: 400;">(Optional)</span></label>
+              <input type="text" id="reg-gst" placeholder="e.g. 22AAAAA0000A1Z5" />
+            </div>
+            <div class="form-group">
+              <label for="reg-opening-hours">Operating Hours *</label>
+              <input type="text" id="reg-opening-hours" placeholder="e.g. 9 AM – 9 PM" required />
+            </div>
+          </div>
+
+          <!-- Brief Description -->
+          <div class="form-group">
+            <label for="reg-description">Brief Description <span style="color: var(--text-muted); font-weight: 400;">(What does your store sell?)</span></label>
+            <textarea id="reg-description" rows="2" placeholder="e.g. Fresh juices, smoothies, and healthy snacks for students on campus"></textarea>
+          </div>
+
+          <button type="submit" id="btn-register" class="btn-primary">
+            <span class="btn-text">Register Store</span>
+            <span class="spinner hidden"></span>
+          </button>
+        </form>
+
+        <div class="login-footer">
+          <a href="login.html" class="back-link">← Already registered? Sign In</a>
+        </div>
+      </div>
+
+      <!-- SUCCESS STATE (shown after registration) -->
+      <div id="register-success-section" class="hidden">
+        <div class="register-success">
+          <span class="success-icon">🎉</span>
+          <h2 class="success-title">Thank you for registering!</h2>
+          <p class="success-message">
+            We're reviewing your store application. Our UniMall admin team will verify your details and approve your store within 24–48 hours.
+          </p>
+          <p class="success-message" style="font-weight: 600; color: var(--text-main);">
+            Once approved, you can log in with your store name as both username and password.
+          </p>
+          <div class="success-id" id="reg-success-id">Application ID: REG-001</div>
+          <br />
+          <a href="login.html" class="btn-secondary">← Back to Login</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('store-register-form');
+      const formSection = document.getElementById('register-form-section');
+      const successSection = document.getElementById('register-success-section');
+      const errorAlert = document.getElementById('register-error');
+      const pillsContainer = document.getElementById('store-type-pills');
+      let selectedType = null;
+
+      // ── TYPE PILL SELECTION ──
+      pillsContainer.querySelectorAll('.type-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          pillsContainer.querySelectorAll('.type-pill').forEach(p => p.classList.remove('selected'));
+          pill.classList.add('selected');
+          selectedType = pill.getAttribute('data-type');
+          pill.querySelector('input').checked = true;
+        });
+      });
+
+      // ── FORM SUBMISSION ──
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        if (!selectedType) {
+          errorAlert.textContent = 'Please select a store type.';
+          errorAlert.classList.remove('hidden');
+          return;
+        }
+        errorAlert.classList.add('hidden');
+
+        const storeName = document.getElementById('reg-store-name').value.trim();
+        const ownerName = document.getElementById('reg-owner-name').value.trim();
+        const email = document.getElementById('reg-owner-email').value.trim();
+        const phone = document.getElementById('reg-phone').value.trim();
+        const location = document.getElementById('reg-location').value.trim();
+        const gst = document.getElementById('reg-gst').value.trim();
+        const hours = document.getElementById('reg-opening-hours').value.trim();
+        const description = document.getElementById('reg-description').value.trim();
+
+        // Generate store ID from name
+        const storeId = storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+        const registration = {
+          id: 'REG-' + String(Date.now()).slice(-6),
+          storeId: storeId,
+          storeName: storeName,
+          storeType: selectedType,
+          ownerName: ownerName,
+          email: email,
+          phone: phone,
+          location: location,
+          gstNumber: gst,
+          operatingHours: hours,
+          description: description,
+          status: 'pending', // pending | approved | rejected
+          submittedAt: new Date().toISOString(),
+          reviewedAt: null
+        };
+
+        // Save to localStorage (admin will pick this up)
+        const existing = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+        existing.push(registration);
+        localStorage.setItem('unimall_registered_stores', JSON.stringify(existing));
+
+        // Show success
+        document.getElementById('reg-success-id').textContent = `Application ID: ${registration.id}`;
+        formSection.classList.add('hidden');
+        successSection.classList.remove('hidden');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -197,15 +197,33 @@ function setupStoreToggle() {
   const btnToggle = document.getElementById('btn-store-status-toggle');
   if (!btnToggle) return;
 
+  // Load initial state from localStorage
+  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+  if (activeStoreId && storeStatuses[activeStoreId] !== undefined) {
+    applyStoreOpenState(storeStatuses[activeStoreId]);
+  }
+
   btnToggle.addEventListener('click', async () => {
     if (!activeStoreId) return;
+
+    // Get current state & toggle
+    const currentStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+    const currentlyOpen = currentStatuses[activeStoreId] !== false; // default to open
+    const newState = !currentlyOpen;
+
     try {
       btnToggle.disabled = true;
+
+      // Try API first
       const res = await apiRequest(`/admin/stores/${activeStoreId}/toggle-open`, { method: 'POST' });
       applyStoreOpenState(res.is_open === 1);
+      syncStoreStatusToUserApp(activeStoreId, res.is_open === 1);
       showToast(res.is_open === 1 ? 'Store is now OPEN to students' : 'Store is now CLOSED', 'success');
     } catch {
-      // Handled by apiRequest toast
+      // Fallback — direct toggle via localStorage
+      applyStoreOpenState(newState);
+      syncStoreStatusToUserApp(activeStoreId, newState);
+      showToast(newState ? 'Store is now OPEN to students' : 'Store is now CLOSED', 'success');
     } finally {
       btnToggle.disabled = false;
     }

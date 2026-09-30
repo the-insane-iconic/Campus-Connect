@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>UniMall Store Admin — Sign In</title>
+  <title>UniMall — Store Or Admin Login</title>
   <link rel="icon" type="image/png" href="../faviicon.png" />
   <link rel="apple-touch-icon" href="../faviicon.png" />
   <meta name="theme-color" content="#0F172A" />
@@ -17,22 +17,24 @@
   <div class="login-container">
     <div class="login-card">
       <div class="brand-header">
-        <div class="brand-badge">Admin Portal</div>
-        <h1 class="brand-title">Uni<span>Mall</span> Store Admin</h1>
-        <p class="brand-subtitle">Manage campus store inventory, orders, and products</p>
+        <div class="brand-badge">Store Or Admin Login</div>
+        <h1 class="brand-title">Uni<span>Mall</span></h1>
+        <p class="brand-subtitle">Manage your campus store — inventory, orders, products & more</p>
       </div>
 
       <div id="error-alert" class="alert-box error hidden" role="alert"></div>
 
       <form id="admin-login-form" class="login-form">
         <div class="form-group">
-          <label for="email">Work Email</label>
-          <input type="email" id="email" name="email" placeholder="owner@unimall.app" required autocomplete="username" />
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Store name or admin" required autocomplete="username" />
+          <span class="input-hint">For stores: use store name (e.g. campus café). For admin: use <strong>admin</strong></span>
         </div>
 
         <div class="form-group">
           <label for="password">Password</label>
           <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password" />
+          <span class="input-hint">For stores: use store name. For admin: use <strong>admin</strong></span>
         </div>
 
         <button type="submit" id="submit-btn" class="btn-primary">
@@ -42,29 +44,31 @@
       </form>
 
       <div class="demo-section">
-        <div class="demo-divider"><span>Fast Demo Logins</span></div>
-        <p class="demo-hint">Click below to test different roles instantly:</p>
+        <div class="demo-divider"><span>Quick Demo Logins</span></div>
+        <p class="demo-hint">Click to auto-fill and sign in:</p>
         <div class="demo-buttons-grid">
-          <button type="button" class="btn-demo" data-email="admin@unimall.app" data-pass="admin123">
-            <span class="demo-role">Platform Admin</span>
-            <span class="demo-name">Founder Overview</span>
+          <button type="button" class="btn-demo btn-demo-admin" data-user="admin" data-pass="admin">
+            <span class="demo-role">🛡️ Platform Admin</span>
+            <span class="demo-name">Developer / Founder</span>
           </button>
-          <button type="button" class="btn-demo" data-email="bakery@unimall.app" data-pass="bakery123">
-            <span class="demo-role">Store Owner</span>
-            <span class="demo-name">Campus Bakery</span>
+          <button type="button" class="btn-demo" data-user="campus café" data-pass="campus café">
+            <span class="demo-role">☕ Store Owner</span>
+            <span class="demo-name">Campus Café</span>
           </button>
-          <button type="button" class="btn-demo" data-email="stationery@unimall.app" data-pass="stationery123">
-            <span class="demo-role">Store Owner</span>
-            <span class="demo-name">Stationery Hub</span>
-          </button>
-          <button type="button" class="btn-demo" data-email="mart@unimall.app" data-pass="mart123">
-            <span class="demo-role">Store Owner</span>
+          <button type="button" class="btn-demo" data-user="campus mart" data-pass="campus mart">
+            <span class="demo-role">🛒 Store Owner</span>
             <span class="demo-name">Campus Mart</span>
+          </button>
+          <button type="button" class="btn-demo" data-user="techstop" data-pass="techstop">
+            <span class="demo-role">💻 Store Owner</span>
+            <span class="demo-name">TechStop</span>
           </button>
         </div>
       </div>
 
       <div class="login-footer">
+        <a href="register.html" class="register-link">🏪 Register your store on UniMall →</a>
+        <div class="footer-divider"></div>
         <a href="../index.html" class="back-link">← Return to Student App</a>
       </div>
     </div>

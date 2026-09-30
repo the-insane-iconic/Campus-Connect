@@ -1,4 +1,4 @@
-/* UniMall Store Admin Login Styles */
+/* UniMall Store Or Admin Login Styles */
 :root {
   --primary: #2563EB;
   --primary-hover: #1D4ED8;
@@ -10,6 +10,9 @@
   --danger-bg: #FEF2F2;
   --danger-text: #B91C1C;
   --danger-border: #FCA5A5;
+  --success-bg: #F0FDF4;
+  --success-text: #166534;
+  --success-border: #86EFAC;
   --radius-lg: 16px;
   --radius-md: 10px;
   --radius-sm: 6px;
@@ -65,7 +68,7 @@ body {
 }
 
 .brand-title {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--text-main);
@@ -95,6 +98,12 @@ body {
   border: 1px solid var(--danger-border);
 }
 
+.alert-box.success {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
 .alert-box.hidden {
   display: none;
 }
@@ -117,7 +126,9 @@ body {
   color: var(--text-main);
 }
 
-.form-group input {
+.form-group input,
+.form-group select,
+.form-group textarea {
   height: 44px;
   padding: 0 14px;
   font-size: 14px;
@@ -128,11 +139,30 @@ body {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.form-group input:focus {
+.form-group textarea {
+  height: auto;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
   outline: none;
   border-color: var(--primary);
   background: #FFFFFF;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.input-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.input-hint strong {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .btn-primary {
@@ -223,7 +253,7 @@ body {
   background: #F8FAFC;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 8px 10px;
+  padding: 10px 10px;
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -232,24 +262,42 @@ body {
 .btn-demo:hover {
   background: #EFF6FF;
   border-color: #BFDBFE;
+  transform: translateY(-1px);
+}
+
+.btn-demo-admin {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%);
+  border-color: #C4B5FD;
+}
+
+.btn-demo-admin:hover {
+  background: linear-gradient(135deg, #DBEAFE 0%, #EDE9FE 100%);
+  border-color: #A78BFA;
 }
 
 .demo-role {
   display: block;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--primary);
   text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-demo-admin .demo-role {
+  color: #7C3AED;
 }
 
 .demo-name {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .login-footer {
@@ -257,6 +305,30 @@ body {
   margin-top: 22px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.register-link {
+  font-size: 13.5px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 0;
+  transition: color 0.2s ease;
+}
+
+.register-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+.footer-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--border);
+  margin: 0 auto;
 }
 
 .back-link {
@@ -268,4 +340,130 @@ body {
 
 .back-link:hover {
   color: var(--primary);
+}
+
+/* ── REGISTRATION PAGE STYLES ──────────────────────────── */
+
+.register-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 440px) {
+  .form-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.store-type-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: #F8FAFC;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.type-pill:hover {
+  border-color: #BFDBFE;
+  background: #EFF6FF;
+}
+
+.type-pill.selected {
+  border-color: var(--primary);
+  background: #DBEAFE;
+  color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.type-pill input {
+  display: none;
+}
+
+/* Success state */
+.register-success {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.success-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 8px;
+}
+
+.success-message {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0 auto 20px;
+}
+
+.success-id {
+  display: inline-block;
+  background: #F0FDF4;
+  border: 1px solid #86EFAC;
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #166534;
+  font-family: monospace;
+}
+
+.btn-secondary {
+  height: 42px;
+  background: #F1F5F9;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  padding: 0 20px;
+  margin-top: 10px;
+}
+
+.btn-secondary:hover {
+  background: #E2E8F0;
+}
+
+.hidden {
+  display: none !important;
 }

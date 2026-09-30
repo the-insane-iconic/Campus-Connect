@@ -574,8 +574,8 @@
         <section class="admin-view" id="view-founder">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Founder Onboarding Hub</h1>
-              <p class="view-subtitle">Onboard new campus stores, create owner accounts, and platform health</p>
+              <h1 class="view-title">Admin Control Center</h1>
+              <p class="view-subtitle">Full platform management — stores, registrations, owner accounts & health</p>
             </div>
           </div>
 
@@ -585,6 +585,13 @@
               <div class="metric-info">
                 <div class="metric-label">Active Campus Stores</div>
                 <div class="metric-value" id="founder-stat-stores">0</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon amber">📝</div>
+              <div class="metric-info">
+                <div class="metric-label">Pending Registrations</div>
+                <div class="metric-value" id="founder-stat-pending">0</div>
               </div>
             </div>
             <div class="metric-card">
@@ -601,19 +608,61 @@
                 <div class="metric-value" id="founder-stat-revenue">₹0</div>
               </div>
             </div>
-            <div class="metric-card">
-              <div class="metric-icon amber">📋</div>
-              <div class="metric-info">
-                <div class="metric-label">Platform Orders</div>
-                <div class="metric-value" id="founder-stat-orders">0</div>
-              </div>
+          </div>
+
+          <!-- PENDING STORE REGISTRATIONS -->
+          <div class="card-panel mt-6">
+            <div class="panel-header">
+              <div class="panel-title">📋 Pending Store Registrations</div>
+              <button type="button" class="btn-action secondary" id="btn-refresh-registrations" style="font-size:12px; padding: 4px 12px;">↻ Refresh</button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Store Name</th>
+                    <th>Type</th>
+                    <th>Owner</th>
+                    <th>Location</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-registrations-tbody">
+                  <tr><td colspan="7" class="text-center py-6">No pending store registrations.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ALL STORES MONITOR -->
+          <div class="card-panel mt-6">
+            <div class="panel-header">
+              <div class="panel-title">🏪 All Campus Stores</div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Store</th>
+                    <th>Category</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="all-stores-tbody">
+                  <tr><td colspan="5" class="text-center py-6">Loading stores...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
           <div class="settings-grid mt-6">
             <!-- CREATE STORE -->
             <div class="card-panel">
-              <div class="panel-header"><div class="panel-title">1. Onboard New Campus Store</div></div>
+              <div class="panel-header"><div class="panel-title">➕ Onboard New Store (Manual)</div></div>
               <form id="founder-create-store-form" class="settings-form">
                 <div class="form-group">
                   <label for="founder-store-name-input">Store Name</label>
@@ -633,7 +682,7 @@
 
             <!-- CREATE OWNER ACCOUNT -->
             <div class="card-panel">
-              <div class="panel-header"><div class="panel-title">2. Create Store Owner Account</div></div>
+              <div class="panel-header"><div class="panel-title">👤 Create Store Owner Account</div></div>
               <form id="founder-create-owner-form" class="settings-form">
                 <div class="form-group">
                   <label for="founder-owner-store-select">Assign Store</label>
