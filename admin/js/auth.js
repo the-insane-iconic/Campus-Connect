@@ -168,7 +168,7 @@ function updateStoreDisplay() {
 }
 
 function setupNavigation() {
-  document.querySelectorAll('.nav-item').forEach(btn => {
+  document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const viewName = btn.getAttribute('data-view');
       switchView(viewName);
@@ -194,14 +194,23 @@ function switchView(viewName) {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
   });
 
+  // Update mobile bottom nav active state
+  document.querySelectorAll('.mobile-nav-item').forEach(item => {
+    item.classList.toggle('active', item.getAttribute('data-view') === viewName);
+  });
+
   // Toggle view visibility
   document.querySelectorAll('.admin-view').forEach(view => {
     view.classList.toggle('active', view.id === `view-${viewName}`);
   });
 
+  // Smooth scroll to top for mobile
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
   // Notify modules to load data for the view
   window.dispatchEvent(new CustomEvent('unimall:viewChanged', { detail: { viewName, storeId: activeStoreId } }));
 }
+window.switchView = switchView;
 
 function setupMobileDrawer() {
   const btnMenu = document.getElementById('btn-mobile-menu');

@@ -75,8 +75,17 @@ async function loadDashboard(storeId) {
       return orderDate === todayDate;
     });
 
-    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING'].includes(o.status));
-    const readyOrders = orders.filter(o => o.status === 'READY');
+    const activeOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes((o.status || '').toUpperCase()));
+    const statusPriority = { 'PLACED': 1, 'ACCEPTED': 2, 'PREPARING': 3, 'READY': 4 };
+    activeOrders.sort((a, b) => {
+      const pa = statusPriority[(a.status || '').toUpperCase()] || 99;
+      const pb = statusPriority[(b.status || '').toUpperCase()] || 99;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+
+    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING'].includes((o.status || '').toUpperCase()));
+    const readyOrders = orders.filter(o => (o.status || '').toUpperCase() === 'READY');
 
     const todaySales = todayOrders.reduce((sum, o) => {
       return o.status !== 'CANCELLED' ? sum + (o.store_subtotal || 0) : sum;
@@ -95,10 +104,16 @@ async function loadDashboard(storeId) {
 
     // Update nav counter badges
     const counterOrders = document.getElementById('counter-orders');
-    if (counterOrders) counterOrders.textContent = pendingOrders.length;
+    if (counterOrders) counterOrders.textContent = activeOrders.length;
 
-    // Render Urgent Orders
-    renderUrgentOrders(pendingOrders.slice(0, 5));
+    const mobBadge = document.getElementById('mob-badge-orders');
+    if (mobBadge) {
+      mobBadge.textContent = activeOrders.length;
+      mobBadge.classList.toggle('hidden', activeOrders.length === 0);
+    }
+
+    // Render Urgent / Active Orders directly in one place
+    renderUrgentOrders(activeOrders.slice(0, 6));
 
     // 3. Fetch Inventory for Low Stock Alerts
     const invData = await apiRequest(`/admin/stores/${storeId}/inventory`);
@@ -125,8 +140,18 @@ function renderUrgentOrders(orders) {
 
   if (orders.length === 0) {
     container.innerHTML = `
-      <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 13.5px;">
-        ✨ All caught up! No orders currently require preparation.
+      <div style="text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13.5px;">
+        ✨ All caught up! No active orders requiring preparation or pickup.
+      </div>
+    `;
+    return;
+  }
+
+  // Use the modern active order cards with 1-button 3-step progression
+  if (typeof window.renderActiveOrderCard === 'function') {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        ${orders.map(o => window.renderActiveOrderCard(o)).join('')}
       </div>
     `;
     return;
@@ -221,3 +246,4 @@ function renderTopProducts(products) {
     </div>
   `;
 }
+window.loadDashboard = loadDashboard;

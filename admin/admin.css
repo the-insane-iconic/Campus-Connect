@@ -1636,6 +1636,11 @@ button, input, select, textarea {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ─── MOBILE BOTTOM NAVIGATION (DESKTOP DEFAULT: HIDDEN) ─── */
+.admin-mobile-nav {
+  display: none;
+}
+
 /* ─── MOBILE RESPONSIVENESS (< 768px) ────────────────────── */
 
 @media (max-width: 767px) {
@@ -2309,10 +2314,4 @@ button, input, select, textarea {
   font-size: 13.5px;
   color: var(--text-muted);
   max-width: 360px;
-}
-
-/* ─── MOBILE BOTTOM NAVIGATION ───────────────────────────── */
-
-.admin-mobile-nav {
-  display: none;
 }

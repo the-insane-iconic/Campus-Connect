@@ -377,11 +377,12 @@ window.renderActiveOrderCard = renderActiveOrderCard;
  */
 async function progressOrderStep(orderId, nextStatus) {
   try {
-    const card = document.getElementById(`order-card-${orderId}`);
-    if (card) {
+    document.querySelectorAll(`[id="order-card-${orderId}"]`).forEach(card => {
       card.style.opacity = '0.65';
       card.style.pointerEvents = 'none';
-    }
+      const btn = card.querySelector('.btn-order-step');
+      if (btn) btn.innerHTML = '<span>⏳</span> <span>Updating...</span>';
+    });
 
     await apiRequest(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
@@ -403,10 +404,8 @@ async function progressOrderStep(orderId, nextStatus) {
     if (activeStoreId) {
       await loadOrders(activeStoreId, true);
 
-      // If dashboard is active, refresh it too
-      const currentActiveView = document.querySelector('.admin-view.active');
-      if (currentActiveView && currentActiveView.id === 'view-dashboard') {
-        if (typeof loadDashboard === 'function') loadDashboard(activeStoreId);
+      if (typeof window.loadDashboard === 'function') {
+        window.loadDashboard(activeStoreId);
       }
     }
   } catch (err) {
@@ -421,6 +420,11 @@ async function cancelOrderQuick(orderId) {
   if (!confirmed) return;
 
   try {
+    document.querySelectorAll(`[id="order-card-${orderId}"]`).forEach(card => {
+      card.style.opacity = '0.65';
+      card.style.pointerEvents = 'none';
+    });
+
     await apiRequest(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'CANCELLED' })
@@ -429,8 +433,10 @@ async function cancelOrderQuick(orderId) {
     showToast(`Order #${orderId} has been cancelled.`, 'error');
 
     if (activeStoreId) {
-      await loadOrders(activeStoreId);
-      if (typeof loadDashboard === 'function') loadDashboard(activeStoreId);
+      await loadOrders(activeStoreId, true);
+      if (typeof window.loadDashboard === 'function') {
+        window.loadDashboard(activeStoreId);
+      }
     }
   } catch (err) {
     showToast(`Failed to cancel order: ${err.message}`, 'error');
