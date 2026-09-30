@@ -40,7 +40,46 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Live status toggle button inside Store & Hours settings
+  const btnSettingsToggle = document.getElementById('btn-settings-toggle-open');
+  if (btnSettingsToggle) {
+    btnSettingsToggle.addEventListener('click', () => {
+      const topbarToggle = document.getElementById('btn-store-status-toggle');
+      if (topbarToggle) topbarToggle.click();
+    });
+  }
+
+  // React to status changes across the app
+  window.addEventListener('unimall:storeStatusChanged', (e) => {
+    if (e.detail.storeId === activeStoreId) {
+      updateSettingsStatusBanner(e.detail.isOpen);
+    }
+  });
 });
+
+function updateSettingsStatusBanner(isOpen) {
+  const heading = document.getElementById('settings-status-heading');
+  const indicator = document.getElementById('settings-status-indicator');
+  const btn = document.getElementById('btn-settings-toggle-open');
+  const card = document.querySelector('.store-live-status-card');
+
+  if (heading && indicator && btn) {
+    if (isOpen) {
+      heading.textContent = 'Store is Online & Accepting Orders';
+      indicator.style.background = '#16A34A';
+      btn.textContent = '⏸ Pause Store (Go Offline)';
+      btn.className = 'btn-action secondary';
+      if (card) card.style.borderLeftColor = '#16A34A';
+    } else {
+      heading.textContent = 'Store is Paused & Offline (Not Accepting Orders)';
+      indicator.style.background = '#DC2626';
+      btn.textContent = '▶ Open Store (Accept Orders)';
+      btn.className = 'btn-action primary';
+      if (card) card.style.borderLeftColor = '#DC2626';
+    }
+  }
+}
 
 async function loadStoreSettings(storeId) {
   if (!storeId) return;
@@ -48,6 +87,8 @@ async function loadStoreSettings(storeId) {
   try {
     const data = await apiRequest(`/admin/stores/${storeId}`);
     const store = data.store;
+
+    updateSettingsStatusBanner(store.is_open === 1);
 
     document.getElementById('setting-store-name').value = store.name || '';
     document.getElementById('setting-store-cat').value = store.category || '';

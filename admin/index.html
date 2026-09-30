@@ -408,6 +408,26 @@
           </div>
 
           <div class="settings-grid">
+            <!-- LIVE STORE STATUS & ACCEPTING ORDERS BANNER -->
+            <div class="card-panel store-live-status-card" style="grid-column: 1 / -1; border-left: 4px solid #16A34A; padding: 16px 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <div>
+                  <div style="font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                    <span id="settings-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #16A34A;"></span>
+                    <span id="settings-status-heading">Store is Online & Accepting Orders</span>
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                    Too many in-person customers at the counter? Turn this off to temporarily pause online student orders.
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" id="btn-settings-toggle-open" class="btn-action secondary" style="font-size: 12.5px; font-weight: 600; padding: 7px 16px;">
+                    ⏸ Pause Store (Go Offline)
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- GENERAL STORE INFO -->
             <div class="card-panel">
               <div class="panel-header"><div class="panel-title">Store Information</div></div>

@@ -410,6 +410,9 @@ document.addEventListener('DOMContentLoaded', () => {
   SSD.products = STORE_PRODUCTS[SSD.store.id] || [];
   SSD.filteredProducts = [...SSD.products];
 
+  // Sync live open/closed status from admin panel
+  syncCurrentStoreStatus();
+
   // Persist current store for navigation and cart convenience
   try {
     localStorage.setItem('unimall_last_store_id', SSD.store.id);
@@ -431,7 +434,30 @@ document.addEventListener('DOMContentLoaded', () => {
   renderRecommended('about-recommended');
   renderRecommended('reviews-recommended');
   initEventListeners();
+
+  // Live reactivity when store status changes in admin
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses') {
+      syncCurrentStoreStatus();
+      renderInfoSheet();
+      renderProductsPanel();
+    }
+  });
 });
+
+function syncCurrentStoreStatus() {
+  try {
+    const raw = localStorage.getItem('unimall_store_statuses');
+    if (!raw) return;
+    const storeStatuses = JSON.parse(raw);
+    const targetId = SSD.store.dataId || SSD.store.id;
+    if (storeStatuses[targetId] !== undefined) {
+      SSD.store.status = storeStatuses[targetId] ? 'open' : 'closed';
+    } else if (storeStatuses[SSD.store.id] !== undefined) {
+      SSD.store.status = storeStatuses[SSD.store.id] ? 'open' : 'closed';
+    }
+  } catch(e) {}
+}
 
 /* ─────────────────────────────────────────────────────────
    RENDER HERO
@@ -480,7 +506,7 @@ function renderInfoSheet() {
       ? `Closes at ${s.closingTime}`
       : s.status === 'closing'
         ? `Closes soon · ${s.closingTime}`
-        : `Opens at ${s.openingTime}`;
+        : `Currently Offline · Not accepting orders`;
   }
 
   const locEl = document.getElementById('store-location-text');
@@ -494,6 +520,27 @@ function renderInfoSheet() {
    RENDER PRODUCTS PANEL
    ───────────────────────────────────────────────────────── */
 function renderProductsPanel() {
+  const container = document.getElementById('panel-products');
+  let banner = document.getElementById('store-offline-banner');
+
+  if (SSD.store?.status === 'closed') {
+    if (!banner && container) {
+      banner = document.createElement('div');
+      banner.id = 'store-offline-banner';
+      banner.style.cssText = 'background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 12px 16px; margin: 12px 0 16px; display: flex; align-items: center; gap: 12px; color: #991B1B; font-family: inherit;';
+      banner.innerHTML = `
+        <span style="font-size: 20px;">⏸️</span>
+        <div>
+          <div style="font-weight: 700; font-size: 13.5px;">Store Offline / Orders Paused</div>
+          <div style="font-size: 12px; color: #B91C1C; margin-top: 2px;">This store has paused online orders due to counter rush. Please check back shortly!</div>
+        </div>
+      `;
+      container.insertBefore(banner, container.firstChild);
+    }
+  } else if (banner) {
+    banner.remove();
+  }
+
   renderCategoryChips();
   renderProductGrid();
 }
@@ -576,6 +623,10 @@ function renderProductGrid() {
       const pid = btn.dataset.pid;
       const product = SSD.products.find(p => p.id === pid);
       if (!product || product.availability === 'out-of-stock') return;
+      if (SSD.store?.status === 'closed') {
+        showSimpleToast(`⚠️ ${SSD.store.name} is offline. Online ordering is paused.`);
+        return;
+      }
       const added = cartAddProduct(product);
       if (added) {
         showYayToast(product.name);

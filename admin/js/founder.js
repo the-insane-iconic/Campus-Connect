@@ -216,14 +216,31 @@ function approveRegistration(index) {
   const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
   if (!registrations[index]) return;
 
-  registrations[index].status = 'approved';
-  registrations[index].reviewedAt = new Date().toISOString();
+  const reg = registrations[index];
+  reg.status = 'approved';
+  reg.reviewedAt = new Date().toISOString();
   localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
 
   // Also sync the store's open/close status so user app knows
-  syncStoreStatusToUserApp(registrations[index].storeId, true);
+  syncStoreStatusToUserApp(reg.storeId, true);
 
-  showToast(`"${registrations[index].storeName}" has been approved! They can now log in.`, 'success');
+  // Add to active store selector for platform admin
+  if (typeof currentAuthorizedStores !== 'undefined' && !currentAuthorizedStores.some(s => s.store_id === reg.storeId)) {
+    currentAuthorizedStores.push({
+      store_id: reg.storeId,
+      store_name: reg.storeName,
+      membership_role: 'admin'
+    });
+    const selector = document.getElementById('store-selector');
+    if (selector) {
+      const opt = document.createElement('option');
+      opt.value = reg.storeId;
+      opt.textContent = reg.storeName;
+      selector.appendChild(opt);
+    }
+  }
+
+  showToast(`"${reg.storeName}" approved! Manager can now sign in with their store name.`, 'success');
   loadPendingRegistrations();
   loadAllStoresMonitor();
 }
@@ -248,13 +265,30 @@ function loadAllStoresMonitor() {
   const tbody = document.getElementById('all-stores-tbody');
   if (!tbody) return;
 
-  // Get stores from the current session's authorized stores list
-  const stores = currentAuthorizedStores || [];
+  // Get stores from the current session's authorized stores list + approved registered stores
+  const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+  const approved = registeredStores.filter(r => r.status === 'approved').map(r => ({
+    store_id: r.storeId,
+    store_name: r.storeName,
+    category: r.storeType,
+    location: r.location
+  }));
+
+  const allStores = [...(currentAuthorizedStores || [])];
+  approved.forEach(appStore => {
+    if (!allStores.some(s => s.store_id === appStore.store_id)) {
+      allStores.push(appStore);
+    }
+  });
+
+  // Update active campus stores stat
+  const elStores = document.getElementById('founder-stat-stores');
+  if (elStores) elStores.textContent = allStores.length;
 
   // Get store open/close statuses from localStorage
   const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
 
-  if (stores.length === 0) {
+  if (allStores.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6" style="color: var(--text-muted);">No stores found.</td></tr>';
     return;
   }
@@ -268,8 +302,8 @@ function loadAllStoresMonitor() {
     'health-hub': { category: 'Health & Care', location: 'Ground Floor, Unimall' }
   };
 
-  tbody.innerHTML = stores.map(s => {
-    const meta = STORE_META[s.store_id] || { category: 'General', location: '—' };
+  tbody.innerHTML = allStores.map(s => {
+    const meta = s.location ? { category: s.category || 'General', location: s.location } : (STORE_META[s.store_id] || { category: 'General', location: '—' });
     const isOpen = storeStatuses[s.store_id] !== false; // Default to open
     const statusClass = isOpen ? 'completed' : 'cancelled';
     const statusLabel = isOpen ? '● Online' : '○ Offline';

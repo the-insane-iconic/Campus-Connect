@@ -690,3 +690,94 @@ async function syncCatalogWithSupabase() {
   }
 }
 
+/* ─── SYNC STORE STATUSES & ADMIN EDITS ───────────────────── */
+function syncStoreStatusesFromAdmin() {
+  try {
+    const raw = localStorage.getItem('unimall_store_statuses');
+    const storeStatuses = raw ? JSON.parse(raw) : {};
+
+    // 1. Update STORES openNow status
+    const aliasMap = {
+      'campus-cafe': ['store-bakery', 'campus-cafe'],
+      'book-corner': ['store-stationery', 'book-corner'],
+      'techstop': ['store-electronics', 'techstop'],
+      'campus-mart': ['store-sports', 'campus-mart'],
+      'campus-wear': ['store-fashion', 'campus-wear'],
+      'health-hub': ['store-pharmacy', 'health-hub']
+    };
+
+    STORES.forEach(s => {
+      const checkKeys = [s.id, ...(aliasMap[s.id] || [])];
+      for (const k of checkKeys) {
+        if (storeStatuses[k] !== undefined) {
+          s.openNow = Boolean(storeStatuses[k]);
+          break;
+        }
+      }
+    });
+
+    // 2. Incorporate approved registered stores
+    const regRaw = localStorage.getItem('unimall_registered_stores');
+    if (regRaw) {
+      const regStores = JSON.parse(regRaw);
+      regStores.filter(r => r.status === 'approved').forEach(r => {
+        if (!STORES.some(s => s.id === r.storeId)) {
+          const isOpen = storeStatuses[r.storeId] !== false;
+          STORES.push({
+            id: r.storeId,
+            name: r.storeName,
+            floor: r.location || 'Campus Center',
+            openNow: isOpen,
+            hours: r.operatingHours || '9:00 AM – 9:00 PM',
+            category: r.storeType || 'general',
+            location: r.location || 'Campus Center',
+            rating: 4.8
+          });
+        }
+      });
+    }
+
+    // 3. Sync any price/stock updates from admin catalog
+    const catRaw = localStorage.getItem('unimall_products_catalog');
+    if (catRaw) {
+      const adminCatalog = JSON.parse(catRaw);
+      adminCatalog.forEach(ap => {
+        const prod = PRODUCTS.find(p => p.id === ap.id);
+        if (prod) {
+          if (ap.price !== undefined) prod.price = parseFloat(ap.price);
+          if (ap.stock !== undefined) prod.stock = parseInt(ap.stock, 10);
+          if (ap.is_active !== undefined) prod.isActive = ap.is_active === 1;
+        } else if (ap.name && ap.store_id) {
+          // New product created by store manager
+          PRODUCTS.push({
+            id: ap.id,
+            name: ap.name,
+            price: parseFloat(ap.price) || 0,
+            emoji: '📦',
+            bg: '#F8FAFC',
+            image: ap.image_url || '',
+            categoryId: ap.category_id || 'food',
+            storeId: ap.store_id,
+            description: ap.description || '',
+            stock: ap.stock ?? 20,
+            availability: ap.stock === 0 ? 'out-of-stock' : 'in-stock',
+            deliveryAvailable: true,
+            pickupAvailable: true,
+            rating: 4.8,
+            isNearby: true,
+            isPopular: false,
+            isRestocked: false
+          });
+        }
+      });
+    }
+
+    // 4. Update AppState if available
+    if (typeof AppState !== 'undefined') {
+      AppState.products = PRODUCTS.filter(p => p.isActive !== false);
+    }
+  } catch (err) {
+    console.warn('[UniMall] syncStoreStatusesFromAdmin note:', err);
+  }
+}
+window.syncStoreStatusesFromAdmin = syncStoreStatusesFromAdmin;

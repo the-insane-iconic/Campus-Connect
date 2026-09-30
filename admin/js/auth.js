@@ -16,7 +16,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    const meData = await apiRequest('/auth/me');
+    let meData;
+    try {
+      meData = await apiRequest('/auth/me');
+    } catch (e) {
+      const cachedUser = sessionStorage.getItem('unimall_admin_user');
+      const cachedStores = sessionStorage.getItem('unimall_admin_stores');
+      if (cachedUser) {
+        meData = {
+          user: JSON.parse(cachedUser),
+          stores: cachedStores ? JSON.parse(cachedStores) : []
+        };
+      } else {
+        throw e;
+      }
+    }
+
     currentAdminUser = meData.user;
     currentAuthorizedStores = meData.stores || [];
 
@@ -59,6 +74,20 @@ function setupUserProfile() {
 function setupStoreContext() {
   const selector = document.getElementById('store-selector');
   const storedActive = sessionStorage.getItem('unimall_admin_active_store');
+
+  // If platform admin, add all approved registered stores to the authorized list
+  if (currentAdminUser && currentAdminUser.role === 'platform_admin') {
+    const regStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+    regStores.filter(r => r.status === 'approved').forEach(r => {
+      if (!currentAuthorizedStores.some(s => s.store_id === r.storeId)) {
+        currentAuthorizedStores.push({
+          store_id: r.storeId,
+          store_name: r.storeName,
+          membership_role: 'admin'
+        });
+      }
+    });
+  }
 
   if (currentAuthorizedStores.length > 0) {
     const matched = currentAuthorizedStores.find(s => s.store_id === storedActive);
@@ -104,6 +133,11 @@ function updateStoreDisplay() {
   // Update sidebar store badge
   const sidebarStoreName = document.getElementById('sidebar-store-name');
   if (sidebarStoreName) sidebarStoreName.textContent = storeName;
+
+  // Sync open/closed toggle button to the active store's state
+  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+  const isOpen = storeStatuses[activeStoreId] !== false; // default to open
+  applyStoreOpenState(isOpen);
 
   // Founder Impersonation Banner
   const banner = document.getElementById('founder-banner');
@@ -274,3 +308,55 @@ function setupLogout() {
     });
   }
 }
+
+function syncStoreStatusToUserApp(storeId, isOpen) {
+  // 1. Update dedicated store statuses map
+  const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+  storeStatuses[storeId] = isOpen;
+
+  // Map aliases so all versions of the store ID sync together
+  const aliasMap = {
+    'campus-cafe': ['store-bakery', 'campus-cafe'],
+    'book-corner': ['store-stationery', 'book-corner'],
+    'techstop': ['store-electronics', 'techstop'],
+    'campus-mart': ['store-sports', 'campus-mart'],
+    'campus-wear': ['store-fashion', 'campus-wear'],
+    'health-hub': ['store-pharmacy', 'health-hub']
+  };
+  const targets = aliasMap[storeId] || [storeId];
+  targets.forEach(id => {
+    storeStatuses[id] = isOpen;
+  });
+  localStorage.setItem('unimall_store_statuses', JSON.stringify(storeStatuses));
+
+  // 2. Update unimall_v1 app data if present
+  try {
+    const raw = localStorage.getItem('unimall_v1');
+    if (raw) {
+      const appData = JSON.parse(raw);
+      if (appData.stores && Array.isArray(appData.stores)) {
+        appData.stores.forEach(s => {
+          if (targets.includes(s.id)) {
+            s.openNow = isOpen;
+          }
+        });
+        localStorage.setItem('unimall_v1', JSON.stringify(appData));
+      }
+    }
+  } catch(e) {}
+
+  // 3. Dispatch local event
+  window.dispatchEvent(new CustomEvent('unimall:storeStatusChanged', {
+    detail: { storeId, isOpen }
+  }));
+
+  // 4. Cross-tab event
+  try {
+    localStorage.setItem('unimall_store_status_event', JSON.stringify({
+      storeId,
+      isOpen,
+      timestamp: Date.now()
+    }));
+  } catch(e) {}
+}
+window.syncStoreStatusToUserApp = syncStoreStatusToUserApp;

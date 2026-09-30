@@ -209,8 +209,34 @@ body {
   to { transform: rotate(360deg); }
 }
 
+.register-sublink-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.register-sublink-text {
+  color: var(--text-muted);
+}
+
+.register-sublink-btn {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.register-sublink-btn:hover {
+  color: var(--primary-hover);
+}
+
 .demo-section {
-  margin-top: 26px;
+  margin-top: 22px;
 }
 
 .demo-divider {

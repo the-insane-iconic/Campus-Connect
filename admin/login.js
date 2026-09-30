@@ -26,13 +26,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── STORE DATABASE (maps lowercase store names to store IDs & data) ──
   const STORE_ACCOUNTS = {
-    'campus café':    { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
-    'campus cafe':    { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
-    'book corner':    { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Store Manager',  icon: '📚' },
-    'techstop':       { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'Store Manager',  icon: '💻' },
-    'campus mart':    { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Store Manager',  icon: '🛒' },
-    'campus wear':    { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Store Manager',  icon: '👕' },
-    'health hub':     { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Store Manager',  icon: '💊' },
+    'campus café':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
+    'campus cafe':        { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
+    'campus bakery':      { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Store Manager',  icon: '☕' },
+    'book corner':        { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Store Manager',  icon: '📚' },
+    'stationery hub':     { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Store Manager',  icon: '📚' },
+    'techstop':           { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'Store Manager',  icon: '💻' },
+    'campus electronics': { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'Store Manager',  icon: '💻' },
+    'campus mart':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Store Manager',  icon: '🛒' },
+    'sports zone':        { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Store Manager',  icon: '🛒' },
+    'campus wear':        { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Store Manager',  icon: '👕' },
+    'style square':       { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Store Manager',  icon: '👕' },
+    'health hub':         { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Store Manager',  icon: '💊' },
   };
 
   // Handle login form submission
@@ -46,6 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 1. ADMIN LOGIN (username: admin, password: admin) ──
     if (username === 'admin' && password === 'admin') {
+      // Collect all built-in stores + any approved registered stores
+      const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+      const approvedStores = registeredStores.filter(s => s.status === 'approved').map(s => ({
+        store_id: s.storeId,
+        store_name: s.storeName,
+        membership_role: 'admin'
+      }));
+
       const sessionData = {
         token: 'unimall_admin_' + Date.now(),
         user: {
@@ -60,7 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
           { store_id: 'techstop', store_name: 'TechStop', membership_role: 'admin' },
           { store_id: 'campus-mart', store_name: 'Campus Mart', membership_role: 'admin' },
           { store_id: 'campus-wear', store_name: 'Campus Wear', membership_role: 'admin' },
-          { store_id: 'health-hub', store_name: 'Health Hub', membership_role: 'admin' }
+          { store_id: 'health-hub', store_name: 'Health Hub', membership_role: 'admin' },
+          ...approvedStores
         ]
       };
       saveAdminSession(sessionData);
@@ -109,6 +123,21 @@ document.addEventListener('DOMContentLoaded', () => {
       saveAdminSession(sessionData);
       window.location.href = 'index.html';
       return;
+    }
+
+    // Check if store was registered but is still pending or rejected
+    const pendingStore = registeredStores.find(s => s.storeName.toLowerCase() === username);
+    if (pendingStore && password === username) {
+      if (pendingStore.status === 'pending') {
+        showError(`Application for "${pendingStore.storeName}" is currently pending review by the UniMall admin. You will be able to log in once approved.`);
+        setLoading(false);
+        return;
+      }
+      if (pendingStore.status === 'rejected') {
+        showError(`Application for "${pendingStore.storeName}" was rejected by the admin team.`);
+        setLoading(false);
+        return;
+      }
     }
 
     // ── 4. Try backend API fallback ──

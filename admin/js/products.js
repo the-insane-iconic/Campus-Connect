@@ -135,7 +135,13 @@ function renderProductsTable() {
         </td>
         <td><span style="font-size: 12.5px; color: var(--text-muted);">${escapeHtml(p.category_name || p.category_id || '—')}</span></td>
         <td><code style="font-size: 11.5px; background: var(--surface-alt); padding: 2px 4px; border-radius: 4px;">${escapeHtml(p.sku || '—')}</code></td>
-        <td><strong>₹${Number(p.price).toFixed(2)}</strong></td>
+        <td>
+          <button type="button" class="btn-price-quick" onclick="quickEditPrice('${p.id}', '${escapeHtml(p.name)}', ${p.price})"
+                  title="Click to quickly update price"
+                  style="background: transparent; border: 1px dashed var(--border); border-radius: 4px; padding: 2px 6px; font-weight: 700; color: var(--text-main); font-size: 13px; cursor: pointer;">
+            ₹${Number(p.price).toFixed(2)} ✎
+          </button>
+        </td>
         <td>
           <span style="font-weight: 700; ${p.stock === 0 ? 'color: var(--danger);' : ''}">${p.stock}</span>
         </td>
@@ -266,3 +272,25 @@ async function toggleProductActive(productId, isActive) {
   }
 }
 window.toggleProductActive = toggleProductActive;
+
+async function quickEditPrice(productId, productName, currentPrice) {
+  const input = prompt(`Update price for "${productName}" (current: ₹${currentPrice}):`, currentPrice);
+  if (input === null) return;
+  const newPrice = parseFloat(input);
+  if (isNaN(newPrice) || newPrice < 0) {
+    showToast('Invalid price entered.', 'error');
+    return;
+  }
+
+  try {
+    await apiRequest(`/admin/products/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ price: newPrice })
+    });
+    showToast(`Price for "${productName}" updated to ₹${newPrice}`, 'success');
+    if (activeStoreId) loadProducts(activeStoreId);
+  } catch (err) {
+    showToast('Failed to update price.', 'error');
+  }
+}
+window.quickEditPrice = quickEditPrice;

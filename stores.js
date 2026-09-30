@@ -714,9 +714,68 @@ syncCartBadge();
 syncSidebarProfile();
 
 
-/* =========================================================
-   INITIAL RENDER & LIVE SYNC (NO FLICKER)
-========================================================= */
+function syncStoreStatuses() {
+  try {
+    const raw = localStorage.getItem('unimall_store_statuses');
+    const statuses = raw ? JSON.parse(raw) : {};
+
+    const aliasMap = {
+      'store-bakery': ['campus-cafe', 'store-bakery'],
+      'store-stationery': ['book-corner', 'store-stationery'],
+      'store-electronics': ['techstop', 'store-electronics'],
+      'store-sports': ['campus-mart', 'store-sports'],
+      'store-fashion': ['campus-wear', 'store-fashion'],
+      'store-pharmacy': ['health-hub', 'store-pharmacy']
+    };
+
+    STORES.forEach(s => {
+      const keys = aliasMap[s.id] || [s.id];
+      for (const k of keys) {
+        if (statuses[k] !== undefined) {
+          const isOpen = Boolean(statuses[k]);
+          s.status = isOpen ? 'open' : 'closed';
+          s.statusLabel = isOpen ? 'Open' : 'Closed';
+          break;
+        }
+      }
+    });
+
+    // Also include approved registered stores
+    const regRaw = localStorage.getItem('unimall_registered_stores');
+    if (regRaw) {
+      const regStores = JSON.parse(regRaw);
+      regStores.filter(r => r.status === 'approved').forEach(r => {
+        if (!STORES.some(s => s.id === r.storeId)) {
+          const isOpen = statuses[r.storeId] !== false;
+          STORES.push({
+            id: r.storeId,
+            name: r.storeName,
+            categories: [r.storeType || 'food'],
+            categoryLabel: r.description || `${r.storeType || 'Campus'} Store`,
+            coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
+            status: isOpen ? 'open' : 'closed',
+            statusLabel: isOpen ? 'Open' : 'Closed',
+            openingTime: '9:00 AM',
+            closingTime: '9:00 PM',
+            distance: 2,
+            walkingTime: 3,
+            floor: r.location || 'Campus Center',
+            rating: 4.8,
+            popularity: 90
+          });
+        }
+      });
+    }
+  } catch(e) {}
+}
+
+syncStoreStatuses();
+window.addEventListener('storage', (e) => {
+  if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses') {
+    syncStoreStatuses();
+    renderStores();
+  }
+});
 
 renderStores();
 

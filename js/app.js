@@ -47,13 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 6. Sync cart badge from persisted state */
   updateCartBadges();
 
-  /* 6b. Sync store open/close statuses from admin panel */
+  /* 6b. Sync store open/close statuses & catalog updates from admin panel */
   syncStoreStatusesFromAdmin();
   window.addEventListener('storage', (e) => {
-    if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses') {
+    if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses' || e.key === 'unimall_catalog_sync_event') {
       syncStoreStatusesFromAdmin();
       renderHome();
     }
+  });
+  window.addEventListener('unimall:storeStatusChanged', () => {
+    syncStoreStatusesFromAdmin();
+    renderHome();
   });
 
   /* 7. Sync notification dot */
