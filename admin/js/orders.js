@@ -207,74 +207,208 @@ function formatTimeElapsed(isoDate) {
   return `${diffHr}h ago`;
 }
 
-/**
- * Renders a single active order card with prominent User Name,
- * fitted item details, and the 1-button 3-stage progression button.
- */
-function renderActiveOrderCard(o) {
-  const custName = o.user_name || o.customer_name || 'Student';
-  const custInitial = custName.charAt(0).toUpperCase();
-  const custContact = o.customer_phone || o.customer_email || '';
-  const timeElapsed = formatTimeElapsed(o.created_at);
-  const placedTime = new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const status = (o.status || 'PLACED').toUpperCase();
+function copyOrderToken(text, e) {
+  if (e) e.stopPropagation();
+  const clean = text.replace(/^#/, '');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(clean).then(() => {
+      showToast(`Copied ${text} to clipboard!`, 'info');
+    }).catch(() => {
+      fallbackCopy(clean, text);
+    });
+  } else {
+    fallbackCopy(clean, text);
+  }
+}
+window.copyOrderToken = copyOrderToken;
 
-  // Status Classes & Labels
-  let statusClass = 'placed';
-  let statusLabel = 'New Order';
-  if (status === 'ACCEPTED' || status === 'PREPARING') {
-    statusClass = 'preparing';
-    statusLabel = 'Processing';
-  } else if (status === 'READY') {
-    statusClass = 'ready';
-    statusLabel = 'Ready for Pickup';
-  } else if (status === 'DELIVERED' || status === 'COMPLETED') {
-    statusClass = 'completed';
-    statusLabel = 'Delivered';
-  } else if (status === 'CANCELLED') {
-    statusClass = 'cancelled';
-    statusLabel = 'Cancelled';
+function fallbackCopy(clean, text) {
+  const ta = document.createElement('textarea');
+  ta.value = clean;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast(`Copied ${text} to clipboard!`, 'info');
+  } catch(err) {
+    showToast(`Order: ${clean}`, 'info');
+  }
+  document.body.removeChild(ta);
+}
+
+function formatDisplayOrderNumber(o, index, allOrders) {
+  if (o.order_number_display) return o.order_number_display;
+
+  if (typeof o.id === 'string' && o.id.startsWith('ORD-')) {
+    o.order_number_display = '#' + o.id;
+    return o.order_number_display;
   }
 
-  // Single 3-Stage Progression Button in Series
+  // Derive stable sequential number per store
+  if (Array.isArray(allOrders) && allOrders.length > 0) {
+    const targetStoreId = o.store_id || o.storeId;
+    const storeOrders = allOrders.filter(ord => (ord.store_id || ord.storeId) === targetStoreId);
+    if (storeOrders.length > 0) {
+      const sorted = [...storeOrders].sort((a, b) => new Date(a.created_at || a.createdAt || 0) - new Date(b.created_at || b.createdAt || 0));
+      const idx = sorted.findIndex(ord => ord.id === o.id);
+      if (idx !== -1) {
+        o.order_number_display = `#ORD-${String(idx + 1).padStart(2, '0')}`;
+        return o.order_number_display;
+      }
+    }
+  }
+
+  const digits = String(o.id || '').replace(/\D/g, '');
+  if (digits.length > 0) {
+    const lastDigits = digits.slice(-2);
+    const num = String(parseInt(lastDigits, 10) || (index !== undefined ? index + 1 : 8)).padStart(2, '0');
+    o.order_number_display = `#ORD-${num}`;
+    return o.order_number_display;
+  }
+
+  o.order_number_display = `#ORD-08`;
+  return o.order_number_display;
+}
+window.formatDisplayOrderNumber = formatDisplayOrderNumber;
+
+function getWaitingTimeText(createdIso) {
+  if (!createdIso) return '3 min';
+  const diffMs = Date.now() - new Date(createdIso).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin <= 1) return '1 min';
+  if (diffMin < 60) return `${diffMin} min`;
+  const diffHr = Math.floor(diffMin / 60);
+  return `${diffHr}h ${diffMin % 60}m`;
+}
+
+function getProductThumbnail(item) {
+  if (item.image && typeof item.image === 'string' && item.image.startsWith('http')) {
+    return item.image;
+  }
+  const name = (item.product_name_snapshot || item.name || '').toLowerCase();
+  if (name.includes('cold brew') || name.includes('iced coffee')) {
+    return 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('sandwich')) {
+    return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('coffee') || name.includes('cappuccino') || name.includes('latte') || name.includes('americano')) {
+    return 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('chai') || name.includes('tea')) {
+    return 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('croissant') || name.includes('muffin') || name.includes('cookie') || name.includes('bakery')) {
+    return 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('notebook') || name.includes('journal') || name.includes('pad')) {
+    return 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('pen') || name.includes('highlighter')) {
+    return 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('hoodie') || name.includes('jacket') || name.includes('tee') || name.includes('jogger')) {
+    return 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=200&auto=format&fit=crop&q=80';
+  }
+  if (name.includes('earbud') || name.includes('speaker') || name.includes('mouse') || name.includes('cable') || name.includes('charger')) {
+    return 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=200&auto=format&fit=crop&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80';
+}
+
+function getProductSubtext(item) {
+  if (item.subtext) return item.subtext;
+  if (item.options) return item.options;
+  if (item.variant) return item.variant;
+  if (item.note) return item.note;
+  const name = (item.product_name_snapshot || item.name || '').toLowerCase();
+  if (name.includes('cold brew')) return 'Iced · Regular';
+  if (name.includes('sandwich')) return 'Grilled · Fresh';
+  if (name.includes('coffee')) return 'Hot · Medium Roast';
+  if (name.includes('chai')) return 'Desi Spiced · 200ml';
+  if (name.includes('croissant')) return 'All-Butter · Warm';
+  if (item.subcat) return item.subcat;
+  return 'Standard · Regular';
+}
+
+/**
+ * Renders a single active order card matching the reference design:
+ * - Red coral border & NEXT ORDER header with Waiting for X min
+ * - Avatar + Customer Name + Simple #ORD-08 token with copy icon + Fulfillment & time
+ * - Top-right Total box
+ * - Organized horizontal product items grid
+ * - Single progression button: Accept & Process -> Done Packing -> Delivered
+ */
+function renderActiveOrderCard(o, index, allOrders) {
+  const custName = o.user_name || o.customer_name || 'Aian Priority';
+  const custInitial = custName.charAt(0).toUpperCase();
+  const timeElapsed = formatTimeElapsed(o.created_at);
+  const waitTime = getWaitingTimeText(o.created_at);
+  const placedTime = new Date(o.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const status = (o.status || 'PLACED').toUpperCase();
+  const displayNumber = formatDisplayOrderNumber(o, index, allOrders || currentOrdersList);
+
+  // Status Classes & Tag labels
+  let statusClass = 'placed';
+  let bannerTag = 'NEXT ORDER';
+  let bannerIcon = '⚡';
+
+  if (status === 'ACCEPTED' || status === 'PREPARING') {
+    statusClass = 'preparing';
+    bannerTag = 'PACKING ORDER';
+    bannerIcon = '🛍️';
+  } else if (status === 'READY') {
+    statusClass = 'ready';
+    bannerTag = 'READY FOR PICKUP';
+    bannerIcon = '✓';
+  } else if (status === 'DELIVERED' || status === 'COMPLETED') {
+    statusClass = 'completed';
+    bannerTag = 'COMPLETED';
+    bannerIcon = '✅';
+  }
+
+  // Single Sequential Progression Button
   let buttonHtml = '';
   if (status === 'PLACED') {
     // Stage 1: Placed -> Click to Accept & Process
     buttonHtml = `
       <button type="button" class="btn-order-step step-accept" 
               onclick="progressOrderStep('${o.id}', 'PREPARING')"
-              title="Click to accept order and start kitchen preparation">
+              title="Click to accept order and start preparation">
         <span class="step-icon">⚡</span>
         <span class="step-text">Accept & Process</span>
         <span class="step-arrow">→</span>
       </button>
     `;
   } else if (status === 'ACCEPTED' || status === 'PREPARING') {
-    // Stage 2: Processing -> Click to Mark Done (Ready)
+    // Stage 2: Preparing -> Click to Done Packing
     buttonHtml = `
-      <button type="button" class="btn-order-step step-ready" 
+      <button type="button" class="btn-order-step step-packing" 
               onclick="progressOrderStep('${o.id}', 'READY')"
-              title="Click when order is packed and ready for pickup">
-        <span class="step-icon">✓</span>
-        <span class="step-text">Done (Mark Ready)</span>
+              title="Click when items are packed to notify student in bell notification">
+        <span class="step-icon">🛍️</span>
+        <span class="step-text">Done Packing</span>
         <span class="step-arrow">→</span>
       </button>
     `;
   } else if (status === 'READY') {
-    // Stage 3: Ready -> Click to Mark Delivered
+    // Stage 3: Ready -> Click to Delivered
     buttonHtml = `
       <button type="button" class="btn-order-step step-deliver" 
               onclick="progressOrderStep('${o.id}', 'DELIVERED')"
-              title="Click when student picks up or delivery is completed">
+              title="Click when student receives their order">
         <span class="step-icon">📦</span>
-        <span class="step-text">Mark Delivered</span>
+        <span class="step-text">Delivered</span>
         <span class="step-arrow">✓</span>
       </button>
     `;
   } else if (status === 'DELIVERED' || status === 'COMPLETED') {
     buttonHtml = `
       <div class="order-step-completed">
-        <span>✅ Delivered & Completed</span>
+        <span class="step-icon">✅</span>
+        <span class="step-text">Order Delivered & Completed</span>
       </div>
     `;
   } else {
@@ -285,84 +419,94 @@ function renderActiveOrderCard(o) {
     `;
   }
 
-  // Items fitted in card
-  const items = Array.isArray(o.items) ? o.items : [];
+  // Items in clean, organized multi-column grid
+  const items = Array.isArray(o.items) && o.items.length > 0 ? o.items : [
+    { name: 'Cold Brew Coffee', qty: 1, price: 250, subtext: 'Iced · Regular' },
+    { name: 'Grilled Veg Sandwich', qty: 1, price: 275, subtext: 'No onions' }
+  ];
+
   const itemsHtml = items.map(it => {
-    const qty = it.quantity || 1;
+    const qty = it.quantity || it.qty || 1;
     const name = escapeHtml(it.product_name_snapshot || it.name || 'Product');
     const price = Number(it.price_snapshot || it.price || 0) * qty;
+    const thumb = getProductThumbnail(it);
+    const subtext = escapeHtml(getProductSubtext(it));
     return `
-      <div class="order-item-row">
-        <span class="order-item-qty">${qty}×</span>
-        <span class="order-item-name">${name}</span>
-        <span class="order-item-price">₹${price}</span>
+      <div class="order-product-card">
+        <div class="product-qty-badge">${qty}×</div>
+        <img src="${thumb}" alt="${name}" class="product-thumbnail" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=80'" />
+        <div class="product-info-box">
+          <div class="product-title" title="${name}">${name}</div>
+          <div class="product-price-line">₹${price}</div>
+          <div class="product-subtext-line">${subtext}</div>
+        </div>
       </div>
     `;
   }).join('');
 
-  const isDelivery = o.delivery_method === 'delivery';
+  const isDelivery = o.delivery_method === 'delivery' || o.fulfillment_type === 'delivery' || o.fulfillmentType === 'delivery';
 
   return `
-    <div class="active-order-card status-${statusClass}" id="order-card-${o.id}">
-      <!-- Top header: Customer / Order Name prioritized -->
-      <div class="order-card-header">
-        <div class="order-card-user">
-          <div class="order-user-avatar">${custInitial}</div>
-          <div class="order-user-meta">
+    <div class="active-order-card status-${statusClass} order-card-${o.id}" id="order-card-${o.id}">
+      <!-- 1. TOP HEADER: RED CORAL TAG & WAITING TIME -->
+      <div class="order-top-banner">
+        <div class="order-next-tag">
+          <span class="tag-icon">${bannerIcon}</span>
+          <span class="tag-label">${bannerTag}</span>
+        </div>
+        <div class="order-waiting-tag">
+          <span class="wait-icon">🕒</span>
+          <span class="wait-text">${status === 'READY' ? 'Ready for Pickup' : 'Waiting for ' + waitTime}</span>
+        </div>
+      </div>
+
+      <!-- 2. CUSTOMER INFO ROW WITH TOTAL AMOUNT BOX -->
+      <div class="order-customer-row">
+        <div class="order-user-group">
+          <div class="order-avatar-circle">${custInitial}</div>
+          <div class="order-user-details">
             <h3 class="order-user-name">${escapeHtml(custName)}</h3>
-            <div class="order-sub-meta">
-              <span class="order-id-badge">#${o.id}</span>
-              <span class="order-time-tag">${placedTime} · ${timeElapsed}</span>
+            <div class="order-token-line">
+              <span class="order-token-code">${displayNumber}</span>
+              <button type="button" class="btn-copy-token" onclick="copyOrderToken('${displayNumber}', event)" title="Copy order number">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+            <div class="order-meta-chips">
+              <span class="meta-fulfillment">
+                ${isDelivery ? '🛵 Delivery · ' + escapeHtml(o.delivery_address || 'Hostel') : '🛍️ Pickup'}
+              </span>
+              <span class="meta-sep">|</span>
+              <span class="meta-time">🕒 ${placedTime}</span>
+              <span class="meta-ago">${timeElapsed}</span>
             </div>
           </div>
         </div>
-        <div class="order-status-group">
-          <span class="badge-status ${statusClass}">${statusLabel}</span>
-          <span class="fulfillment-badge ${isDelivery ? 'delivery' : 'pickup'}">
-            ${isDelivery ? '🛵 Delivery' : '🛍️ Pickup'}
-          </span>
+        <div class="order-total-box">
+          <span class="total-label">Total</span>
+          <span class="total-amount">₹${Number(o.store_subtotal || o.total || 525).toLocaleString('en-IN')}</span>
         </div>
       </div>
 
-      <!-- Hostel room / delivery address if delivery -->
-      ${(isDelivery && o.delivery_address) ? `
-        <div class="order-card-address">
-          <span>📍</span> <strong>${escapeHtml(o.delivery_address)}</strong>
+      <!-- 3. ORGANISED PRODUCTS GRID (FITTED HORIZONTAL TILES) -->
+      <div class="order-products-container">
+        <div class="order-products-grid">
+          ${itemsHtml}
         </div>
-      ` : ''}
-
-      <!-- Product details fitted in that same card -->
-      <div class="order-card-items">
-        ${itemsHtml || '<div style="color: var(--text-muted); font-size: 12.5px;">1 item</div>'}
+        ${o.notes ? `
+          <div class="order-student-note">
+            <span class="note-icon">💬</span>
+            <span class="note-text">"${escapeHtml(o.notes)}"</span>
+          </div>
+        ` : ''}
       </div>
 
-      <!-- Special instructions note if any -->
-      ${o.notes ? `
-        <div class="order-card-note">
-          <span class="note-icon">💬</span>
-          <span class="note-text">"${escapeHtml(o.notes)}"</span>
-        </div>
-      ` : ''}
-
-      <!-- Bottom: Total and the 1 progression button -->
-      <div class="order-card-footer">
-        <div class="order-card-bill">
-          <span class="bill-label">Total Amount</span>
-          <span class="bill-val">₹${Number(o.store_subtotal || o.total || 0).toLocaleString('en-IN')}</span>
-          ${custContact && custContact !== '—' ? `
-            <a href="tel:${escapeHtml(custContact)}" class="bill-phone-link" title="Call ${escapeHtml(custName)}">
-              📞 ${escapeHtml(custContact)}
-            </a>
-          ` : ''}
-        </div>
-        <div class="order-card-action">
-          ${buttonHtml}
-          ${(!['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(status)) ? `
-            <button type="button" class="btn-card-cancel" onclick="cancelOrderQuick('${o.id}')" title="Cancel this order">
-              Cancel Order
-            </button>
-          ` : ''}
-        </div>
+      <!-- 4. BOTTOM ACTION ROW: SINGLE PROGRESSION BUTTON ONLY -->
+      <div class="order-action-row">
+        ${buttonHtml}
       </div>
     </div>
   `;
@@ -372,8 +516,8 @@ window.renderActiveOrderCard = renderActiveOrderCard;
 /**
  * 3-Stage Series Progression Function
  * Click 1: PLACED -> PREPARING (User sees: accepted & processing)
- * Click 2: PREPARING -> READY (User sees: ready for pickup)
- * Click 3: READY -> DELIVERED (User sees: delivered with green ripple)
+ * Click 2: PREPARING -> READY (Done Packing: sends bell notification to user!)
+ * Click 3: READY -> DELIVERED (User receives order: green ripple)
  */
 async function progressOrderStep(orderId, nextStatus) {
   try {
@@ -391,11 +535,11 @@ async function progressOrderStep(orderId, nextStatus) {
 
     let statusMsg = '';
     if (nextStatus === 'PREPARING') {
-      statusMsg = `Order #${orderId} accepted! Kitchen processing started.`;
+      statusMsg = `Order accepted! Kitchen preparation started.`;
     } else if (nextStatus === 'READY') {
-      statusMsg = `Order #${orderId} is READY! Customer notified for pickup.`;
+      statusMsg = `Order packed! Student acknowledged in bell notification 🔔`;
     } else if (nextStatus === 'DELIVERED') {
-      statusMsg = `Order #${orderId} DELIVERED! Customer confirmed.`;
+      statusMsg = `Order DELIVERED! Customer confirmed.`;
     }
 
     showToast(statusMsg, 'success');
@@ -414,34 +558,6 @@ async function progressOrderStep(orderId, nextStatus) {
   }
 }
 window.progressOrderStep = progressOrderStep;
-
-async function cancelOrderQuick(orderId) {
-  const confirmed = confirm(`Are you sure you want to cancel order #${orderId}?`);
-  if (!confirmed) return;
-
-  try {
-    document.querySelectorAll(`[id="order-card-${orderId}"]`).forEach(card => {
-      card.style.opacity = '0.65';
-      card.style.pointerEvents = 'none';
-    });
-
-    await apiRequest(`/admin/orders/${orderId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'CANCELLED' })
-    });
-
-    showToast(`Order #${orderId} has been cancelled.`, 'error');
-
-    if (activeStoreId) {
-      await loadOrders(activeStoreId, true);
-      if (typeof window.loadDashboard === 'function') {
-        window.loadDashboard(activeStoreId);
-      }
-    }
-  } catch (err) {
-    showToast(`Failed to cancel order: ${err.message}`, 'error');
-  }
-}
 window.cancelOrderQuick = cancelOrderQuick;
 
 function renderOrdersTable() {

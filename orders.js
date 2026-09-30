@@ -297,7 +297,7 @@ function renderLiveTracker() {
   card.innerHTML = `
     <div class="live-card-top">
       <div class="live-badge">
-        <span class="pulse-dot"></span> Live Order #${order.id}
+        <span class="pulse-dot"></span> Live Order ${order.order_number_display || '#' + order.id}
       </div>
       <div class="live-eta">ETA: <strong>${currentInfo.eta}</strong></div>
     </div>
@@ -402,8 +402,8 @@ function renderOrdersList() {
           <div class="order-store-meta">
             <div class="order-store-icon">${order.storeIcon || '🛍️'}</div>
             <div class="order-id-block">
-              <div class="order-number" onclick="event.stopPropagation(); copyOrderText('${order.id}', 'Order ID')" title="Click to copy #${order.id}" style="cursor: pointer;">
-                #${order.id} · ${order.storeName || 'UniMall Store'}
+              <div class="order-number" onclick="event.stopPropagation(); copyOrderText('${order.order_number_display ? order.order_number_display.replace(/^#/, '') : order.id}', 'Order ID')" title="Click to copy ${order.order_number_display || '#' + order.id}" style="cursor: pointer;">
+                ${order.order_number_display || '#' + order.id} · ${order.storeName || 'UniMall Store'}
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;vertical-align:middle;opacity:0.6;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               </div>
               <div class="order-time-text" data-timestamp="${order.createdAt || ''}"><span class="rel-time">${fmtRelativeTime(order.createdAt)}</span> · ${fmtTime(order.createdAt)}</div>
@@ -560,7 +560,7 @@ function renderModalContent(orderId) {
   const modalOrderDate = document.getElementById('modalOrderDate');
   const modalBody = document.getElementById('modalBody');
 
-  if (modalOrderId) modalOrderId.textContent = `#${order.id} · ${order.storeName || 'UniMall Store'}`;
+  if (modalOrderId) modalOrderId.textContent = `${order.order_number_display || '#' + order.id} · ${order.storeName || 'UniMall Store'}`;
   if (modalOrderDate) modalOrderDate.textContent = fmtDate(order.createdAt);
 
   const steps = [

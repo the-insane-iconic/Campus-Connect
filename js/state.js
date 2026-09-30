@@ -180,11 +180,13 @@ function placeOrder(fulfillmentType, deliveryInfo) {
   const items   = getCartItems();
   const totals  = getCartTotals();
   const id      = 'UM' + (1020 + AppState.orders.length + 1);
+  const displayNum = '#ORD-' + String(AppState.orders.length + 1).padStart(2, '0');
   const firstStore = items.length > 0 && items[0].product ? getStore(items[0].product.storeId) : null;
   const otp = String(Math.floor(1000 + Math.random() * 9000));
 
   const order   = {
     id,
+    order_number_display: displayNum,
     customerName:  (AppState.currentUser && AppState.currentUser.name) || 'Ansh Sharma',
     storeName:     firstStore ? firstStore.name : 'UniMall Store',
     storeIcon:     items.length > 0 && items[0].product ? (items[0].product.emoji || '🛍️') : '🛍️',

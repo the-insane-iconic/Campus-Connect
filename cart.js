@@ -302,9 +302,13 @@ function handlePlaceOrder() {
       const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
       const otp = String(Math.floor(1000 + Math.random() * 9000));
       const userId = user.uid || user.id || 'guest_' + Date.now();
+      const storeOrders = (appData.orders || []).filter(o => o.storeId === firstStoreId);
+      const seq = String(storeOrders.length + 1).padStart(2, '0');
+      const displayOrderNum = '#ORD-' + seq;
 
       const newOrder = {
         id: orderId,
+        order_number_display: displayOrderNum,
         customerName: user.name || 'Ansh Sharma',
         storeId: firstStoreId,
         storeName: storeObj ? storeObj.name : 'Campus Store',
@@ -314,6 +318,7 @@ function handlePlaceOrder() {
           name: item.product.name,
           price: item.product.price,
           qty: item.qty,
+          image: item.product.image || '',
           emoji: item.product.emoji || '📦'
         })),
         subtotal: totals.subtotal,

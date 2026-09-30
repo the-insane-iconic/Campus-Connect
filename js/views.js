@@ -793,7 +793,7 @@ function _openOrderConfirmation(orderId) {
   const html = `
     <div class="confirm-screen">
       <div class="confirm-icon">✅</div>
-      <div class="confirm-order-id">${order.id}</div>
+      <div class="confirm-order-id">${order.order_number_display || '#' + order.id}</div>
       <div class="confirm-title">Order placed successfully!</div>
       <div class="confirm-sub">
         ${order.fulfillmentType === 'delivery'
@@ -894,7 +894,7 @@ function _openOrderDetail(orderId) {
   const html = `
     <div class="od-header-row">
       <div>
-        <div class="od-order-id">#${order.id}</div>
+        <div class="od-order-id">${order.order_number_display || '#' + order.id}</div>
         <div class="od-date">${fmtDate(order.createdAt)}</div>
       </div>
     </div>
@@ -1511,7 +1511,7 @@ function openOrderBottomSheet(orderData) {
                   (typeof AppState !== 'undefined' && AppState.currentUser && AppState.currentUser.name) ||
                   'Ansh Sharma';
   if (passCustEl) passCustEl.textContent = rawName.toUpperCase();
-  if (passOrderEl) passOrderEl.textContent = `#${order.id || 'UM1024'}`;
+  if (passOrderEl) passOrderEl.textContent = order.order_number_display || `#${order.id || 'UM1024'}`;
 
   const s = (order.status || '').toLowerCase();
   const isDelivered = s === 'delivered' || s === 'completed' || !!order.deliveredAt;
@@ -1737,7 +1737,20 @@ function initHeroBannersSlider() {
 function initRealtimeOrderListeners() {
   // 1. Cross-tab storage event
   window.addEventListener('storage', (e) => {
-    if (e.key === 'unimall_order_delivered_event' && e.newValue) {
+    if (e.key === 'unimall_order_ready_event' && e.newValue) {
+      try {
+        const payload = JSON.parse(e.newValue);
+        if (typeof Storage !== 'undefined') {
+          const saved = Storage.load();
+          if (saved.notifications) {
+            AppState.notifications = saved.notifications;
+            _updateNotifDot();
+          }
+        }
+        renderActiveOrderBanner();
+        showToast(`🔔 Your order ${payload.displayNum || ''} is packed and ready to receive!`, 'info');
+      } catch(err) {}
+    } else if (e.key === 'unimall_order_delivered_event' && e.newValue) {
       try {
         const payload = JSON.parse(e.newValue);
         if (payload.status === 'delivered' || payload.status === 'completed') {
@@ -1750,6 +1763,13 @@ function initRealtimeOrderListeners() {
         }
       } catch(err) {}
     } else if (e.key === 'unimall_v1') {
+      if (typeof Storage !== 'undefined') {
+        const saved = Storage.load();
+        if (saved.notifications) {
+          AppState.notifications = saved.notifications;
+          _updateNotifDot();
+        }
+      }
       const orderData = getActiveOrRecentOrder();
       if (orderData && orderData.isDelivered && !_currentOrderDeliveredState) {
         triggerOrderDeliveredRipple(orderData.order);
@@ -1762,7 +1782,17 @@ function initRealtimeOrderListeners() {
   // 2. Intra-tab custom event
   window.addEventListener('unimall:orderStatusUpdated', (e) => {
     const { orderId, status } = e.detail || {};
-    if (status === 'delivered' || status === 'completed') {
+    if (typeof Storage !== 'undefined') {
+      const saved = Storage.load();
+      if (saved.notifications) {
+        AppState.notifications = saved.notifications;
+        _updateNotifDot();
+      }
+    }
+    if (status === 'ready') {
+      renderActiveOrderBanner();
+      showToast(`🔔 Your order is packed and ready to receive!`, 'info');
+    } else if (status === 'delivered' || status === 'completed') {
       const orderData = getActiveOrRecentOrder();
       if (orderData && orderData.order.id === orderId && !_currentOrderDeliveredState) {
         triggerOrderDeliveredRipple(orderData.order);

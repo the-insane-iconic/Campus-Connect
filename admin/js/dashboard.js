@@ -151,7 +151,7 @@ function renderUrgentOrders(orders) {
   if (typeof window.renderActiveOrderCard === 'function') {
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 14px;">
-        ${orders.map(o => window.renderActiveOrderCard(o)).join('')}
+        ${orders.map((o, idx) => window.renderActiveOrderCard(o, idx, orders)).join('')}
       </div>
     `;
     return;

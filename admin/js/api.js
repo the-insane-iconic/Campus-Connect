@@ -388,6 +388,23 @@ async function handleClientAdminRequest(endpoint, options = {}) {
               time: nowIso,
               label: `Order marked as ${newStatus}`
             });
+
+            if (newStatus.toUpperCase() === 'READY') {
+              if (!Array.isArray(appData.notifications)) {
+                appData.notifications = [];
+              }
+              const displayNum = ord.order_number_display || `#ORD-${String(ord.id).replace(/\D/g, '').slice(-2) || '08'}`;
+              const storeName = ord.storeName || ord.store_name || 'Campus Store';
+              appData.notifications.unshift({
+                id: 'notif_' + Date.now(),
+                type: 'order',
+                title: 'Order Ready to Receive! 🛍️',
+                body: `Your order ${displayNum} from ${storeName} is packed and ready to receive!`,
+                time: 'Just now',
+                read: false,
+                orderId: ord.id
+              });
+            }
             localStorage.setItem('unimall_v1', JSON.stringify(appData));
           }
         }
@@ -396,6 +413,13 @@ async function handleClientAdminRequest(endpoint, options = {}) {
 
     // Broadcast storage event for cross-tab realtime reaction
     try {
+      if (newStatus.toUpperCase() === 'READY') {
+        localStorage.setItem('unimall_order_ready_event', JSON.stringify({
+          orderId,
+          status: 'ready',
+          timestamp: Date.now()
+        }));
+      }
       localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
         orderId,
         status: isDelivered ? 'delivered' : newStatus.toLowerCase(),
