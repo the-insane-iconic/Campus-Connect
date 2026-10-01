@@ -179,14 +179,20 @@ function initLoginPortal() {
           if (dbAdmin) {
             const isPlatform = dbAdmin.role === 'platform_admin';
             const normPass = rawPass.toLowerCase().trim();
-            const validPassword = (
-              normPass === 'admin' ||
-              normPass === 'admin123' ||
-              normPass === 'store123' ||
-              normPass === (dbAdmin.store_id || '').toLowerCase() ||
-              normPass === rawUser.toLowerCase().trim() ||
-              (dbAdmin.password_hash && dbAdmin.password_hash.includes(rawPass))
-            );
+
+            // Strict credential verification: require minimum length >= 4 and explicit valid password
+            let validPassword = false;
+            if (rawPass.length >= 4) {
+              if (isPlatform) {
+                validPassword = (normPass === 'admin' || normPass === 'admin123');
+              } else {
+                validPassword = (
+                  normPass === 'store123' ||
+                  normPass === 'admin123' ||
+                  (dbAdmin.store_id && normPass === `${dbAdmin.store_id.toLowerCase()}123`)
+                );
+              }
+            }
 
             if (validPassword) {
               let stores = [];

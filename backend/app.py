@@ -33,6 +33,10 @@ def add_security_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
     return response
 
 
@@ -51,6 +55,10 @@ def serve_admin_index():
 
 @app.route('/admin/<path:filename>')
 def serve_admin_static(filename):
+    clean_path = filename.lstrip('/')
+    basename = os.path.basename(clean_path)
+    if basename.startswith('.') or any(part.startswith('.') for part in clean_path.split('/')):
+        return jsonify({'error': 'Access denied'}), 403
     return send_from_directory(ADMIN_DIR, filename)
 
 
@@ -61,9 +69,25 @@ def serve_student_index():
 
 @app.route('/<path:filename>')
 def serve_root_static(filename):
-    # Prevent serving backend code/database as static files
-    if filename.startswith('backend/') or filename.endswith('.db') or filename.endswith('.sqlite'):
-        return jsonify({'error': 'Access denied'}), 403
+    clean_path = filename.lstrip('/')
+    basename = os.path.basename(clean_path)
+
+    # 1. Defense-in-depth: Deny any dotfile/dotfolder (.env, .git, .neon, .agents, .DS_Store, etc.)
+    if basename.startswith('.') or any(part.startswith('.') for part in clean_path.split('/')):
+        return jsonify({'error': 'Access denied: hidden or sensitive resource'}), 403
+
+    # 2. Deny source code, scripts, databases, backups, and environment configs
+    BLOCKED_EXTENSIONS = (
+        '.db', '.db-shm', '.db-wal', '.sqlite', '.sqlite3',
+        '.py', '.sh', '.env', '.sql', '.log', '.key', '.pem'
+    )
+    if clean_path.endswith(BLOCKED_EXTENSIONS) or clean_path.startswith(('backend', 'scripts', '.agents', 'node_modules')):
+        return jsonify({'error': 'Access denied: restricted system file'}), 403
+
+    # 3. Deny test files and project manifests
+    if basename.startswith('test_') or basename in ('package.json', 'package-lock.json', 'skills-lock.json', 'vercel.json'):
+        return jsonify({'error': 'Access denied: restricted asset'}), 403
+
     return send_from_directory(ROOT_DIR, filename)
 
 
@@ -932,78 +956,82 @@ def place_order_safe():
     order_id = f"UM{secrets.randbelow(90000) + 10000}"
     now_iso = datetime.utcnow().isoformat()
 
-    with transaction(immediate=True) as tx_conn:
-        subtotal = 0.0
-        verified_items = []
+    try:
+        with transaction(immediate=True) as tx_conn:
+            subtotal = 0.0
+            verified_items = []
 
-        for it in items:
-            p_id = it.get('productId') or it.get('product_id')
-            qty = int(it.get('qty', 1))
-            if qty <= 0:
-                continue
+            for it in items:
+                p_id = it.get('productId') or it.get('product_id')
+                qty = int(it.get('qty', 1))
+                if qty <= 0:
+                    continue
 
-            # Check inventory and lock row
-            row = query_one(
-                "SELECT p.id, p.name, p.price, p.store_id, i.quantity "
-                "FROM products p "
-                "JOIN inventory i ON p.id = i.product_id "
-                "WHERE p.id = ? AND p.is_active = 1",
-                (p_id,),
-                conn=tx_conn
-            )
-            if not row:
-                raise Exception(f'Product {p_id} is no longer available.')
+                # Check inventory and lock row
+                row = query_one(
+                    "SELECT p.id, p.name, p.price, p.store_id, i.quantity "
+                    "FROM products p "
+                    "JOIN inventory i ON p.id = i.product_id "
+                    "WHERE p.id = ? AND p.is_active = 1",
+                    (p_id,),
+                    conn=tx_conn
+                )
+                if not row:
+                    raise Exception(f'Product {p_id} is no longer available.')
 
-            if row['quantity'] < qty:
-                raise Exception(f'Insufficient stock for "{row["name"]}". Only {row["quantity"]} available.')
+                if row['quantity'] < qty:
+                    raise Exception(f'Insufficient stock for "{row["name"]}". Only {row["quantity"]} available.')
 
-            item_total = row['price'] * qty
-            subtotal += item_total
-            verified_items.append({
-                'product_id': p_id,
-                'store_id': row['store_id'],
-                'name': row['name'],
-                'price': row['price'],
-                'qty': qty
-            })
+                item_total = row['price'] * qty
+                subtotal += item_total
+                verified_items.append({
+                    'product_id': p_id,
+                    'store_id': row['store_id'],
+                    'name': row['name'],
+                    'price': row['price'],
+                    'qty': qty
+                })
 
-            # Decrement inventory
+                # Decrement inventory
+                execute_mutation(
+                    "UPDATE inventory SET quantity = quantity - ?, updated_at = ? WHERE product_id = ?",
+                    (qty, now_iso, p_id),
+                    conn=tx_conn
+                )
+
+            delivery_fee = 0.0  # Counter self-pickup only — ₹0 delivery fee
+            total = subtotal + delivery_fee
+
+            # Create Order
             execute_mutation(
-                "UPDATE inventory SET quantity = quantity - ?, updated_at = ? WHERE product_id = ?",
-                (qty, now_iso, p_id),
+                "INSERT INTO orders (id, user_id, customer_name, customer_email, customer_phone, status, "
+                "subtotal, delivery_fee, total, delivery_method, delivery_address, payment_status, notes, created_at, updated_at) "
+                "VALUES (?, 'usr_student', ?, ?, ?, 'PLACED', ?, ?, ?, ?, ?, 'paid', ?, ?, ?)",
+                (order_id, customer_name, customer_email, customer_phone, subtotal, delivery_fee, total,
+                 delivery_method, delivery_address, notes, now_iso, now_iso),
                 conn=tx_conn
             )
 
-        delivery_fee = 0.0  # Counter self-pickup only — ₹0 delivery fee
-        total = subtotal + delivery_fee
+            # Create Order Items
+            for vi in verified_items:
+                item_id = f"oi_{secrets.token_hex(6)}"
+                execute_mutation(
+                    "INSERT INTO order_items (id, order_id, product_id, store_id, product_name_snapshot, price_snapshot, quantity, status, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)",
+                    (item_id, order_id, vi['product_id'], vi['store_id'], vi['name'], vi['price'], vi['qty'], now_iso),
+                    conn=tx_conn
+                )
 
-        # Create Order
-        execute_mutation(
-            "INSERT INTO orders (id, user_id, customer_name, customer_email, customer_phone, status, "
-            "subtotal, delivery_fee, total, delivery_method, delivery_address, payment_status, notes, created_at, updated_at) "
-            "VALUES (?, 'usr_student', ?, ?, ?, 'PLACED', ?, ?, ?, ?, ?, 'paid', ?, ?, ?)",
-            (order_id, customer_name, customer_email, customer_phone, subtotal, delivery_fee, total,
-             delivery_method, delivery_address, notes, now_iso, now_iso),
-            conn=tx_conn
-        )
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'total': total,
+            'status': 'PLACED',
+            'message': 'Order placed successfully.'
+        }), 201
 
-        # Create Order Items
-        for vi in verified_items:
-            item_id = f"oi_{secrets.token_hex(6)}"
-            execute_mutation(
-                "INSERT INTO order_items (id, order_id, product_id, store_id, product_name_snapshot, price_snapshot, quantity, status, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)",
-                (item_id, order_id, vi['product_id'], vi['store_id'], vi['name'], vi['price'], vi['qty'], now_iso),
-                conn=tx_conn
-            )
-
-    return jsonify({
-        'success': True,
-        'order_id': order_id,
-        'total': total,
-        'status': 'PLACED',
-        'message': 'Order placed successfully.'
-    }), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 
 if __name__ == '__main__':

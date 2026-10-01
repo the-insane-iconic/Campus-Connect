@@ -661,6 +661,32 @@ async function handleClientAdminRequest(endpoint, options = {}) {
   const invMatch = endpoint.match(/^\/admin\/stores\/([^\/]+)\/inventory$/);
   if (invMatch && method === 'GET') {
     const storeId = invMatch[1];
+
+    // 1. Authoritative Online Database Query (Neon PostgreSQL)
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
+      try {
+        const dbProds = await window.UniMallDB.getProducts(storeId === 'all' ? null : storeId);
+        if (dbProds && dbProds.length > 0) {
+          return {
+            inventory: dbProds.map(p => ({
+              product_id: p.id,
+              name: p.name,
+              sku: p.sku || 'SKU-' + p.id,
+              price: parseFloat(p.price || 0),
+              category_name: p.category_id || p.categoryId || 'General',
+              image_url: p.image || p.image_url || '',
+              quantity: p.stock ?? 20,
+              low_stock_threshold: p.low_stock_threshold ?? 5,
+              updated_at: new Date().toISOString()
+            }))
+          };
+        }
+      } catch (e) {
+        console.warn('[api.js] Neon inventory query fallback:', e.message);
+      }
+    }
+
+    // 2. Local fallback
     const catalog = getStoredCatalog();
     let storeProds = storeId === 'all' ? catalog : catalog.filter(p => p.store_id === storeId || p.storeId === storeId);
 
@@ -698,6 +724,12 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       if (body.low_stock_threshold !== undefined) {
         catalog[idx].low_stock_threshold = parseInt(body.low_stock_threshold, 10);
       }
+
+      // Persist directly to Neon PostgreSQL online database
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
+        await window.UniMallDB.upsertProduct(catalog[idx]).catch(() => {});
+      }
+
       saveStoredCatalog(catalog);
       notifyCatalogUpdated();
       return { success: true, updated: catalog[idx] };
