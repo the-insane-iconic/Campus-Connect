@@ -304,39 +304,53 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       try {
         const dbOrders = await window.UniMallDB.getStoreOrders(storeId);
         if (Array.isArray(dbOrders) && dbOrders.length > 0) {
-          ordersList = dbOrders.map(o => ({
-            id: o.id,
-            order_number: o.order_number || o.id,
-            order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-2)}`),
-            user_name: (o.user_name || o.customerName || o.customer_name || 'Student').trim(),
-            user_phone: o.user_phone || '',
-            store_id: o.store_id,
-            subtotal: parseFloat(o.subtotal || o.total || 0),
-            store_subtotal: parseFloat(o.subtotal || o.total || 0),
-            delivery_fee: parseFloat(o.delivery_fee || 0),
-            total_amount: parseFloat(o.total || 0),
-            total: parseFloat(o.total || 0),
-            status: (o.status || 'placed').toUpperCase(),
-            fulfillment_type: o.fulfillment_type || 'counter-pickup',
-            delivery_location: o.delivery_location || 'Campus Counter',
-            created_at: o.created_at,
-            items: (o.items || []).map(i => ({
-              product_name: i.product_name || i.name,
-              name: i.product_name || i.name,
-              quantity: i.quantity || i.qty || 1,
-              qty: i.quantity || i.qty || 1,
-              price: parseFloat(i.price || 0),
-              emoji: i.emoji || '📦',
-              image: i.image || ''
-            }))
-          }));
+          ordersList = dbOrders.map(o => {
+            let createdAtIso = new Date().toISOString();
+            if (o.created_at) {
+              try {
+                const rawDateStr = String(o.created_at).trim();
+                const isoClean = rawDateStr.includes('T') ? rawDateStr : rawDateStr.replace(' ', 'T').replace(/\+00$/, 'Z');
+                const parsed = new Date(isoClean);
+                if (!isNaN(parsed.getTime())) {
+                  createdAtIso = parsed.toISOString();
+                }
+              } catch (e) {}
+            }
+
+            return {
+              id: o.id,
+              order_number: o.order_number || o.id,
+              order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-4)}`),
+              user_name: (o.user_name || o.customerName || o.customer_name || 'Student').trim(),
+              user_phone: o.user_phone || '',
+              store_id: o.store_id,
+              subtotal: parseFloat(o.subtotal || o.total || 0),
+              store_subtotal: parseFloat(o.subtotal || o.total || 0),
+              delivery_fee: parseFloat(o.delivery_fee || 0),
+              total_amount: parseFloat(o.total || 0),
+              total: parseFloat(o.total || 0),
+              status: (o.status || 'placed').toUpperCase(),
+              fulfillment_type: o.fulfillment_type || 'counter-pickup',
+              delivery_location: o.delivery_location || 'Campus Counter',
+              created_at: createdAtIso,
+              items: (o.items || []).map(i => ({
+                product_name: i.product_name || i.name,
+                name: i.product_name || i.name,
+                quantity: i.quantity || i.qty || 1,
+                qty: i.quantity || i.qty || 1,
+                price: parseFloat(i.price || 0),
+                emoji: i.emoji || '📦',
+                image: i.image || ''
+              }))
+            };
+          });
         }
       } catch (err) {
         console.warn('[Admin API] DB getStoreOrders warning:', err);
       }
     }
 
-    // 2. Read local cache to ensure terminal DELIVERED states are preserved and merge local orders
+    // 2. Read local cache to merge local orders for current store if any
     try {
       const raw = localStorage.getItem('unimall_v1');
       if (raw) {
@@ -351,46 +365,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
             'health-hub': ['store-pharmacy', 'health-hub']
           };
           const targetIds = aliasMap[storeId] || [storeId];
-          let cacheChanged = false;
-
-          // Sync statuses between DB orders and local cache
-          ordersList.forEach(dbOrd => {
-            const cleanDbId = String(dbOrd.id || '').replace(/^#/, '').toLowerCase();
-            const cleanDbNum = String(dbOrd.order_number || '').replace(/^#/, '').toLowerCase();
-
-            const localOrd = appData.orders.find(lo => {
-              const loId = String(lo.id || '').replace(/^#/, '').toLowerCase();
-              const loNum = String(lo.order_number || '').replace(/^#/, '').toLowerCase();
-              const loDisp = String(lo.order_number_display || '').replace(/^#/, '').toLowerCase();
-              return loId === cleanDbId || loNum === cleanDbNum || loDisp === cleanDbNum || lo.id === dbOrd.id;
-            });
-
-            if (localOrd) {
-              const normLocalStatus = (localOrd.status || '').toLowerCase();
-              const normDbStatus = (dbOrd.status || '').toLowerCase();
-
-              // Rule: Terminal status (delivered/completed) is one-way! Never revert!
-              if (normLocalStatus === 'delivered' || normLocalStatus === 'completed') {
-                dbOrd.status = 'DELIVERED';
-                if (normDbStatus !== 'delivered' && normDbStatus !== 'completed') {
-                  if (window.UniMallDB && typeof window.UniMallDB.updateOrderStatus === 'function') {
-                    window.UniMallDB.updateOrderStatus(dbOrd.id, 'DELIVERED').catch(() => {});
-                  }
-                }
-              } else if (normDbStatus === 'delivered' || normDbStatus === 'completed') {
-                localOrd.status = 'delivered';
-                localOrd.deliveredAt = localOrd.deliveredAt || new Date().toISOString();
-                cacheChanged = true;
-              } else if (normDbStatus && normDbStatus !== normLocalStatus) {
-                localOrd.status = normDbStatus;
-                cacheChanged = true;
-              }
-            }
-          });
-
-          // Also include any local orders that aren't yet in ordersList
           const existingIds = new Set(ordersList.map(o => String(o.id || '').replace(/^#/, '').toLowerCase()));
-          const existingNums = new Set(ordersList.map(o => String(o.order_number || '').replace(/^#/, '').toLowerCase()));
 
           const localOrders = appData.orders
             .filter(o => storeId === 'all' || (o.storeId && targetIds.includes(o.storeId)))
@@ -431,16 +406,11 @@ async function handleClientAdminRequest(endpoint, options = {}) {
 
           localOrders.forEach(lo => {
             const cleanId = String(lo.id || '').replace(/^#/, '').toLowerCase();
-            const cleanNum = String(lo.order_number || '').replace(/^#/, '').toLowerCase();
-            if (!existingIds.has(cleanId) && !existingNums.has(cleanNum)) {
+            if (!existingIds.has(cleanId)) {
               ordersList.push(lo);
               existingIds.add(cleanId);
             }
           });
-
-          if (cacheChanged) {
-            localStorage.setItem('unimall_v1', JSON.stringify(appData));
-          }
         }
       }
     } catch(e) {}

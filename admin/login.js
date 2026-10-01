@@ -373,15 +373,18 @@ function initLoginPortal() {
           isGuest: false
         };
 
-        if (window.UniMallDB && typeof window.UniMallDB.syncUser === 'function') {
-          await window.UniMallDB.syncUser(googleUser).catch(() => {});
+        if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.setGoogleProfile === 'function') {
+          window.UserManager.setGoogleProfile(googleUser);
+        } else {
+          if (window.UniMallDB && typeof window.UniMallDB.syncUser === 'function') {
+            await window.UniMallDB.syncUser(googleUser).catch(() => {});
+          }
+          localStorage.setItem(AUTH_KEY, JSON.stringify(googleUser));
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const appData = raw ? JSON.parse(raw) : {};
+          appData.currentUser = { ...googleUser };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         }
-
-        localStorage.setItem(AUTH_KEY, JSON.stringify(googleUser));
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const appData = raw ? JSON.parse(raw) : {};
-        appData.currentUser = { ...googleUser };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         localStorage.setItem('userMode', 'student');
 
         showToast('Signed in as Campus Student!');

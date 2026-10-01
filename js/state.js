@@ -257,7 +257,12 @@ function hydrateState() {
   }
 
   if (saved.orders && Array.isArray(saved.orders)) {
-    AppState.orders = saved.orders;
+    const curUid = AppState.currentUser ? (AppState.currentUser.uid || AppState.currentUser.id || AppState.currentUser.guestId) : null;
+    if (curUid) {
+      AppState.orders = saved.orders.filter(o => o.user_id === curUid);
+    } else {
+      AppState.orders = [];
+    }
   } else {
     AppState.orders = [];
   }

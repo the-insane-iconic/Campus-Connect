@@ -51,24 +51,43 @@
           const parsed = JSON.parse(raw);
           const u = parsed.currentUser;
           if (u && u.isGuest && u.name && /^Student \d+$/.test(u.name)) {
+            const num = u.name.split(' ')[1] || '1';
+            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
+            u.id = guestId;
+            u.uid = guestId;
+            u.guestId = guestId;
+            u.email = u.email || `${guestId}@campusconnect.edu`;
+            this._persist(u);
+            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+              window.UniMallDB.syncUser(u).catch(() => {});
+            }
             return u;
           }
         }
       } catch (e) {}
 
       const n = _bumpCounter();
+      const guestId = 'usr_guest_' + n;
       const guestUser = {
+        id:       guestId,
+        uid:      guestId,
+        guestId:  guestId,
         name:     'Student ' + n,
-        email:    '',
+        email:    `student${n}@campusconnect.edu`,
         avatar:   '',
         phone:    '',
         hostel:   '',
         room:     '',
         isGuest:  true,
-        provider: 'guest',
-        guestId:  'guest_' + n + '_' + Date.now()
+        provider: 'guest'
       };
       this._persist(guestUser);
+
+      // Instantly sync guest profile to authoritative Neon PostgreSQL
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+        window.UniMallDB.syncUser(guestUser).catch(() => {});
+      }
+
       return guestUser;
     },
 
@@ -83,8 +102,11 @@
         if (raw) existing = JSON.parse(raw);
       } catch (e) {}
 
+      const uid = googleUser.uid || googleUser.id || ('google_' + Date.now());
       const userData = {
-        uid:      googleUser.uid || googleUser.id || ('google_' + Date.now()),
+        id:       uid,
+        uid:      uid,
+        guestId:  uid,
         name,
         email,
         avatar,
@@ -103,6 +125,11 @@
         AppState.currentUser = Object.assign({}, AppState.currentUser, userData);
       }
 
+      // Sync Google profile to Neon PostgreSQL
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+        window.UniMallDB.syncUser(userData).catch(() => {});
+      }
+
       window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: userData }));
       console.log('[UserManager] Google profile set:', name);
       return userData;
@@ -116,32 +143,48 @@
         if (raw) {
           const parsed = JSON.parse(raw);
           delete parsed.currentUser;
+          // CRITICAL: Clear session orders and cart so next guest profile starts 100% clean and isolated
+          parsed.orders = [];
+          parsed.cart = [];
           localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
         }
       } catch (e) {}
 
       if (typeof AppState !== 'undefined') {
         AppState.currentUser = { name: '', email: '', avatar: '', phone: '', hostel: '', room: '', isGuest: true, provider: 'guest' };
+        AppState.orders = [];
+        AppState.cart = [];
       }
+      if (typeof OrdersState !== 'undefined') {
+        OrdersState.orders = [];
+      }
+
+      window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: null }));
     },
 
     _persist(userData) {
       try {
-        let appData = {};
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) appData = JSON.parse(raw);
-        appData.currentUser = {
+        const uid = userData.id || userData.uid || userData.guestId;
+        const cleanUser = {
+          id:       uid,
+          uid:      uid,
+          guestId:  uid,
           name:     userData.name,
-          email:    userData.email     || '',
+          email:    userData.email     || `${uid}@campusconnect.edu`,
           avatar:   userData.avatar    || '',
           phone:    userData.phone     || '',
           hostel:   userData.hostel    || '',
           room:     userData.room      || '',
-          isGuest:  userData.isGuest,
-          provider: userData.provider  || (userData.isGuest ? 'guest' : 'google'),
-          guestId:  userData.guestId   || undefined
+          isGuest:  Boolean(userData.isGuest),
+          provider: userData.provider  || (userData.isGuest ? 'guest' : 'google')
         };
+
+        let appData = {};
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) appData = JSON.parse(raw);
+        appData.currentUser = cleanUser;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        localStorage.setItem(AUTH_KEY, JSON.stringify(cleanUser));
       } catch (e) {}
     },
 
@@ -153,6 +196,9 @@
           if (u && !u.isGuest && u.name) {
             if (typeof AppState !== 'undefined') {
               AppState.currentUser = Object.assign({}, AppState.currentUser, u);
+            }
+            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+              window.UniMallDB.syncUser(u).catch(() => {});
             }
             return u;
           }
@@ -169,10 +215,20 @@
             if (u.isGuest && (!u.name || !/^Student \d+$/.test(u.name))) {
               const n = _bumpCounter();
               u.name = 'Student ' + n;
-              this._persist(u);
             }
+            const num = (u.name || '').split(' ')[1] || '1';
+            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
+            u.id = guestId;
+            u.uid = guestId;
+            u.guestId = guestId;
+            u.email = u.email || `${guestId}@campusconnect.edu`;
+            this._persist(u);
+
             if (typeof AppState !== 'undefined') {
               AppState.currentUser = Object.assign({}, AppState.currentUser, u);
+            }
+            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+              window.UniMallDB.syncUser(u).catch(() => {});
             }
             return u;
           }

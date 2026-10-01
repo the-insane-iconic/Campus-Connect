@@ -379,17 +379,22 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       appData.orders = [];
     }
 
-    let user = appData.currentUser || {};
-    const authRaw = localStorage.getItem('unimall_auth');
-    if (authRaw) {
-      try {
-        user = { ...user, ...JSON.parse(authRaw) };
-      } catch (e) { }
+    let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
+      ? window.UserManager.getActiveUser()
+      : null;
+    if (!activeUser && typeof window.UserManager !== 'undefined' && window.UserManager.ensureGuestProfile) {
+      activeUser = window.UserManager.ensureGuestProfile();
     }
-
+    const user = activeUser || appData.currentUser || {};
+    const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
     const studentName = (user.name || (typeof DEFAULT_USER !== 'undefined' ? DEFAULT_USER.name : '') || 'Campus Student').trim();
     const studentPhone = user.phone || '';
-    const studentEmail = user.email || '';
+    const studentEmail = user.email || `${userId}@campusconnect.edu`;
+
+    // Ensure user is synced to Neon PostgreSQL
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+      window.UniMallDB.syncUser({ id: userId, uid: userId, name: studentName, email: studentEmail, phone: studentPhone }).catch(() => {});
+    }
 
     const CANONICAL_STORE_MAP = {
       'store-bakery':      'campus-cafe',
@@ -407,14 +412,13 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
 
     const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
     const otp = String(Math.floor(1000 + Math.random() * 9000));
-    const userId = user.uid || user.id || 'usr_student';
-    const storeOrders = (appData.orders || []).filter(o => o.storeId === firstStoreId);
-    const seq = String(storeOrders.length + 1).padStart(2, '0');
-    const displayOrderNum = '#ORD-' + seq;
+    // Unique 4-digit token based on order ID
+    const displayOrderNum = '#ORD-' + String(orderId).slice(-4);
 
     const newOrder = {
       id: orderId,
       order_number_display: displayOrderNum,
+      user_id: userId,
       customerName: studentName,
       user_name: studentName,
       user_phone: studentPhone,
@@ -462,8 +466,8 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         user_name: studentName,
         user_email: studentEmail,
         user_phone: studentPhone,
-        user_hostel: 'Counter Pickup',
-        user_room: 'Ground Floor Station',
+        user_hostel: user.hostel || 'Counter Pickup',
+        user_room: user.room || 'Ground Floor Station',
         store_id: firstStoreId,
         status: 'placed',
         fulfillment_type: 'pickup',
@@ -479,8 +483,9 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       });
     }
 
-    // 2. Add to beginning of local orders cache while preserving existing terminal statuses
+    // 2. Add to beginning of local orders cache for this user only
     if (Array.isArray(appData.orders)) {
+      appData.orders = appData.orders.filter(o => o.user_id === userId || !o.user_id);
       appData.orders.forEach(o => {
         const s = (o.status || '').toLowerCase();
         if (s === 'delivered' || s === 'completed') {

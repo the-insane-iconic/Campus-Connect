@@ -168,10 +168,10 @@ window.UniMallDB = {
   /* ── Atomic Order Creation ── */
   async createOrder(orderPayload, items = []) {
     const orderId = orderPayload.id;
-    const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-2)}`;
-    const userId = orderPayload.user_id || 'usr_student';
+    const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-4)}`;
+    const userId = orderPayload.user_id || ('usr_guest_' + Date.now());
     const userName = orderPayload.user_name || orderPayload.customer_name || 'Campus Student';
-    const userEmail = orderPayload.user_email || orderPayload.customer_email || 'student@campus.edu';
+    const userEmail = orderPayload.user_email || orderPayload.customer_email || `${userId}@campusconnect.edu`;
     const storeId = orderPayload.store_id || 'campus-cafe';
     const status = (orderPayload.status || 'placed').toLowerCase();
     const fulfillmentType = 'pickup'; // Guaranteed Counter Pickup Only
@@ -237,12 +237,13 @@ window.UniMallDB = {
   },
 
   /* ── Get Orders for User ── */
-  async getUserOrders(userId = 'usr_student') {
+  async getUserOrders(userId) {
+    if (!userId || userId === 'all') {
+      return [];
+    }
     try {
-      const query = userId && userId !== 'all'
-        ? `SELECT * FROM unimall_orders WHERE user_id = $1 OR user_id = 'usr_student' ORDER BY created_at DESC LIMIT 50`
-        : `SELECT * FROM unimall_orders ORDER BY created_at DESC LIMIT 50`;
-      const params = (userId && userId !== 'all') ? [userId] : [];
+      const query = `SELECT * FROM unimall_orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`;
+      const params = [userId];
 
       const orders = await this.neonSql(query, params);
 
@@ -502,10 +503,11 @@ window.UniMallDB = {
 
   /* ── Sync Student User to Neon PostgreSQL ── */
   async syncUser(user) {
+    if (!user) return false;
     try {
-      const uid = user.uid || user.id || ('usr_' + Date.now());
-      const name = user.name || 'Campus Student';
-      const email = user.email || 'student@campusconnect.edu';
+      const uid = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
+      const name = (user.name || 'Campus Student').trim();
+      const email = user.email || `${uid}@campusconnect.edu`;
       const phone = user.phone || '';
       await this.neonSql(`
         INSERT INTO users (id, name, email, phone, role)
@@ -516,6 +518,7 @@ window.UniMallDB = {
           phone = EXCLUDED.phone,
           updated_at = NOW();
       `, [uid, name, email, phone]);
+      console.log(`[UniMallDB] User synced to Neon: ${name} (${uid})`);
       return true;
     } catch (e) {
       console.warn('[UniMallDB] syncUser Neon warning:', e.message);

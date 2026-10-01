@@ -21,11 +21,20 @@ const OrdersState = {
 /* ─── STORAGE SYNC ───────────────────────────────────────── */
 function loadStateFromStorage() {
   try {
+    let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
+      ? window.UserManager.getActiveUser()
+      : null;
+    const currentUid = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.orders)) {
-        OrdersState.orders = parsed.orders;
+        if (currentUid) {
+          OrdersState.orders = parsed.orders.filter(o => o.user_id === currentUid);
+        } else {
+          OrdersState.orders = [];
+        }
         return;
       }
     }
@@ -692,94 +701,72 @@ function initEvents() {
 async function syncOrdersWithSupabase() {
   if (typeof window.UniMallDB === 'undefined') return;
   try {
-    let user = null;
-    const v1 = localStorage.getItem(STORAGE_KEY);
-    if (v1) {
-      const parsed = JSON.parse(v1);
-      if (parsed.currentUser) user = parsed.currentUser;
-    }
-    const auth = localStorage.getItem('unimall_auth');
-    if (auth) {
-      user = { ...(user || {}), ...JSON.parse(auth) };
-    }
-    const userId = user?.uid || user?.id;
-
-    let dbOrders = [];
-    if (userId) {
-      dbOrders = await window.UniMallDB.getUserOrders(userId).catch(() => []);
-    }
-
-    // Also sync existing local order IDs (e.g. guest checkouts)
-    const localOrderIds = OrdersState.orders.map(o => o.id);
-    for (const localId of localOrderIds) {
-      if (!dbOrders.some(o => o.id === localId)) {
-        const remote = await window.UniMallDB.getOrderById(localId).catch(() => null);
-        if (remote) dbOrders.push(remote);
+    let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
+      ? window.UserManager.getActiveUser()
+      : null;
+    if (!activeUser) {
+      const auth = localStorage.getItem('unimall_auth');
+      if (auth) {
+        try { activeUser = JSON.parse(auth); } catch (e) {}
       }
     }
-
-    if (dbOrders && dbOrders.length > 0) {
-      let hasChange = false;
-      dbOrders.forEach(remote => {
-        const existing = OrdersState.orders.find(o => o.id === remote.id);
-        if (existing) {
-          const exSt = (existing.status || '').toLowerCase();
-          const rmSt = (remote.status || '').toLowerCase();
-          if (exSt === 'delivered' || exSt === 'completed') {
-            // Never demote a completed/delivered order
-          } else if (exSt !== rmSt) {
-            existing.status = rmSt;
-            hasChange = true;
-          }
-        } else {
-          const storeNamesMap = {
-            'campus-cafe': 'Campus Café',
-            'book-corner': 'Book Corner',
-            'techstop': 'TechStop',
-            'campus-mart': 'Campus Mart',
-            'campus-wear': 'Campus Wear',
-            'health-hub': 'Health Hub'
-          };
-          const cleanStoreName = storeNamesMap[remote.store_id] || remote.store_name || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
-          const rawItems = remote.items || remote.unimall_order_items || [];
-
-          OrdersState.orders.unshift({
-            id: remote.id,
-            order_number_display: remote.order_number || (`#ORD-${String(remote.id).slice(-2)}`),
-            storeId: remote.store_id,
-            storeName: cleanStoreName,
-            storeIcon: '🛍️',
-            items: rawItems.map(it => ({
-              productId: it.product_id || it.productId || it.id,
-              name: it.product_name || it.name,
-              price: Number(it.price || 0),
-              qty: it.qty || it.quantity || 1,
-              emoji: it.emoji || '📦'
-            })),
-            subtotal: Number(remote.subtotal || remote.total || 0),
-            deliveryFee: Number(remote.delivery_fee || 0),
-            total: Number(remote.total || remote.subtotal || 0),
-            fulfillmentType: remote.fulfillment_type || 'pickup',
-            deliveryInfo: remote.user_hostel ? { hostel: remote.user_hostel, room: remote.user_room } : null,
-            status: (remote.status || 'placed').toLowerCase(),
-            statusHistory: (remote.statusHistory || remote.unimall_order_status_history || []).map(h => ({
-              status: h.status,
-              time: h.created_at || h.time,
-              label: h.notes || h.label || h.status
-            })),
-            createdAt: remote.created_at || new Date().toISOString()
-          });
-          hasChange = true;
-        }
-      });
-
-      if (hasChange) {
-        saveOrdersToStorage();
-        updateTabCounts();
-        renderLiveTracker();
-        renderOrdersList();
-      }
+    const userId = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+    if (!userId) {
+      OrdersState.orders = [];
+      saveOrdersToStorage();
+      updateTabCounts();
+      renderLiveTracker();
+      renderOrdersList();
+      return;
     }
+
+    const dbOrders = await window.UniMallDB.getUserOrders(userId).catch(() => []);
+    const storeNamesMap = {
+      'campus-cafe': 'Campus Café',
+      'book-corner': 'Book Corner',
+      'techstop': 'TechStop',
+      'campus-mart': 'Campus Mart',
+      'campus-wear': 'Campus Wear',
+      'health-hub': 'Health Hub'
+    };
+
+    const formattedOrders = (dbOrders || []).map(remote => {
+      const cleanStoreName = storeNamesMap[remote.store_id] || remote.store_name || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
+      const rawItems = remote.items || remote.unimall_order_items || [];
+      return {
+        id: remote.id,
+        user_id: remote.user_id,
+        order_number_display: remote.order_number || (`#ORD-${String(remote.id).slice(-4)}`),
+        storeId: remote.store_id,
+        storeName: cleanStoreName,
+        storeIcon: '🛍️',
+        items: rawItems.map(it => ({
+          productId: it.product_id || it.productId || it.id,
+          name: it.product_name || it.name,
+          price: Number(it.price || 0),
+          qty: it.qty || it.quantity || 1,
+          emoji: it.emoji || '📦'
+        })),
+        subtotal: Number(remote.subtotal || remote.total || 0),
+        deliveryFee: Number(remote.delivery_fee || 0),
+        total: Number(remote.total || remote.subtotal || 0),
+        fulfillmentType: remote.fulfillment_type || 'pickup',
+        deliveryInfo: remote.user_hostel ? { hostel: remote.user_hostel, room: remote.user_room } : null,
+        status: (remote.status || 'placed').toLowerCase(),
+        statusHistory: (remote.statusHistory || remote.unimall_order_status_history || []).map(h => ({
+          status: h.status,
+          time: h.created_at || h.time,
+          label: h.notes || h.label || h.status
+        })),
+        createdAt: remote.created_at || new Date().toISOString()
+      };
+    });
+
+    OrdersState.orders = formattedOrders;
+    saveOrdersToStorage();
+    updateTabCounts();
+    renderLiveTracker();
+    renderOrdersList();
   } catch (e) {
     console.warn('[UniMall] Orders sync note:', e.message);
   }
