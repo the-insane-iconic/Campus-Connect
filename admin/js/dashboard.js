@@ -57,19 +57,19 @@ async function loadDashboard(storeId) {
 
   if (greetingEl) {
     if (isPlatformView) {
-      greetingEl.textContent = 'Campus Operations & Daily Settlement';
+      greetingEl.innerHTML = 'Campus Operations &amp; <span class="gradient-headline">Daily Settlement</span>';
     } else {
       const currentStore = (currentAuthorizedStores || []).find(s => s.store_id === effectiveStoreId);
       const sName = currentStore ? currentStore.store_name : 'Campus Store';
-      greetingEl.textContent = `Good morning, ${sName}`;
+      greetingEl.innerHTML = `Good morning, <span class="gradient-headline">${escapeHtml(sName)}</span>`;
     }
   }
 
   if (storeSubEl) {
     if (isPlatformView) {
-      storeSubEl.textContent = "Today's sales, student footfall, and end-of-day store payout distribution ledger";
+      storeSubEl.innerHTML = '<span class="live-pulse-dot"></span><span>Today\'s sales, student footfall, and end-of-day store payout distribution ledger</span>';
     } else {
-      storeSubEl.textContent = "Your store's live orders, daily revenue & stock overview";
+      storeSubEl.innerHTML = '<span class="live-pulse-dot"></span><span>Your store\'s live orders, daily revenue &amp; stock overview</span>';
     }
   }
 
@@ -195,41 +195,41 @@ function renderStorePayoutLedger(storesLedger, totals) {
     if (isSettled) {
       statusPill = `<span class="badge-status completed" style="font-size:11px; padding:3px 8px;">✅ Settled</span>`;
     } else if (hasSales) {
-      statusPill = `<button type="button" class="btn-action primary" onclick="window.settleStorePayout('${safeStoreId}', '${safeEscapedName}', ${safeNetPayout})" style="font-size:11px; padding:4px 10px; height:28px;">
+      statusPill = `<button type="button" class="btn-disburse" onclick="window.settleStorePayout('${safeStoreId}', '${safeEscapedName}', ${safeNetPayout})">
         Disburse ₹${Math.round(safeNetPayout).toLocaleString('en-IN')}
       </button>`;
     } else {
-      statusPill = `<span style="font-size:11.5px; color:var(--text-muted);">No Sales Today</span>`;
+      statusPill = `<span style="font-size:11.5px; color:var(--text-muted);">No Sales</span>`;
     }
 
     return `
       <tr class="${isSettled ? 'row-settled' : ''}">
-        <td>
+        <td class="col-store">
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px;">${icon}</span>
-            <div>
-              <strong style="color:var(--text-main); font-size:13.5px;">${escapeHtml(row.store_name)}</strong>
-              <div style="font-size:11px; color:var(--text-muted);">${row.store_id}</div>
+            <span style="font-size:16px; flex-shrink:0;">${icon}</span>
+            <div style="min-width:0;">
+              <strong style="color:var(--text-main); font-size:13px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(row.store_name)}">${escapeHtml(row.store_name)}</strong>
+              <div style="font-size:10.5px; color:var(--text-muted); line-height:1.2;">${row.store_id}</div>
             </div>
           </div>
         </td>
-        <td>
-          <span style="font-size:12px; text-transform:capitalize; background:var(--surface-alt); padding:2px 8px; border-radius:4px; border:1px solid var(--border);">
+        <td class="col-category">
+          <span class="table-cat-badge">
             ${escapeHtml(row.category || 'General')}
           </span>
         </td>
-        <td><strong style="font-size:13.5px;">${row.today_orders_count}</strong></td>
-        <td><strong style="font-size:13.5px; color:var(--primary);">${row.today_customers_count}</strong></td>
-        <td><strong style="font-size:14px; color:var(--text-main);">₹${Math.round(row.today_gross_sales).toLocaleString('en-IN')}</strong></td>
-        <td><span style="color:#2563EB; font-weight:600; font-size:12.5px;">₹${Math.round(row.digital_sales).toLocaleString('en-IN')}</span></td>
-        <td><span style="color:#D97706; font-weight:600; font-size:12.5px;">₹${Math.round(row.cash_sales).toLocaleString('en-IN')}</span></td>
-        <td><span style="color:var(--text-muted); font-size:12px;">₹${Math.round(row.platform_fee).toLocaleString('en-IN')}</span></td>
-        <td>
-          <strong style="color:#059669; font-size:14px; font-weight:800;">
+        <td class="col-num text-center"><strong style="font-size:13px; font-variant-numeric:tabular-nums;">${row.today_orders_count}</strong></td>
+        <td class="col-num text-center"><strong style="font-size:13px; color:var(--primary); font-variant-numeric:tabular-nums;">${row.today_customers_count}</strong></td>
+        <td class="col-currency text-right"><strong style="font-size:13.5px; color:var(--text-main); font-variant-numeric:tabular-nums;">₹${Math.round(row.today_gross_sales).toLocaleString('en-IN')}</strong></td>
+        <td class="col-currency text-right"><span style="color:#2563EB; font-weight:600; font-size:12.5px; font-variant-numeric:tabular-nums;">₹${Math.round(row.digital_sales).toLocaleString('en-IN')}</span></td>
+        <td class="col-currency text-right"><span style="color:#D97706; font-weight:600; font-size:12.5px; font-variant-numeric:tabular-nums;">₹${Math.round(row.cash_sales).toLocaleString('en-IN')}</span></td>
+        <td class="col-currency text-right"><span style="color:var(--text-muted); font-size:12px; font-variant-numeric:tabular-nums;">₹${Math.round(row.platform_fee).toLocaleString('en-IN')}</span></td>
+        <td class="col-currency text-right">
+          <span class="net-payout-pill">
             ₹${Math.round(row.net_payout).toLocaleString('en-IN')}
-          </strong>
+          </span>
         </td>
-        <td>${statusPill}</td>
+        <td class="col-status text-center">${statusPill}</td>
       </tr>
     `;
   }).join('');

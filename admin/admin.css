@@ -38,7 +38,7 @@
   --radius-lg: 16px;
   --radius-md: 10px;
   --radius-sm: 6px;
-  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
@@ -3173,34 +3173,197 @@ body.role-platform_admin .platform-admin-only {
 
 /* Dashboard Clean Header & Metric Spacing */
 #view-dashboard .view-header {
-  padding-bottom: 4px;
+  padding-bottom: 8px;
+  align-items: center;
 }
 
+.view-title {
+  font-family: 'Plus Jakarta Sans', 'DM Sans', -apple-system, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  color: #0F172A;
+  line-height: 1.25;
+}
+
+.gradient-headline {
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: inline-block;
+  font-weight: 800;
+}
+
+.view-subtitle {
+  font-family: 'Plus Jakarta Sans', 'DM Sans', -apple-system, sans-serif;
+  font-size: 13.5px;
+  color: #64748B;
+  margin-top: 4px;
+  letter-spacing: -0.15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulse-green 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Metric Cards Permanent Ambient Gradient Top Ribbons */
+#card-metric-sales::before { background: linear-gradient(90deg, #A855F7, #7C3AED); }
+#card-metric-customers::before { background: linear-gradient(90deg, #60A5FA, #2563EB); }
+#card-metric-orders::before { background: linear-gradient(90deg, #34D399, #059669); }
+#card-metric-payout::before { background: linear-gradient(90deg, #FBBF24, #D97706); }
+
+/* Compact Zero-Scroll Daily Store Sales & Payout Distribution Ledger */
 #payouts-ledger-section {
   border-radius: 16px;
   border: 1px solid #E2E8F0;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
   overflow: hidden;
+  background: #FFFFFF;
+}
+
+#payouts-ledger-section .panel-header {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+  border-bottom: 1px solid #E2E8F0;
+  padding: 14px 20px;
+  position: relative;
+}
+
+#payouts-ledger-section .panel-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%);
+}
+
+#store-payout-ledger-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'Plus Jakarta Sans', 'DM Sans', -apple-system, sans-serif;
+  table-layout: auto;
 }
 
 #store-payout-ledger-table th {
   background: #F8FAFC;
   font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.05em;
-  padding: 13px 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748B;
+  padding: 10px 10px;
   border-bottom: 1px solid #E2E8F0;
+  white-space: nowrap;
 }
 
 #store-payout-ledger-table td {
-  padding: 13px 16px;
+  padding: 10px 10px;
   vertical-align: middle;
   border-bottom: 1px solid #F1F5F9;
   font-size: 13px;
 }
 
+#store-payout-ledger-table tr:hover td {
+  background: #F8FAFC;
+}
+
 #store-payout-ledger-table tr:last-child td {
   border-bottom: none;
+}
+
+/* Explicit column sizing to fit seamlessly on PC screens without scrolling */
+#store-payout-ledger-table .col-store {
+  width: 21%;
+  min-width: 155px;
+}
+
+#store-payout-ledger-table .col-category {
+  width: 9%;
+  min-width: 80px;
+}
+
+#store-payout-ledger-table .col-num {
+  width: 6.5%;
+  min-width: 55px;
+}
+
+#store-payout-ledger-table .col-currency {
+  width: 9.5%;
+  min-width: 80px;
+}
+
+#store-payout-ledger-table .col-status {
+  width: 11%;
+  min-width: 105px;
+}
+
+.table-cat-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #F1F5F9;
+  color: #475569;
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.net-payout-pill {
+  display: inline-block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #059669;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.btn-disburse {
+  background: linear-gradient(135deg, #2563EB 0%, #4F46E5 100%);
+  color: #FFFFFF !important;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-disburse:hover {
+  background: linear-gradient(135deg, #1D4ED8 0%, #4338CA 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
 }
 
 /* =========================================================

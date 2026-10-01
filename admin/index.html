@@ -40,7 +40,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="/admin/admin.css" />
 </head>
@@ -188,8 +188,11 @@
         <section class="admin-view active" id="view-dashboard">
           <div class="view-header">
             <div>
-              <h1 class="view-title" id="dash-greeting">Campus Operations & Daily Settlement</h1>
-              <p class="view-subtitle" id="dash-store-sub">Today's sales, student footfall, and end-of-day store payout distribution ledger</p>
+              <h1 class="view-title" id="dash-greeting">Campus Operations &amp; <span class="gradient-headline">Daily Settlement</span></h1>
+              <p class="view-subtitle" id="dash-store-sub">
+                <span class="live-pulse-dot"></span>
+                <span>Today's sales, student footfall, and end-of-day store payout distribution ledger</span>
+              </p>
             </div>
             <div class="view-actions" id="dash-header-actions">
               <button type="button" class="btn-action secondary platform-admin-only" id="dash-btn-export-settlement" onclick="window.exportDailySettlementCSV && window.exportDailySettlementCSV()">
@@ -267,16 +270,16 @@
               <table class="data-table" id="store-payout-ledger-table">
                 <thead>
                   <tr>
-                    <th>Store Name</th>
-                    <th>Category</th>
-                    <th>Orders Today</th>
-                    <th>Customers Served</th>
-                    <th>Gross Sales (₹)</th>
-                    <th>Digital (Online)</th>
-                    <th>Cash at Counter</th>
-                    <th>Platform Fee (5%)</th>
-                    <th>Net Store Payout (₹)</th>
-                    <th>Settlement Status</th>
+                    <th class="col-store">Store</th>
+                    <th class="col-category">Category</th>
+                    <th class="col-num text-center">Orders</th>
+                    <th class="col-num text-center">Buyers</th>
+                    <th class="col-currency text-right">Gross Sales</th>
+                    <th class="col-currency text-right">Digital</th>
+                    <th class="col-currency text-right">Cash</th>
+                    <th class="col-currency text-right">Fee (5%)</th>
+                    <th class="col-currency text-right">Net Payout</th>
+                    <th class="col-status text-center">Settlement</th>
                   </tr>
                 </thead>
                 <tbody id="store-payout-ledger-tbody">
