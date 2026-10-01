@@ -33,6 +33,14 @@
   --purple: #6B21A8;
   --purple-bg: #F3E8FF;
 
+  /* ── Merchant & Admin Distinctive Chrome (Subtle Soft Colors) ── */
+  --nav-bg: #EEF4FA;
+  --nav-bg-gradient: linear-gradient(180deg, #F8FAFD 0%, #EEF4FA 100%);
+  --nav-border: #D3DFEC;
+  --header-bg: #EEF4FA;
+  --header-bg-gradient: linear-gradient(90deg, #F8FAFD 0%, #EEF3F8 100%);
+  --header-border: #D3DFEC;
+
   --sidebar-w: 240px;
   --topbar-h: 64px;
   --radius-lg: 16px;
@@ -42,6 +50,27 @@
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+/* ── Role-Specific Subtle Soft Color Chrome ── */
+/* Platform Super Admin: Subtle Soft Executive Lilac-Slate */
+body.role-platform_admin {
+  --nav-bg: #F2EEF9;
+  --nav-bg-gradient: linear-gradient(180deg, #FAF8FE 0%, #F1ECF8 100%);
+  --nav-border: #DDD4EC;
+  --header-bg: #F2EEF9;
+  --header-bg-gradient: linear-gradient(90deg, #FAF8FE 0%, #F1ECF8 100%);
+  --header-border: #DDD4EC;
+}
+
+/* Store Merchant: Subtle Soft Slate-Blue */
+body.role-merchant {
+  --nav-bg: #EEF4FA;
+  --nav-bg-gradient: linear-gradient(180deg, #F8FAFD 0%, #EEF4FA 100%);
+  --nav-border: #D3DFEC;
+  --header-bg: #EEF4FA;
+  --header-bg-gradient: linear-gradient(90deg, #F8FAFD 0%, #EEF3F8 100%);
+  --header-border: #D3DFEC;
 }
 
 * {
@@ -174,8 +203,8 @@ button, input, select, textarea {
   bottom: 0;
   width: var(--sidebar-w);
   height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: var(--nav-bg-gradient, var(--nav-bg));
+  border-right: 1px solid var(--nav-border);
   display: flex;
   flex-direction: column;
   z-index: 1000;
@@ -230,25 +259,27 @@ button, input, select, textarea {
 
 .btn-close-drawer:hover {
   color: var(--text-main);
-  background: var(--surface-alt);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 /* ACTIVE STORE CARD IN SIDEBAR */
 .active-store-card {
   margin: 4px 14px 16px;
   padding: 10px 12px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
+  background: #FFFFFF;
+  border: 1px solid var(--nav-border);
   border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 10px;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .active-store-card:hover {
   border-color: #CBD5E1;
-  background: #F1F5F9;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .store-avatar {
@@ -342,7 +373,7 @@ button, input, select, textarea {
 }
 
 .nav-item:hover {
-  background: var(--surface-alt);
+  background: rgba(255, 255, 255, 0.7);
   color: var(--text-main);
 }
 
@@ -350,6 +381,7 @@ button, input, select, textarea {
   background: var(--primary-soft);
   color: var(--primary);
   font-weight: 700;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
 }
 
 .nav-counter {
@@ -381,7 +413,7 @@ button, input, select, textarea {
 }
 
 .nav-item.founder-nav:hover {
-  background: var(--purple-bg);
+  background: rgba(243, 232, 255, 0.75);
   color: var(--purple);
 }
 
@@ -393,7 +425,7 @@ button, input, select, textarea {
 /* SIDEBAR FOOTER */
 .sidebar-footer {
   padding: 12px 14px 16px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--nav-border);
 }
 
 .user-pill {
@@ -401,9 +433,10 @@ button, input, select, textarea {
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
+  background: #FFFFFF;
+  border: 1px solid var(--nav-border);
   border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .user-avatar {
@@ -481,8 +514,8 @@ button, input, select, textarea {
 /* TOPBAR */
 .admin-topbar {
   height: var(--topbar-h);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--header-bg-gradient, var(--header-bg));
+  border-bottom: 1px solid var(--header-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -490,7 +523,7 @@ button, input, select, textarea {
   position: sticky;
   top: 0;
   z-index: 900;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .topbar-left {
@@ -501,8 +534,8 @@ button, input, select, textarea {
 
 .btn-mobile-menu {
   display: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #FFFFFF;
+  border: 1px solid var(--header-border);
   width: 38px;
   height: 38px;
   padding: 0;
@@ -511,11 +544,13 @@ button, input, select, textarea {
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .btn-mobile-menu:hover {
-  background: var(--surface-alt);
+  background: #FFFFFF;
   border-color: #CBD5E1;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
 }
 
 .btn-mobile-menu svg {
@@ -529,14 +564,14 @@ button, input, select, textarea {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
+  background: #FFFFFF;
+  border: 1px solid var(--header-border);
   padding: 6px 14px;
   border-radius: 9999px;
   font-size: 13px;
   font-weight: 700;
   color: var(--text-main);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   letter-spacing: -0.01em;
 }
 
@@ -1936,8 +1971,8 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 60px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
+    background: var(--nav-bg-gradient, var(--nav-bg));
+    border-top: 1px solid var(--nav-border);
     display: flex;
     align-items: center;
     justify-content: space-around;
