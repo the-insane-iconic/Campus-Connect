@@ -249,11 +249,8 @@ window.sendOrderPushNotification = sendOrderPushNotification;
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'orders' || e.detail.viewName === 'dashboard') {
     if (currentOrdersList && currentOrdersList.length > 0) {
-      if (currentOrdersViewMode === 'active') {
-        renderActiveOrdersBoard();
-      } else {
-        renderOrdersTable();
-      }
+      renderActiveOrdersBoard();
+      renderOrdersTable();
     }
     loadOrders(e.detail.storeId);
     startOrdersPolling();
@@ -363,11 +360,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (storeFilterSelect) {
     storeFilterSelect.addEventListener('change', (e) => {
       currentStoreOrderFilter = e.target.value;
-      if (currentOrdersViewMode === 'active') {
-        renderActiveOrdersBoard();
-      } else {
-        renderOrdersTable();
-      }
+      renderActiveOrdersBoard();
+      renderOrdersTable();
     });
   }
 
@@ -376,11 +370,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       currentSearchQuery = e.target.value.trim().toLowerCase();
-      if (currentOrdersViewMode === 'active') {
-        renderActiveOrdersBoard();
-      } else {
-        renderOrdersTable();
-      }
+      renderActiveOrdersBoard();
+      renderOrdersTable();
     });
   }
   // 1. Mobile Audio Unlock on user first touch/interaction
@@ -558,13 +549,8 @@ async function loadOrders(storeId, silent = false) {
 
     currentOrdersList = fetchedOrders;
 
-    // Authoritative direct rendering: render active cards immediately
-    if (currentOrdersViewMode === 'active') {
-      renderActiveOrdersBoard();
-    } else {
-      renderOrdersTable();
-    }
-    // Keep table in sync in memory
+    // Direct rendering: render active cards and full table simultaneously
+    renderActiveOrdersBoard();
     renderOrdersTable();
 
     // Update badges
@@ -589,6 +575,13 @@ function updateOrderBadges() {
   });
 
   const count = activeOrders.length;
+
+  // Header active orders badge
+  const headerBadge = document.getElementById('dash-active-count-badge');
+  if (headerBadge) {
+    headerBadge.textContent = `${count} Active`;
+    headerBadge.className = count > 0 ? 'badge-status accepted' : 'badge-status completed';
+  }
 
   // Counter inside orders mode tab
   const counterTab = document.getElementById('active-orders-counter');

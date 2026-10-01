@@ -3045,3 +3045,100 @@ body.role-platform_admin .platform-admin-only {
     gap: 10px;
   }
 }
+
+/* ─── DASHBOARD ORDER SECTIONS: SPACING, ALIGNMENT & RESPONSIVENESS ─── */
+#dashboard-active-orders-section {
+  margin-top: 24px;
+}
+
+#dashboard-all-orders-section {
+  margin-top: 24px;
+}
+
+#active-orders-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+/* Ensure single card looks balanced and doesn't stretch awkwardly */
+@media (min-width: 1024px) {
+  #active-orders-cards-container .active-order-card:only-child {
+    max-width: 480px;
+  }
+}
+
+.orders-quick-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.filter-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile Breakpoints (< 768px) */
+@media (max-width: 768px) {
+  #dashboard-active-orders-section,
+  #dashboard-all-orders-section {
+    margin-top: 18px;
+    border-radius: var(--radius-md);
+  }
+
+  #active-orders-cards-container {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .panel-header {
+    padding: 14px 16px;
+  }
+
+  #active-orders-board {
+    padding: 14px 16px !important;
+  }
+
+  .filter-tabs-wrapper {
+    padding: 12px 16px 0 !important;
+  }
+
+  .orders-quick-search-wrap {
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .orders-quick-search-wrap .search-input-wrap,
+  .orders-quick-search-wrap #orders-search-input {
+    width: 100% !important;
+  }
+
+  #all-orders-table-wrapper .data-table th,
+  #all-orders-table-wrapper .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
+/* Small mobile devices (< 480px) */
+@media (max-width: 480px) {
+  .metric-card {
+    padding: 12px 14px;
+  }
+
+  .panel-title {
+    font-size: 13.5px;
+  }
+}
+

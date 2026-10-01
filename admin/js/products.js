@@ -322,7 +322,7 @@ function renderMergedTable() {
     }[p.availability] || p.availability;
 
     const imgThumb = p.image_url
-      ? `<img src="${escapeHtml(p.image_url)}" alt="" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0;" />`
+      ? `<img src="${escapeHtml(p.image_url)}" alt="" onerror="this.onerror=null; this.outerHTML='<div style=\\\'width:36px;height:36px;border-radius:6px;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;\\\'>📦</div>';" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0;" />`
       : `<div style="width: 36px; height: 36px; border-radius: 6px; background: var(--surface-alt); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;">📦</div>`;
 
     return `
