@@ -466,6 +466,22 @@ function initProductImagePicker() {
     document.getElementById('prod-preset-grid')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
+  // Category dropdown change event -> dynamically filter image suggestions
+  const catSelect = document.getElementById('pm-category');
+  if (catSelect) {
+    catSelect.addEventListener('change', () => {
+      syncImageSuggestionsToCategory(catSelect.value, true);
+    });
+  }
+
+  // Product name input -> dynamically search & suggest matching photos
+  const nameInput = document.getElementById('pm-name');
+  if (nameInput) {
+    nameInput.addEventListener('input', (e) => {
+      suggestImageFromName(e.target.value.trim());
+    });
+  }
+
   // Category filter chips
   const catChips = document.querySelectorAll('#prod-cat-filters .cover-filter-chip');
   catChips.forEach(chip => {
@@ -531,6 +547,100 @@ function initProductImagePicker() {
   }
 }
 
+function syncImageSuggestionsToCategory(categoryVal, autoSelectFirst = false, specificPresetCat = null) {
+  let targetPresetCat = specificPresetCat;
+  if (!targetPresetCat) {
+    if (categoryVal === 'stationery') targetPresetCat = 'stationery';
+    else if (categoryVal === 'electronics') targetPresetCat = 'electronics';
+    else if (categoryVal === 'essentials') targetPresetCat = 'essentials';
+    else if (categoryVal === 'bakery') targetPresetCat = 'bakery';
+    else if (categoryVal === 'juice') targetPresetCat = 'juice';
+    else if (categoryVal === 'food') {
+      const activeStore = currentAuthorizedStores.find(s => s.store_id === activeStoreId);
+      const storeNameLower = (activeStore ? activeStore.store_name : '').toLowerCase();
+      if (storeNameLower.includes('juice') || storeNameLower.includes('shake')) targetPresetCat = 'juice';
+      else if (storeNameLower.includes('bakery') || storeNameLower.includes('cafe')) targetPresetCat = 'bakery';
+      else targetPresetCat = 'food';
+    } else {
+      targetPresetCat = 'all';
+    }
+  }
+
+  activeProdImgCat = targetPresetCat;
+
+  // Sync category filter chips UI
+  const catChips = document.querySelectorAll('#prod-cat-filters .cover-filter-chip');
+  catChips.forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.prodCat === targetPresetCat);
+  });
+
+  // Update hint text
+  const hintEl = document.getElementById('pm-category-sync-hint');
+  if (hintEl) {
+    const labelMap = {
+      'food': 'Food & Snacks',
+      'juice': 'Juices & Beverages',
+      'bakery': 'Bakery & Cafe',
+      'stationery': 'Stationery & Books',
+      'electronics': 'Electronics & Tech',
+      'essentials': 'Daily Essentials',
+      'all': 'All Campus Items'
+    };
+    hintEl.textContent = `Suggestions match ${labelMap[targetPresetCat] || 'chosen Category'}`;
+  }
+
+  renderProductImagePresets();
+
+  if (autoSelectFirst) {
+    const matching = PRODUCT_IMAGE_PRESETS.filter(p => targetPresetCat === 'all' || p.category === targetPresetCat);
+    if (matching.length > 0) {
+      setProductActiveImage(matching[0].url, matching[0].name, 'Suggested Photo');
+    }
+  }
+}
+
+let nameSuggestTimer = null;
+function suggestImageFromName(term) {
+  clearTimeout(nameSuggestTimer);
+  nameSuggestTimer = setTimeout(() => {
+    if (!term || term.length < 2) {
+      const catVal = document.getElementById('pm-category')?.value || 'food';
+      syncImageSuggestionsToCategory(catVal, false);
+      return;
+    }
+
+    const t = term.toLowerCase();
+    const matched = PRODUCT_IMAGE_PRESETS.filter(p => {
+      const pName = p.name.toLowerCase();
+      return pName.includes(t) ||
+             p.category.toLowerCase().includes(t) ||
+             (t.includes('chai') && p.id.includes('chai')) ||
+             (t.includes('tea') && (p.id.includes('tea') || p.id.includes('chai'))) ||
+             (t.includes('coffee') && (p.id.includes('coldbrew') || p.id.includes('sand'))) ||
+             (t.includes('shake') && p.id.includes('mango')) ||
+             (t.includes('juice') && p.category === 'juice') ||
+             (t.includes('samosa') && p.id.includes('samosa')) ||
+             (t.includes('maggi') && p.id.includes('maggi')) ||
+             (t.includes('noodle') && p.id.includes('maggi')) ||
+             (t.includes('burger') && p.id.includes('burger')) ||
+             (t.includes('notebook') && p.id.includes('notebook')) ||
+             (t.includes('pen') && p.id.includes('pen')) ||
+             (t.includes('calc') && p.id.includes('calc')) ||
+             (t.includes('cable') && p.id.includes('cable')) ||
+             (t.includes('charger') && p.id.includes('adapter')) ||
+             (t.includes('water') && p.id.includes('water')) ||
+             (t.includes('chips') && p.id.includes('chips'));
+    });
+
+    if (matched.length > 0) {
+      setProductActiveImage(matched[0].url, matched[0].name, 'Suggested Match');
+      renderProductImagePresets(matched);
+      const hintEl = document.getElementById('pm-category-sync-hint');
+      if (hintEl) hintEl.textContent = `Found ${matched.length} matching photos for "${term}"`;
+    }
+  }, 220);
+}
+
 function handleProductFile(file) {
   if (!file.type.startsWith('image/')) {
     showToast('Please select a valid photo.', 'error');
@@ -571,18 +681,18 @@ function handleProductFile(file) {
   reader.readAsDataURL(file);
 }
 
-function renderProductImagePresets() {
+function renderProductImagePresets(customList = null) {
   const grid = document.getElementById('prod-preset-grid');
   if (!grid) return;
 
   const currentVal = (document.getElementById('pm-image')?.value || '').trim();
 
-  const filtered = PRODUCT_IMAGE_PRESETS.filter(p => {
+  const list = customList || PRODUCT_IMAGE_PRESETS.filter(p => {
     if (activeProdImgCat === 'all') return true;
     return p.category === activeProdImgCat;
   });
 
-  grid.innerHTML = filtered.map(preset => {
+  grid.innerHTML = list.map(preset => {
     const isSelected = (preset.url === currentVal);
     return `
       <div class="prod-img-item ${isSelected ? 'selected' : ''}"
@@ -705,42 +815,50 @@ function openProductModal(prod = null) {
     } else {
       setProductActiveImage(PRODUCT_IMAGE_PRESETS[0].url, PRODUCT_IMAGE_PRESETS[0].name, 'Preset Photo');
     }
+    syncImageSuggestionsToCategory(prod.category_id || 'food', false);
   } else {
     title.textContent = 'Add New Product';
     document.getElementById('pm-product-id').value = '';
-    document.getElementById('pm-stock').value = '30';
+    // Clear prefilled values so merchant starts clean with placeholders
+    document.getElementById('pm-name').value = '';
+    document.getElementById('pm-price').value = '';
+    document.getElementById('pm-stock').value = '';
     document.getElementById('pm-threshold').value = '5';
+    document.getElementById('pm-desc').value = '';
 
     // Auto-generate clean SKU
-    const prefix = isJuiceStore ? 'JUC' : isBakeryStore ? 'BAK' : isStationeryStore ? 'STN' : isTechStore ? 'TCH' : 'PRD';
+    const prefix = isStationeryStore ? 'STN' : isTechStore ? 'TCH' : isBakeryStore ? 'BAK' : isJuiceStore ? 'JUC' : 'PRD';
     document.getElementById('pm-sku').value = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Set default category & unit
+    // Set default category & unit based on store type
+    let initialCat = 'food';
+    let initialPresetCat = 'food';
     if (isStationeryStore) {
-      document.getElementById('pm-category').value = 'stationery';
+      initialCat = 'stationery';
+      initialPresetCat = 'stationery';
       selectUnitPill('piece');
     } else if (isTechStore) {
-      document.getElementById('pm-category').value = 'electronics';
+      initialCat = 'electronics';
+      initialPresetCat = 'electronics';
       selectUnitPill('piece');
     } else if (isJuiceStore) {
-      document.getElementById('pm-category').value = 'food';
+      initialCat = 'food';
+      initialPresetCat = 'juice';
       selectUnitPill('glass');
+    } else if (isBakeryStore) {
+      initialCat = 'food';
+      initialPresetCat = 'bakery';
+      selectUnitPill('item');
     } else {
-      document.getElementById('pm-category').value = 'food';
+      initialCat = 'food';
+      initialPresetCat = 'food';
       selectUnitPill('item');
     }
 
-    // Set intelligent default photo
-    let defPreset = PRODUCT_IMAGE_PRESETS[0];
-    if (isJuiceStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-j-mango') || PRODUCT_IMAGE_PRESETS[0];
-    else if (isBakeryStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-b-croiss') || PRODUCT_IMAGE_PRESETS[0];
-    else if (isStationeryStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-s-notebook') || PRODUCT_IMAGE_PRESETS[0];
-    else if (isTechStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-e-cable') || PRODUCT_IMAGE_PRESETS[0];
-
-    setProductActiveImage(defPreset.url, defPreset.name, 'Preset Photo');
+    document.getElementById('pm-category').value = initialCat;
+    syncImageSuggestionsToCategory(initialCat, true, initialPresetCat);
   }
 
-  renderProductImagePresets();
   modal.classList.remove('hidden');
 
   // Focus product name

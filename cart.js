@@ -387,9 +387,11 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     }
     const user = activeUser || appData.currentUser || {};
     const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
+    const studentName = user.name || (user.profile && user.profile.name) || 'Campus Student';
+    const studentPhone = user.phone || (user.profile && user.profile.phone) || '+91 98765 43210';
     const numMatch = (studentName || '').match(/\d+/);
     const studentNumber = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
-    const studentEmail = user.email || `student${studentNumber}@campus.edu`;
+    const studentEmail = user.email || (user.profile && user.profile.email) || `student${studentNumber}@campus.edu`;
 
     // Ensure user is synced to Neon PostgreSQL
     if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {

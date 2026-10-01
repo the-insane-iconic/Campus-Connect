@@ -1397,6 +1397,15 @@ button, input, select, textarea {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+.form-group input::placeholder,
+.form-group textarea::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #94A3B8;
+  opacity: 0.55;
+  font-weight: 400;
+}
+
 .form-group textarea {
   padding: 10px 12px;
   border: 1px solid var(--border);

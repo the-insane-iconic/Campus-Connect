@@ -191,6 +191,9 @@ function placeOrder(fulfillmentType, deliveryInfo) {
     activeUser = window.UserManager.ensureGuestProfile();
   }
   const user = activeUser || AppState.currentUser || {};
+  const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
+  const studentName = user.name || (user.profile && user.profile.name) || (deliveryInfo && deliveryInfo.name) || 'Campus Student';
+  const studentPhone = user.phone || (user.profile && user.profile.phone) || (deliveryInfo && deliveryInfo.phone) || '+91 98765 43210';
   const numMatch = (studentName || '').match(/\d+/);
   const studentNum = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
   const studentEmail = user.email || (AppState.currentUser && AppState.currentUser.email) || `student${studentNum}@campus.edu`;

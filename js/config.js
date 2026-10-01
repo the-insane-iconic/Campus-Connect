@@ -208,22 +208,24 @@ window.UniMallDB = {
   async createOrder(orderPayload, items = []) {
     const orderId = orderPayload.id;
     const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-4)}`;
+    const userId = orderPayload.user_id || orderPayload.userId || 'guest';
+    const userName = orderPayload.user_name || orderPayload.userName || orderPayload.customerName || 'Campus Student';
     const numMatch = (userName || '').match(/\d+/);
     const studentNum = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
     const userEmail = orderPayload.user_email || orderPayload.customer_email || `student${studentNum}@campus.edu`;
-    const storeId = orderPayload.store_id || 'campus-cafe';
+    const storeId = orderPayload.store_id || orderPayload.storeId || 'campus-cafe';
     const status = (orderPayload.status || 'placed').toLowerCase();
-    const fulfillmentType = 'pickup'; // Guaranteed Counter Pickup Only
+    const fulfillmentType = orderPayload.fulfillment_type || orderPayload.fulfillmentType || 'pickup'; // Guaranteed Counter Pickup
     const subtotal = Number(orderPayload.subtotal || 0);
-    const deliveryFee = 0.00; // Counter pickup is always ₹0
+    const deliveryFee = Number(orderPayload.delivery_fee || orderPayload.deliveryFee || 0);
     const total = Number(orderPayload.total || subtotal);
-    const paymentMethod = orderPayload.payment_method || 'Razorpay Instant';
+    const paymentMethod = orderPayload.payment_method || orderPayload.paymentMethod || 'Razorpay Instant';
     const paymentStatus = orderPayload.payment_status || (paymentMethod.includes('Counter') ? 'PENDING_AT_COUNTER' : 'PAID');
-    const notes = orderPayload.notes || '';
+    const notes = orderPayload.notes || orderPayload.orderNotes || '';
 
-    const userPhone = orderPayload.user_phone || '';
-    const userHostel = orderPayload.user_hostel || '';
-    const userRoom = orderPayload.user_room || '';
+    const userPhone = orderPayload.user_phone || orderPayload.userPhone || '+91 98765 43210';
+    const userHostel = orderPayload.user_hostel || orderPayload.userHostel || 'Counter Pickup';
+    const userRoom = orderPayload.user_room || orderPayload.userRoom || 'Ground Floor';
 
     // 1. Insert into Neon PostgreSQL unimall_orders
     try {
