@@ -17,20 +17,6 @@
 </head>
 <body>
 
-  <!-- FOUNDER IMPERSONATION BANNER (Visible only to platform_admin when viewing a store) -->
-  <aside id="founder-banner" class="founder-banner hidden" aria-label="Platform Admin Banner">
-    <div class="founder-banner-content">
-      <div class="founder-banner-icon">🛡️</div>
-      <div class="founder-banner-text">
-        You are managing <strong id="founder-store-name">Campus Bakery & Café</strong> as <strong>Platform Admin</strong>
-      </div>
-      <div class="founder-banner-actions">
-        <button type="button" id="btn-switch-store" class="btn-banner">Switch Store</button>
-        <button type="button" id="btn-founder-hub" class="btn-banner primary">Platform Hub</button>
-      </div>
-    </div>
-  </aside>
-
   <div class="admin-layout">
 
     <!-- DESKTOP SIDEBAR / MOBILE DRAWER -->
@@ -54,52 +40,54 @@
 
       <!-- NAVIGATION LINKS -->
       <nav class="sidebar-nav" aria-label="Admin Navigation">
-        <div class="nav-group-label" id="label-ops-group">OPERATIONS</div>
+        <!-- GROUP 1: OPERATIONS -->
+        <div class="nav-group-label" id="label-ops-group">CAMPUS OPERATIONS</div>
 
         <button type="button" class="nav-item active" data-view="dashboard" id="nav-dashboard">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-          <span id="nav-dash-label">Dashboard</span>
+          <span id="nav-dash-label">Platform Overview</span>
         </button>
 
         <button type="button" class="nav-item" data-view="orders" id="nav-orders">
           <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span id="nav-orders-label">Orders</span>
+          <span id="nav-orders-label">All Orders</span>
           <span class="nav-counter alert" id="counter-orders">0</span>
         </button>
 
-        <!-- REGISTERED SHOPS & UNIFIED INVENTORY (Unified Hub for Platform Admin) -->
+        <!-- REGISTERED SHOPS DIRECTORY (Platform Admin Only) -->
         <button type="button" class="nav-item founder-nav hidden" data-view="founder" id="nav-founder">
           <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          <span>Registered Shops</span>
+          <span>Campus Stores</span>
         </button>
 
-        <!-- SINGLE STORE ONLY NAVIGATION (Hidden for Platform Admin to keep inventory & products unified) -->
+        <!-- SINGLE STORE ONLY NAVIGATION (Hidden for Platform Admin) -->
         <button type="button" class="nav-item store-only-nav" data-view="products" id="nav-products">
           <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          <span>Products</span>
+          <span>Products & Menu</span>
         </button>
 
         <button type="button" class="nav-item store-only-nav" data-view="inventory" id="nav-inventory">
           <svg viewBox="0 0 24 24"><path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"/></svg>
-          <span>Inventory</span>
+          <span>Inventory & Stock</span>
           <span class="nav-counter warn" id="counter-low-stock">0</span>
         </button>
 
-        <div class="nav-group-label" id="label-settings-group">STORE SETTINGS</div>
+        <!-- GROUP 2: INTELLIGENCE & SETTINGS -->
+        <div class="nav-group-label" id="label-settings-group">CAMPUS INTELLIGENCE</div>
 
         <button type="button" class="nav-item store-only-nav" data-view="store" id="nav-store">
           <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          <span>Store & Hours</span>
+          <span>Store Profile & Hours</span>
         </button>
 
         <button type="button" class="nav-item" data-view="analytics" id="nav-analytics">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span id="nav-analytics-label">Analytics</span>
+          <span id="nav-analytics-label">Deep Analytics</span>
         </button>
 
         <button type="button" class="nav-item" data-view="requests" id="nav-requests">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Customer Demand</span>
+          <span id="nav-requests-label">Student Demand</span>
         </button>
       </nav>
 
@@ -131,8 +119,14 @@
             <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
 
-          <!-- STORE SELECTOR (Multi-store owners & Platform admin) -->
-          <div class="store-selector-wrapper">
+          <!-- PLATFORM CONTROL BADGE (For Platform Admin Overview) -->
+          <div class="platform-control-pill" id="platform-control-pill">
+            <span class="badge-pulse-dot"></span>
+            <span class="pill-text" id="topbar-scope-text">Campus Operations Control HQ</span>
+          </div>
+
+          <!-- STORE SELECTOR (Only shown for multi-store merchants, hidden for platform admin) -->
+          <div class="store-selector-wrapper hidden" id="store-selector-wrapper">
             <label for="store-selector" class="sr-only">Select Store</label>
             <select id="store-selector" class="store-select-dropdown" aria-label="Active Store Selector"></select>
           </div>
@@ -166,126 +160,164 @@
       <!-- VIEW CONTAINER -->
       <main class="admin-content-area" id="admin-content-area">
 
-        <!-- 1. DASHBOARD VIEW -->
+        <!-- 1. DASHBOARD VIEW (Platform Executive Overview & Daily Store Payout Distribution) -->
         <section class="admin-view active" id="view-dashboard">
           <div class="view-header">
             <div>
-              <h1 class="view-title" id="dash-greeting">Good morning, Store Manager</h1>
-              <p class="view-subtitle" id="dash-store-sub">Store Operating Overview</p>
+              <h1 class="view-title" id="dash-greeting">Campus Operations & Daily Settlement</h1>
+              <p class="view-subtitle" id="dash-store-sub">Today's sales, student footfall, and end-of-day store payout distribution ledger</p>
             </div>
             <div class="view-actions" id="dash-header-actions">
-              <button type="button" class="btn-action primary" id="dash-btn-add-product">+ Add Product</button>
-              <button type="button" class="btn-action secondary" id="dash-btn-quick-add">⚡ Quick Add</button>
+              <button type="button" class="btn-action secondary" id="dash-btn-export-settlement" onclick="window.exportDailySettlementCSV && window.exportDailySettlementCSV()">
+                📥 Export CSV
+              </button>
+              <button type="button" class="btn-action secondary" id="dash-btn-print-settlement" onclick="window.printDailySettlementSheet && window.printDailySettlementSheet()">
+                🖨️ Print Settlement Slip
+              </button>
+              <button type="button" class="btn-action primary" id="dash-btn-goto-orders" onclick="window.switchView('orders')">
+                ⚡ Live Orders Queue →
+              </button>
             </div>
           </div>
 
-          <!-- OPERATIONAL OVERVIEW METRIC CARDS -->
+          <!-- LIVE ORDERS FAST JUMP BANNER (Keeps Dashboard clean while giving instant access to live queue) -->
+          <div class="order-queue-shortcut-card" id="dash-orders-shortcut-banner">
+            <div class="shortcut-info">
+              <span class="shortcut-pulse-dot"></span>
+              <div>
+                <strong>Active Campus Orders Live Queue</strong>
+                <p>All order processing, kitchen prep, and 1-click delivery status live in the authoritative Orders Section.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-banner primary" onclick="window.switchView('orders')">
+              Open Orders Queue (<span id="dash-active-count-badge">0</span> Active) →
+            </button>
+          </div>
+
+          <!-- TODAYS OPERATIONAL METRIC RIBBON (Neon PostgreSQL Single Source of Truth) -->
           <div class="metrics-grid">
-            <div class="metric-card" id="card-metric-orders">
-              <div class="metric-icon blue">📦</div>
-              <div class="metric-info">
-                <div class="metric-label" id="lbl-dash-orders">Today's Orders</div>
-                <div class="metric-value" id="dash-today-orders">0</div>
-              </div>
-            </div>
-
-            <div class="metric-card" id="card-metric-pending">
-              <div class="metric-icon amber">⏳</div>
-              <div class="metric-info">
-                <div class="metric-label" id="lbl-dash-pending">Pending / Kitchen</div>
-                <div class="metric-value" id="dash-pending-orders">0</div>
-              </div>
-            </div>
-
-            <div class="metric-card" id="card-metric-ready">
-              <div class="metric-icon green">✅</div>
-              <div class="metric-info">
-                <div class="metric-label" id="lbl-dash-ready">Ready for Pickup</div>
-                <div class="metric-value" id="dash-ready-orders">0</div>
-              </div>
-            </div>
-
             <div class="metric-card" id="card-metric-sales">
-              <div class="metric-icon purple">₹</div>
+              <div class="metric-icon purple">💰</div>
               <div class="metric-info">
                 <div class="metric-label" id="lbl-dash-sales">Today's Sales</div>
                 <div class="metric-value" id="dash-today-sales">₹0</div>
+                <div class="metric-trend text-muted" id="sub-dash-sales">Gross campus revenue today</div>
+              </div>
+            </div>
+
+            <div class="metric-card" id="card-metric-customers">
+              <div class="metric-icon blue">👥</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-customers">Customers Today</div>
+                <div class="metric-value" id="dash-today-customers">0</div>
+                <div class="metric-trend text-muted" id="sub-dash-customers">Unique student buyers today</div>
+              </div>
+            </div>
+
+            <div class="metric-card" id="card-metric-orders">
+              <div class="metric-icon green">📦</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-orders">Today's Orders</div>
+                <div class="metric-value" id="dash-today-orders">0</div>
+                <div class="metric-trend text-muted" id="sub-dash-orders">Total orders placed today</div>
+              </div>
+            </div>
+
+            <div class="metric-card" id="card-metric-payout">
+              <div class="metric-icon amber">🤝</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-payout">Store Payouts Due</div>
+                <div class="metric-value" id="dash-today-payout">₹0</div>
+                <div class="metric-trend text-muted" id="sub-dash-payout">Net to distribute (less 5% fee)</div>
               </div>
             </div>
           </div>
 
-          <!-- PLATFORM USER ANALYTICS & CAMPUS OVERVIEW (Visible in Platform View) -->
-          <div id="dash-platform-user-analytics" class="card-panel mt-4 hidden" style="border-left: 4px solid var(--primary); margin-bottom: 20px;">
-            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
-              <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
-                <span>👥</span>
-                <span>Campus User Analytics & Platform GMV</span>
+          <!-- ════ CORE SECTION: DAILY STORE SALES & MONEY DISTRIBUTION LEDGER ════ -->
+          <div class="card-panel mt-6" id="payouts-ledger-section">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🏪</span>
+                  <span>Daily Store Sales & End-of-Day Payout Distribution Ledger</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                  Breakdown of today's earnings per campus store. Distribute online digital payments & balance counter cash at closing.
+                </p>
               </div>
-              <span class="badge-status completed" style="font-size:11px; padding:3px 8px;">Authoritative Neon Postgres</span>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span class="badge-status completed" style="font-size:11px; padding:3px 10px;">Authoritative Neon DB</span>
+                <button type="button" class="btn-action secondary" onclick="window.refreshDashboardMetrics && window.refreshDashboardMetrics()" style="font-size:12px; padding:4px 10px;">
+                  ↻ Refresh Ledger
+                </button>
+              </div>
             </div>
-            <div class="panel-body" style="padding: 16px;">
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
-                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Registered Students</div>
-                  <div style="font-size: 22px; font-weight: 800; color: var(--primary); margin-top: 4px;" id="stat-user-count">0</div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Campus accounts created</div>
-                </div>
-                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Active Buyers</div>
-                  <div style="font-size: 22px; font-weight: 800; color: #10B981; margin-top: 4px;" id="stat-active-buyers">0</div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Students with orders placed</div>
-                </div>
-                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Lifetime Platform GMV</div>
-                  <div style="font-size: 22px; font-weight: 800; color: #8B5CF6; margin-top: 4px;" id="stat-lifetime-gmv">₹0</div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Cumulative across all shops</div>
-                </div>
-                <div style="background: var(--surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
-                  <div style="font-size: 11.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Orders Placed</div>
-                  <div style="font-size: 22px; font-weight: 800; color: #F59E0B; margin-top: 4px;" id="stat-lifetime-orders">0</div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Orders recorded across all stores</div>
-                </div>
+
+            <div class="table-responsive">
+              <table class="data-table" id="store-payout-ledger-table">
+                <thead>
+                  <tr>
+                    <th>Store Name</th>
+                    <th>Category</th>
+                    <th>Orders Today</th>
+                    <th>Customers Served</th>
+                    <th>Gross Sales (₹)</th>
+                    <th>Digital (Online)</th>
+                    <th>Cash at Counter</th>
+                    <th>Platform Fee (5%)</th>
+                    <th>Net Store Payout (₹)</th>
+                    <th>Settlement Status</th>
+                  </tr>
+                </thead>
+                <tbody id="store-payout-ledger-tbody">
+                  <tr><td colspan="10" class="text-center py-6">Calculating today's store sales & payout ledger...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- SETTLEMENT SUMMARY CARDS -->
+            <div class="settlement-summary-strip" id="settlement-summary-strip">
+              <div class="summary-chip">
+                <span class="chip-label">Total Digital Escrow:</span>
+                <strong class="chip-value text-blue" id="summary-total-digital">₹0</strong>
+              </div>
+              <div class="summary-chip">
+                <span class="chip-label">Total Counter Cash:</span>
+                <strong class="chip-value text-amber" id="summary-total-cash">₹0</strong>
+              </div>
+              <div class="summary-chip">
+                <span class="chip-label">Platform 5% Fee:</span>
+                <strong class="chip-value text-purple" id="summary-total-fee">₹0</strong>
+              </div>
+              <div class="summary-chip highlight">
+                <span class="chip-label">Total Net Due to Merchants:</span>
+                <strong class="chip-value text-green" id="summary-total-net-payout">₹0</strong>
               </div>
             </div>
           </div>
 
-          <!-- TWO COLUMN OPERATIONAL GRID -->
-          <div class="dashboard-two-col">
-
-            <!-- LEFT: ORDERS REQUIRING ATTENTION -->
+          <!-- SINGLE STORE OPERATIONAL DETAILS (Shown only when viewing single store) -->
+          <div id="single-store-extra-panels" class="dashboard-two-col mt-6 hidden">
+            <!-- LOW STOCK ALERTS FOR CURRENT STORE -->
             <div class="card-panel">
               <div class="panel-header">
-                <div class="panel-title" id="dash-orders-panel-title">Orders Requiring Action</div>
-                <button type="button" class="panel-link" id="dash-link-all-orders">View All Orders →</button>
+                <div class="panel-title" id="dash-inventory-panel-title">Low Stock Alerts</div>
+                <button type="button" class="panel-link" onclick="window.switchView('inventory')">Manage Stock →</button>
               </div>
-              <div class="panel-body" id="dash-urgent-orders">
-                <div class="empty-state-sm">Loading orders...</div>
+              <div class="panel-body" id="dash-low-stock-list">
+                <div class="empty-state-sm">Checking stock levels...</div>
               </div>
             </div>
 
-            <!-- RIGHT: LOW STOCK ALERTS & TOP PRODUCTS -->
-            <div class="panel-column-right">
-
-              <div class="card-panel">
-                <div class="panel-header">
-                  <div class="panel-title" id="dash-inventory-panel-title">Low Stock Alerts</div>
-                  <button type="button" class="panel-link" id="dash-link-inventory">Manage Stock →</button>
-                </div>
-                <div class="panel-body" id="dash-low-stock-list">
-                  <div class="empty-state-sm">Checking stock levels...</div>
-                </div>
+            <!-- TOP PRODUCTS FOR CURRENT STORE -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title">Top Products Today</div>
+                <button type="button" class="panel-link" onclick="window.switchView('analytics')">Analytics →</button>
               </div>
-
-              <div class="card-panel">
-                <div class="panel-header">
-                  <div class="panel-title">Top Products Today</div>
-                  <button type="button" class="panel-link" id="dash-link-analytics">Analytics →</button>
-                </div>
-                <div class="panel-body" id="dash-top-products-list">
-                  <div class="empty-state-sm">Loading top items...</div>
-                </div>
+              <div class="panel-body" id="dash-top-products-list">
+                <div class="empty-state-sm">Loading top items...</div>
               </div>
-
             </div>
           </div>
         </section>
@@ -315,8 +347,8 @@
             </div>
           </div>
 
-          <!-- VIEW MODE TABS: ACTIVE CARDS vs ALL TABLE -->
-          <div class="orders-mode-bar">
+          <!-- VIEW MODE TABS: ACTIVE CARDS vs ALL TABLE & FAST STORE / SEARCH FILTER -->
+          <div class="orders-mode-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div class="orders-mode-tabs">
               <button type="button" class="order-mode-btn active" id="tab-mode-active" onclick="switchOrdersViewMode('active')">
                 ⚡ Active Orders (<span id="active-orders-counter">0</span>)
@@ -324,6 +356,23 @@
               <button type="button" class="order-mode-btn" id="tab-mode-table" onclick="switchOrdersViewMode('table')">
                 📋 All Orders Table
               </button>
+            </div>
+            <div class="orders-quick-filters" style="display:flex; align-items:center; gap:10px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <label for="orders-store-filter" style="font-size:12.5px; font-weight:700; color:var(--text-main); display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                  <span>🏬 Store:</span>
+                </label>
+                <select id="orders-store-filter" style="height:36px; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; background:var(--surface-alt); color:var(--text-main); cursor:pointer;">
+                  <option value="all">🏢 All Campus Stores</option>
+                  <option value="campus-cafe">☕ Campus Café</option>
+                  <option value="book-corner">📚 Book Corner</option>
+                  <option value="techstop">💻 TechStop</option>
+                  <option value="campus-mart">🛒 Campus Mart</option>
+                  <option value="campus-wear">👕 Campus Wear</option>
+                  <option value="health-hub">💊 Health Hub</option>
+                </select>
+              </div>
+              <input type="text" id="orders-search-input" placeholder="Search order #, student, room..." style="height:36px; font-size:12.5px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; width:220px; background:var(--surface); color:var(--text-main);" />
             </div>
           </div>
 
@@ -567,12 +616,12 @@
           </div>
         </section>
 
-        <!-- 6. ANALYTICS VIEW -->
+        <!-- 6. ANALYTICS VIEW (Comprehensive Deep Analytics Suite) -->
         <section class="admin-view" id="view-analytics">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Store Analytics</h1>
-              <p class="view-subtitle">Performance, revenue, and product velocity</p>
+              <h1 class="view-title" id="analytics-page-title">Deep Campus Analytics</h1>
+              <p class="view-subtitle" id="analytics-page-sub">Comprehensive sales intelligence, peak rush curves, store comparison matrix & student trends</p>
             </div>
             <div class="period-tabs">
               <button type="button" class="tab-btn active" data-period="today">Today</button>
@@ -582,20 +631,23 @@
             </div>
           </div>
 
+          <!-- TOP 5 KPI STRIP -->
           <div class="metrics-grid">
             <div class="metric-card">
               <div class="metric-icon blue">💰</div>
               <div class="metric-info">
-                <div class="metric-label">Revenue</div>
+                <div class="metric-label">Gross Revenue</div>
                 <div class="metric-value" id="analytics-revenue">₹0</div>
+                <div class="metric-trend text-muted">Authoritative GMV</div>
               </div>
             </div>
 
             <div class="metric-card">
               <div class="metric-icon green">📦</div>
               <div class="metric-info">
-                <div class="metric-label">Completed Orders</div>
+                <div class="metric-label">Orders Count</div>
                 <div class="metric-value" id="analytics-orders">0</div>
+                <div class="metric-trend text-muted">Total orders recorded</div>
               </div>
             </div>
 
@@ -604,34 +656,159 @@
               <div class="metric-info">
                 <div class="metric-label">Units Sold</div>
                 <div class="metric-value" id="analytics-units">0</div>
+                <div class="metric-trend text-muted">Items fulfilled</div>
               </div>
             </div>
 
             <div class="metric-card">
               <div class="metric-icon amber">📊</div>
               <div class="metric-info">
-                <div class="metric-label">Avg. Order Value (AOV)</div>
+                <div class="metric-label">Average Order Value</div>
                 <div class="metric-value" id="analytics-aov">₹0</div>
+                <div class="metric-trend text-muted">Basket size (AOV)</div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon teal">👥</div>
+              <div class="metric-info">
+                <div class="metric-label">Campus Buyers</div>
+                <div class="metric-value" id="analytics-customers">0</div>
+                <div class="metric-trend text-muted">Unique students served</div>
               </div>
             </div>
           </div>
 
+          <!-- SECTION 1: CAMPUS HOURLY RUSH DISTRIBUTION CURVE -->
           <div class="card-panel mt-6">
-            <div class="panel-header"><div class="panel-title">Top Selling Products in Period</div></div>
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>⏰</span>
+                  <span>Peak Campus Rush Hours (24-Hour Velocity Curve)</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                  Hourly order volume & revenue. Highlights campus canteen meal times so stores can staff counters efficiently.
+                </p>
+              </div>
+              <div class="rush-legend" style="display:flex; gap:12px; font-size:12px;">
+                <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:2px; background:var(--primary);"></span> Orders</span>
+                <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:2px; background:#10B981;"></span> Peak Rush Slot</span>
+              </div>
+            </div>
+            <div class="panel-body" style="padding: 20px 16px;">
+              <!-- Peak Rush Hour Badges -->
+              <div class="rush-time-badges" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:20px;">
+                <div class="rush-badge-card" id="rush-breakfast">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">☕ Breakfast Rush</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">08:00 - 10:00 AM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-breakfast-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-lunch">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🍱 Lunch Rush</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">12:00 - 02:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-lunch-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-evening">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🧋 Evening Tea & Snacks</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">04:00 - 06:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-evening-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-night">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🌙 Late Night Study</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">08:00 - 11:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-night-stat">Calculating...</div>
+                </div>
+              </div>
+
+              <!-- Hourly Bar Visualizer -->
+              <div class="hourly-bars-container" id="hourly-bars-chart">
+                <div class="empty-state-sm">Loading hourly rush distribution...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: STORE PERFORMANCE & MARKET SHARE MATRIX (Platform View) -->
+          <div class="card-panel mt-6" id="analytics-store-matrix-panel">
+            <div class="panel-header">
+              <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                <span>🏪</span>
+                <span>Campus Stores Performance & Market Share Matrix</span>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="analytics-store-matrix-table">
+                <thead>
+                  <tr>
+                    <th>Store</th>
+                    <th>Category</th>
+                    <th>Gross Sales (₹)</th>
+                    <th>Market Share</th>
+                    <th>Orders</th>
+                    <th>Students Served</th>
+                    <th>Average Basket (AOV)</th>
+                  </tr>
+                </thead>
+                <tbody id="analytics-store-matrix-tbody">
+                  <tr><td colspan="7" class="text-center py-6">Loading store matrix...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SECTION 3: TOP 10 BEST-SELLING CAMPUS PRODUCTS -->
+          <div class="card-panel mt-6">
+            <div class="panel-header">
+              <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                <span>🏆</span>
+                <span>Top 10 Best-Selling Campus Products Leaderboard</span>
+              </div>
+            </div>
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
                     <th>Rank</th>
                     <th>Product</th>
+                    <th>Campus Store</th>
                     <th>Units Sold</th>
-                    <th>Gross Sales</th>
+                    <th>Gross Revenue</th>
+                    <th>Popularity Share</th>
                   </tr>
                 </thead>
                 <tbody id="analytics-top-products-tbody">
-                  <tr><td colspan="4" class="text-center py-6">Loading analytics...</td></tr>
+                  <tr><td colspan="6" class="text-center py-6">Loading top items...</td></tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- SECTION 4: PAYMENT METHODS & FULFILLMENT BREAKDOWN -->
+          <div class="dashboard-two-col mt-6">
+            <!-- PAYMENT METHODS -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>💳</span>
+                  <span>Payment Channels Split</span>
+                </div>
+              </div>
+              <div class="panel-body" id="analytics-payments-container">
+                <div class="empty-state-sm">Loading payment methods...</div>
+              </div>
+            </div>
+
+            <!-- FULFILLMENT TYPES -->
+            <div class="card-panel">
+              <div class="panel-header">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🛵</span>
+                  <span>Fulfillment Distribution</span>
+                </div>
+              </div>
+              <div class="panel-body" id="analytics-fulfillment-container">
+                <div class="empty-state-sm">Loading fulfillment breakdown...</div>
+              </div>
             </div>
           </div>
         </section>

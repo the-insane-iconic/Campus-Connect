@@ -248,6 +248,13 @@ window.sendOrderPushNotification = sendOrderPushNotification;
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'orders') {
+    if (currentOrdersList && currentOrdersList.length > 0) {
+      if (currentOrdersViewMode === 'active') {
+        renderActiveOrdersBoard();
+      } else {
+        renderOrdersTable();
+      }
+    }
     loadOrders(e.detail.storeId);
     startOrdersPolling();
   }
@@ -347,7 +354,35 @@ window.addEventListener('unimall:orderStatusUpdated', () => {
   }
 });
 
+let currentStoreOrderFilter = 'all';
+let currentSearchQuery = '';
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Store filter dropdown
+  const storeFilterSelect = document.getElementById('orders-store-filter');
+  if (storeFilterSelect) {
+    storeFilterSelect.addEventListener('change', (e) => {
+      currentStoreOrderFilter = e.target.value;
+      if (currentOrdersViewMode === 'active') {
+        renderActiveOrdersBoard();
+      } else {
+        renderOrdersTable();
+      }
+    });
+  }
+
+  // Orders search input
+  const searchInput = document.getElementById('orders-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      currentSearchQuery = e.target.value.trim().toLowerCase();
+      if (currentOrdersViewMode === 'active') {
+        renderActiveOrdersBoard();
+      } else {
+        renderOrdersTable();
+      }
+    });
+  }
   // 1. Mobile Audio Unlock on user first touch/interaction
   ['click', 'touchstart', 'keydown'].forEach(evt => {
     document.addEventListener(evt, unlockAudioContext, { once: true, capture: true });
@@ -460,7 +495,8 @@ function switchOrdersViewMode(mode) {
 window.switchOrdersViewMode = switchOrdersViewMode;
 
 async function loadOrders(storeId, silent = false) {
-  if (!storeId) return;
+  const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
+  if (!effectiveStoreId) return;
 
   const cardsContainer = document.getElementById('active-orders-cards-container');
   const tbody = document.getElementById('orders-tbody');
@@ -475,7 +511,7 @@ async function loadOrders(storeId, silent = false) {
   }
 
   try {
-    const data = await apiRequest(`/admin/stores/${storeId}/orders`);
+    const data = await apiRequest(`/admin/stores/${effectiveStoreId}/orders`);
     const fetchedOrders = data.orders || [];
 
     // Background arrival detection: if we already have known IDs, detect new PLACED orders
@@ -504,12 +540,13 @@ async function loadOrders(storeId, silent = false) {
 
     currentOrdersList = fetchedOrders;
 
-    // Render views (React component for zero-reload diffing if loaded)
-    if (typeof window.mountAdminActiveOrdersBoard === 'function') {
-      window.mountAdminActiveOrdersBoard();
-    } else {
+    // Authoritative direct rendering: render active cards immediately
+    if (currentOrdersViewMode === 'active') {
       renderActiveOrdersBoard();
+    } else {
+      renderOrdersTable();
     }
+    // Keep table in sync in memory
     renderOrdersTable();
 
     // Update badges
@@ -556,10 +593,23 @@ function renderActiveOrdersBoard() {
   if (!container) return;
 
   // Filter active orders that require action or pickup
-  const activeOrders = currentOrdersList.filter(o => {
+  let activeOrders = currentOrdersList.filter(o => {
     const s = (o.status || '').toUpperCase();
     return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
   });
+
+  if (currentStoreOrderFilter && currentStoreOrderFilter !== 'all') {
+    activeOrders = activeOrders.filter(o => (o.store_id || o.storeId) === currentStoreOrderFilter);
+  }
+
+  if (currentSearchQuery) {
+    activeOrders = activeOrders.filter(o => {
+      const matchNum = String(o.order_number_display || o.order_number || o.id).toLowerCase().includes(currentSearchQuery);
+      const matchName = String(o.user_name || o.customerName || '').toLowerCase().includes(currentSearchQuery);
+      const matchLoc = String(o.delivery_location || o.user_hostel || '').toLowerCase().includes(currentSearchQuery);
+      return matchNum || matchName || matchLoc;
+    });
+  }
 
   // Sort orders: Strict FIFO chronological order (earliest/first placed order at the top)
   activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
@@ -1058,7 +1108,19 @@ async function progressOrderStep(orderId, nextStatus) {
     showToast(`Failed to update order: ${err.message}`, 'error');
   }
 }
-window.progressOrderStep = progressOrderStep;
+async function cancelOrderQuick(orderId) {
+  if (!confirm(`Are you sure you want to cancel order ${orderId}?`)) return;
+  try {
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.updateOrderStatus === 'function') {
+      await window.UniMallDB.updateOrderStatus(orderId, 'cancelled', 'Cancelled by store admin');
+    }
+    showToast(`Order ${orderId} cancelled`, 'info');
+    const store = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
+    loadOrders(store, true);
+  } catch (err) {
+    showToast(`Failed to cancel: ${err.message}`, 'error');
+  }
+}
 window.cancelOrderQuick = cancelOrderQuick;
 
 function renderOrdersTable() {
@@ -1073,6 +1135,19 @@ function renderOrdersTable() {
         return s === 'COMPLETED' || s === 'DELIVERED';
       }
       return s === currentOrderStatusFilter;
+    });
+  }
+
+  if (currentStoreOrderFilter && currentStoreOrderFilter !== 'all') {
+    filtered = filtered.filter(o => (o.store_id || o.storeId) === currentStoreOrderFilter);
+  }
+
+  if (currentSearchQuery) {
+    filtered = filtered.filter(o => {
+      const matchNum = String(o.order_number_display || o.order_number || o.id).toLowerCase().includes(currentSearchQuery);
+      const matchName = String(o.user_name || o.customer_name || '').toLowerCase().includes(currentSearchQuery);
+      const matchLoc = String(o.delivery_address || o.delivery_location || '').toLowerCase().includes(currentSearchQuery);
+      return matchNum || matchName || matchLoc;
     });
   }
 

@@ -396,146 +396,159 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       window.UniMallDB.syncUser({ id: userId, uid: userId, name: studentName, email: studentEmail, phone: studentPhone }).catch(() => {});
     }
 
+    // 2. Multi-Store Cart Splitting: Group items by canonical store ID
     const CANONICAL_STORE_MAP = {
       'store-bakery':      'campus-cafe',
       'store-stationery':  'book-corner',
       'store-electronics': 'techstop',
       'store-print':       'campus-mart',
       'store-fashion':     'campus-wear',
-      'store-sports':      'health-hub',
-    };
-    const rawStoreId = CartState.items[0]?.product?.storeId || 'campus-cafe';
-    const firstStoreId = CANONICAL_STORE_MAP[rawStoreId] || rawStoreId;
-    const storeObj = (typeof STORES !== 'undefined')
-      ? STORES.find(s => s.id === firstStoreId || s.id === rawStoreId)
-      : null;
-
-    const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
-    const otp = String(Math.floor(1000 + Math.random() * 9000));
-    // Unique 4-digit token based on order ID
-    const displayOrderNum = '#ORD-' + String(orderId).slice(-4);
-
-    const newOrder = {
-      id: orderId,
-      order_number_display: displayOrderNum,
-      user_id: userId,
-      customerName: studentName,
-      user_name: studentName,
-      user_phone: studentPhone,
-      customer: {
-        name: studentName,
-        phone: studentPhone,
-        email: studentEmail
-      },
-      storeId: firstStoreId,
-      storeName: storeObj ? storeObj.name : 'Campus Store',
-      storeIcon: CartState.items[0]?.product?.emoji || '🛍️',
-      items: CartState.items.map(item => ({
-        productId: item.productId,
-        name: item.product.name,
-        price: item.product.price,
-        qty: item.qty,
-        image: item.product.image || '',
-        emoji: item.product.emoji || '📦'
-      })),
-      subtotal: totals.subtotal,
-      deliveryFee: 0,
-      discount: totals.discountAmount,
-      packagingFee: totals.packagingFee,
-      total: totals.grandTotal,
-      fulfillmentType: 'pickup',
-      pickupLocation: 'Ground floor, near main entrance',
-      otp: otp,
-      orderNotes: CartState.orderNotes,
-      paymentMethod: paymentMethodLabel,
-      paymentId: paymentId || null,
-      paymentStatus: paymentId ? 'PAID' : 'PENDING_AT_COUNTER',
-      status: 'placed',
-      statusHistory: [
-        { status: 'placed', time: new Date().toISOString(), label: 'Order Placed & Paid' }
-      ],
-      createdAt: new Date().toISOString()
+      'store-sports':      'campus-mart',
+      'store-pharmacy':    'health-hub'
     };
 
-    // 1. Insert into Neon PostgreSQL if available
-    if (typeof window.UniMallDB !== 'undefined') {
-      const supabasePayload = {
-        id: orderId,
-        order_number: displayOrderNum,
-        user_id: userId,
-        user_name: studentName,
-        user_email: studentEmail,
-        user_phone: studentPhone,
-        user_hostel: user.hostel || 'Counter Pickup',
-        user_room: user.room || 'Ground Floor Station',
-        store_id: firstStoreId,
-        status: 'placed',
-        fulfillment_type: 'pickup',
-        subtotal: totals.subtotal,
-        delivery_fee: 0,
-        total: totals.grandTotal,
-        payment_method: paymentMethodLabel,
-        notes: CartState.orderNotes || ''
-      };
-
-      await window.UniMallDB.createOrder(supabasePayload, newOrder.items).catch(err => {
-        console.warn('[UniMall] Neon DB order insert notice:', err.message);
-      });
+    const storeGroups = {};
+    for (const item of CartState.items) {
+      const rawStoreId = item.product?.storeId || 'campus-cafe';
+      const storeId = CANONICAL_STORE_MAP[rawStoreId] || rawStoreId;
+      if (!storeGroups[storeId]) storeGroups[storeId] = [];
+      storeGroups[storeId].push(item);
     }
 
-    // 2. Add to beginning of local orders cache for this user only
-    if (Array.isArray(appData.orders)) {
-      appData.orders = appData.orders.filter(o => o.user_id === userId || !o.user_id);
-      appData.orders.forEach(o => {
-        const s = (o.status || '').toLowerCase();
-        if (s === 'delivered' || s === 'completed') {
-          o.status = 'delivered';
-        }
-      });
-    } else {
+    const storeIds = Object.keys(storeGroups);
+    const createdOrders = [];
+
+    if (!Array.isArray(appData.orders)) {
       appData.orders = [];
     }
-    appData.orders.unshift(newOrder);
+    appData.orders = appData.orders.filter(o => o.user_id === userId || !o.user_id);
 
-    // 3. Clear cart ONLY AFTER order is securely registered
+    // Create an isolated, dedicated order per campus store
+    for (const sId of storeIds) {
+      const sItems = storeGroups[sId];
+      const sSubtotal = sItems.reduce((sum, it) => sum + ((it.product?.price || 0) * it.qty), 0);
+      const sDiscount = totals.subtotal > 0 ? Math.round((sSubtotal / totals.subtotal) * totals.discountAmount) : 0;
+      const sPackaging = totals.subtotal > 0 ? Math.round((sSubtotal / totals.subtotal) * totals.packagingFee) : 0;
+      const sTotal = Math.max(0, sSubtotal - sDiscount + sPackaging);
+
+      const storeObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === sId) : null;
+      const sName = storeObj ? storeObj.name : 'Campus Store';
+      const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
+      const displayOrderNum = '#ORD-' + String(orderId).slice(-4);
+      const otp = String(Math.floor(1000 + Math.random() * 9000));
+
+      const newOrder = {
+        id: orderId,
+        order_number_display: displayOrderNum,
+        user_id: userId,
+        customerName: studentName,
+        user_name: studentName,
+        user_phone: studentPhone,
+        customer: {
+          name: studentName,
+          phone: studentPhone,
+          email: studentEmail
+        },
+        storeId: sId,
+        storeName: sName,
+        storeIcon: sItems[0]?.product?.emoji || '🛍️',
+        items: sItems.map(item => ({
+          productId: item.productId,
+          name: item.product.name,
+          price: item.product.price,
+          qty: item.qty,
+          image: item.product.image || '',
+          emoji: item.product.emoji || '📦'
+        })),
+        subtotal: sSubtotal,
+        deliveryFee: 0,
+        discount: sDiscount,
+        packagingFee: sPackaging,
+        total: sTotal,
+        fulfillmentType: 'pickup',
+        pickupLocation: 'Ground floor, near main entrance',
+        otp: otp,
+        orderNotes: CartState.orderNotes,
+        paymentMethod: paymentMethodLabel,
+        paymentId: paymentId || null,
+        paymentStatus: paymentId ? 'PAID' : 'PENDING_AT_COUNTER',
+        status: 'placed',
+        statusHistory: [
+          { status: 'placed', time: new Date().toISOString(), label: 'Order Placed & Paid' }
+        ],
+        createdAt: new Date().toISOString()
+      };
+
+      // 1. Insert into Neon PostgreSQL
+      if (typeof window.UniMallDB !== 'undefined') {
+        const supabasePayload = {
+          id: orderId,
+          order_number: displayOrderNum,
+          user_id: userId,
+          user_name: studentName,
+          user_email: studentEmail,
+          user_phone: studentPhone,
+          user_hostel: user.hostel || 'Counter Pickup',
+          user_room: user.room || 'Ground Floor Station',
+          store_id: sId,
+          status: 'placed',
+          fulfillment_type: 'pickup',
+          subtotal: sSubtotal,
+          delivery_fee: 0,
+          total: sTotal,
+          payment_method: paymentMethodLabel,
+          notes: CartState.orderNotes || ''
+        };
+
+        await window.UniMallDB.createOrder(supabasePayload, newOrder.items).catch(err => {
+          console.warn('[UniMall] Neon DB order insert notice:', err.message);
+        });
+      }
+
+      // Add to local state & list
+      appData.orders.unshift(newOrder);
+      createdOrders.push(newOrder);
+
+      // Trigger Cross-Tab Realtime storage notification for store owner
+      try {
+        localStorage.setItem('unimall_new_order_placed_event', JSON.stringify({
+          orderId: newOrder.id,
+          displayNum: newOrder.order_number_display,
+          storeId: sId,
+          total: newOrder.total,
+          customerName: studentName,
+          itemsCount: newOrder.items.length,
+          timestamp: Date.now()
+        }));
+      } catch(e) {}
+
+      // Broadcast on BroadcastChannel for instant live sync without reload
+      try {
+        const bc = new BroadcastChannel('unimall_orders_channel');
+        bc.postMessage({
+          type: 'ORDER_PLACED',
+          orderId: newOrder.id,
+          displayNum: newOrder.order_number_display,
+          storeId: sId,
+          total: newOrder.total,
+          customerName: studentName,
+          itemsCount: newOrder.items.length,
+          timestamp: Date.now()
+        });
+        bc.close();
+      } catch(e) {}
+
+      // Dispatch local custom event for reactive banner & views
+      try {
+        window.dispatchEvent(new CustomEvent('unimall:orderPlaced', { detail: newOrder }));
+      } catch(e) {}
+    }
+
+    // Clear cart ONLY AFTER all store orders are registered
     appData.cart = [];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
 
-    // 4. Trigger Cross-Tab Realtime storage notification for store owner
-    try {
-      localStorage.setItem('unimall_new_order_placed_event', JSON.stringify({
-        orderId: newOrder.id,
-        displayNum: newOrder.order_number_display,
-        storeId: firstStoreId,
-        total: newOrder.total,
-        customerName: studentName,
-        itemsCount: newOrder.items.length,
-        timestamp: Date.now()
-      }));
-    } catch(e) {}
-
-    // 5. Broadcast on BroadcastChannel for instant live sync without reload
-    try {
-      const bc = new BroadcastChannel('unimall_orders_channel');
-      bc.postMessage({
-        type: 'ORDER_PLACED',
-        orderId: newOrder.id,
-        displayNum: newOrder.order_number_display,
-        storeId: firstStoreId,
-        total: newOrder.total,
-        customerName: studentName,
-        itemsCount: newOrder.items.length,
-        timestamp: Date.now()
-      });
-      bc.close();
-    } catch(e) {}
-
-    // Dispatch local custom event for reactive banner & views
-    try {
-      window.dispatchEvent(new CustomEvent('unimall:orderPlaced', { detail: newOrder }));
-    } catch(e) {}
-
-    // 5. Celebration: Subtle chime + confetti + exciting pop-up
+    // Celebration: Subtle chime + confetti + exciting pop-up
     playOrderPlacedChime();
     if (typeof window.UniMallConfetti === 'function') window.UniMallConfetti();
 
@@ -544,13 +557,24 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     const etaEl = document.getElementById('successEtaText');
     const trackBtn = document.getElementById('btnTrackSuccess');
 
-    if (idEl) idEl.textContent = `Order ${displayOrderNum}`;
+    const primaryOrder = createdOrders[0] || {};
+    if (idEl) {
+      if (createdOrders.length > 1) {
+        idEl.textContent = `${createdOrders.length} Orders Placed (${createdOrders.map(o => o.order_number_display).join(', ')})`;
+      } else {
+        idEl.textContent = `Order ${primaryOrder.order_number_display || ''}`;
+      }
+    }
     if (etaEl) {
-      etaEl.innerHTML = `🛍️ Ready for counter pickup in ~10–15 mins · OTP: <strong>${newOrder.otp || '4829'}</strong>`;
+      if (createdOrders.length > 1) {
+        etaEl.innerHTML = `🛍️ Split across <strong>${createdOrders.map(o => o.storeName).join(' & ')}</strong> · Collect at respective store counters`;
+      } else {
+        etaEl.innerHTML = `🛍️ Ready for counter pickup at <strong>${primaryOrder.storeName || 'Campus Store'}</strong> in ~10–15 mins · OTP: <strong>${primaryOrder.otp || '4829'}</strong>`;
+      }
     }
     if (trackBtn) {
       trackBtn.onclick = () => {
-        window.location.href = `orders.html#${orderId}`;
+        window.location.href = `orders.html#${primaryOrder.id}`;
       };
     }
 

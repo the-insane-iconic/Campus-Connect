@@ -724,20 +724,16 @@
 
   // Mount on view change
   window.addEventListener('unimall:viewChanged', (e) => {
-    if (e.detail.viewName === 'orders') {
-      mountAdminActiveOrdersBoard();
-    } else if (e.detail.viewName === 'dashboard') {
+    if (e.detail.viewName === 'dashboard') {
       mountAdminDashboardOrdersStream();
     }
   });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      mountAdminActiveOrdersBoard();
       mountAdminDashboardOrdersStream();
     });
   } else {
-    mountAdminActiveOrdersBoard();
     mountAdminDashboardOrdersStream();
   }
 })();

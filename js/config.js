@@ -103,8 +103,10 @@ window.UniMallDB = {
    */
   async neonSql(query, params = []) {
     const url = window.UNIMALL_CONFIG.NEON_SQL_URL;
+    // Note: Do NOT send 'Content-Type': 'application/json' because Neon SQL HTTP API
+    // CORS preflight only permits Authorization, Neon-Connection-String... in Access-Control-Allow-Headers.
+    // Fetch automatically uses text/plain for string bodies which is a CORS-safelisted type.
     const headers = {
-      'Content-Type': 'application/json',
       'Neon-Connection-String': window.UNIMALL_CONFIG.NEON_CONNECTION_STRING
     };
 
@@ -562,5 +564,329 @@ window.UniMallDB = {
       }).catch(() => {});
     }
     return () => {};
+  },
+
+  /**
+   * ── Get Authoritative Dashboard Metrics & Store Sales Payout Ledger ──
+   * Calculates Today's Gross Sales, Unique Customers, and Store-by-Store Payout Ledger
+   */
+  async getDashboardMetrics(storeId = null) {
+    try {
+      const isPlatform = !storeId || storeId === 'all';
+
+      // 1. Query Store-by-Store Sales & Customers Breakdown Today
+      const storeBreakdownRows = await this.neonSql(`
+        SELECT s.id AS store_id, s.name AS store_name, s.category,
+               COUNT(o.id) AS today_orders_count,
+               COALESCE(SUM(o.total), 0) AS today_gross_sales,
+               COUNT(DISTINCT o.user_id) AS today_customers_count,
+               COALESCE(SUM(CASE WHEN o.payment_method IN ('online', 'razorpay', 'Instant Pay (Verified)', 'Razorpay Instant (Paid)', 'Razorpay Instant') THEN o.total ELSE 0 END), 0) AS digital_sales,
+               COALESCE(SUM(CASE WHEN o.payment_method IN ('cod', 'cash', 'Pay at Counter') THEN o.total ELSE 0 END), 0) AS cash_sales
+        FROM unimall_stores s
+        LEFT JOIN unimall_orders o ON s.id = o.store_id AND o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        GROUP BY s.id, s.name, s.category
+        ORDER BY today_gross_sales DESC, s.name ASC;
+      `);
+
+      // 2. Query Today's Overall Totals & Active Orders
+      let totalQuery = `
+        SELECT 
+          COALESCE(SUM(total), 0) AS today_sales,
+          COUNT(id) AS today_orders,
+          COUNT(DISTINCT user_id) AS today_customers,
+          COUNT(CASE WHEN status IN ('placed', 'preparing', 'ready', 'out_for_delivery') THEN 1 END) AS active_orders
+        FROM unimall_orders
+        WHERE created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+      `;
+      const totalParams = [];
+      if (!isPlatform) {
+        totalQuery += ` AND store_id = $1`;
+        totalParams.push(storeId);
+      }
+      const totalRows = await this.neonSql(totalQuery, totalParams);
+      const totals = totalRows && totalRows[0] ? totalRows[0] : {};
+
+      // 3. Query Lifetime / All-Time Summary
+      let lifeQuery = `
+        SELECT 
+          COALESCE(SUM(total), 0) AS lifetime_sales,
+          COUNT(id) AS lifetime_orders,
+          COUNT(DISTINCT user_id) AS lifetime_customers
+        FROM unimall_orders
+      `;
+      const lifeParams = [];
+      if (!isPlatform) {
+        lifeQuery += ` WHERE store_id = $1`;
+        lifeParams.push(storeId);
+      }
+      const lifeRows = await this.neonSql(lifeQuery, lifeParams);
+      const lifetime = lifeRows && lifeRows[0] ? lifeRows[0] : {};
+
+      // Canonical Campus Stores ensuring complete 6-store coverage
+      const CANONICAL_STORES = [
+        { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
+        { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
+        { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
+        { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
+        { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
+        { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
+      ];
+
+      const breakdownMap = {};
+      (storeBreakdownRows || []).forEach(r => {
+        breakdownMap[r.store_id] = r;
+      });
+
+      // Format Store Payout Ledger (5% Platform Commission, 95% Store Net Payout)
+      const storesLedger = CANONICAL_STORES.map(base => {
+        const row = breakdownMap[base.store_id] || {};
+        const grossSales = parseFloat(row.today_gross_sales || 0);
+        const digitalSales = parseFloat(row.digital_sales || 0);
+        const cashSales = parseFloat(row.cash_sales || 0);
+        const platformFee = Math.round(grossSales * 0.05); // 5% campus commission
+        const netPayout = Math.max(0, grossSales - platformFee);
+
+        return {
+          store_id: base.store_id,
+          store_name: row.store_name || base.store_name,
+          category: row.category || base.category,
+          today_orders_count: parseInt(row.today_orders_count || 0, 10),
+          today_customers_count: parseInt(row.today_customers_count || 0, 10),
+          today_gross_sales: grossSales,
+          digital_sales: digitalSales,
+          cash_sales: cashSales,
+          platform_fee: platformFee,
+          net_payout: netPayout,
+          settlement_status: grossSales > 0 ? 'Due for Distribution' : 'No Sales Today'
+        };
+      });
+
+      // Append any newly registered stores not in canonical list
+      (storeBreakdownRows || []).forEach(row => {
+        if (!CANONICAL_STORES.some(c => c.store_id === row.store_id)) {
+          const grossSales = parseFloat(row.today_gross_sales || 0);
+          const digitalSales = parseFloat(row.digital_sales || 0);
+          const cashSales = parseFloat(row.cash_sales || 0);
+          const platformFee = Math.round(grossSales * 0.05);
+          const netPayout = Math.max(0, grossSales - platformFee);
+          storesLedger.push({
+            store_id: row.store_id,
+            store_name: row.store_name,
+            category: row.category || 'general',
+            today_orders_count: parseInt(row.today_orders_count || 0, 10),
+            today_customers_count: parseInt(row.today_customers_count || 0, 10),
+            today_gross_sales: grossSales,
+            digital_sales: digitalSales,
+            cash_sales: cashSales,
+            platform_fee: platformFee,
+            net_payout: netPayout,
+            settlement_status: grossSales > 0 ? 'Due for Distribution' : 'No Sales Today'
+          });
+        }
+      });
+
+      // Sort by today's sales descending
+      storesLedger.sort((a, b) => b.today_gross_sales - a.today_gross_sales);
+
+      const todayGrossSales = parseFloat(totals.today_sales || 0);
+      const todayTotalFee = Math.round(todayGrossSales * 0.05);
+      const todayNetPayout = Math.max(0, todayGrossSales - todayTotalFee);
+
+      return {
+        today_sales: todayGrossSales,
+        today_orders: parseInt(totals.today_orders || 0, 10),
+        today_customers: parseInt(totals.today_customers || 0, 10),
+        active_orders: parseInt(totals.active_orders || 0, 10),
+        platform_fee_total: todayTotalFee,
+        net_payout_total: todayNetPayout,
+        lifetime_sales: parseFloat(lifetime.lifetime_sales || 0),
+        lifetime_orders: parseInt(lifetime.lifetime_orders || 0, 10),
+        lifetime_customers: parseInt(lifetime.lifetime_customers || 0, 10),
+        stores_ledger: storesLedger
+      };
+    } catch (e) {
+      console.warn('[UniMallDB] getDashboardMetrics error:', e.message);
+      const CANONICAL_FALLBACK = [
+        { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
+        { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
+        { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
+        { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
+        { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
+        { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
+      ].map(s => ({
+        ...s,
+        today_orders_count: 0,
+        today_customers_count: 0,
+        today_gross_sales: 0,
+        digital_sales: 0,
+        cash_sales: 0,
+        platform_fee: 0,
+        net_payout: 0,
+        settlement_status: 'No Sales Today'
+      }));
+
+      return {
+        today_sales: 0,
+        today_orders: 0,
+        today_customers: 0,
+        active_orders: 0,
+        platform_fee_total: 0,
+        net_payout_total: 0,
+        lifetime_sales: 0,
+        lifetime_orders: 0,
+        lifetime_customers: 0,
+        stores_ledger: CANONICAL_FALLBACK
+      };
+    }
+  },
+
+  /**
+   * ── Get Deep Analytics (Rush Curve, Top Products, Store Matrix, Payment Splits) ──
+   */
+  async getDeepAnalytics(storeId = null, period = 'all') {
+    try {
+      const isPlatform = !storeId || storeId === 'all';
+      let dateFilter = '';
+      if (period === 'today') {
+        dateFilter = ` AND o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`;
+      } else if (period === 'week') {
+        dateFilter = ` AND o.created_at >= (NOW() - INTERVAL '7 days')`;
+      } else if (period === 'month') {
+        dateFilter = ` AND o.created_at >= (NOW() - INTERVAL '30 days')`;
+      }
+
+      let storeFilter = '';
+      const params = [];
+      if (!isPlatform) {
+        params.push(storeId);
+        storeFilter = ` AND o.store_id = $${params.length}`;
+      }
+
+      // 1. Overall KPI metrics for period
+      const summaryRows = await this.neonSql(`
+        SELECT 
+          COALESCE(SUM(o.total), 0) AS revenue,
+          COUNT(o.id) AS orders_count,
+          COUNT(DISTINCT o.user_id) AS customers_count,
+          COALESCE(AVG(o.total), 0) AS avg_order_value
+        FROM unimall_orders o
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+      `, params);
+      const summary = summaryRows && summaryRows[0] ? summaryRows[0] : {};
+
+      // 2. Units sold across items
+      const unitsRows = await this.neonSql(`
+        SELECT COALESCE(SUM(oi.qty), 0) AS units_sold
+        FROM unimall_order_items oi
+        JOIN unimall_orders o ON oi.order_id = o.id
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+      `, params);
+      const unitsSold = unitsRows && unitsRows[0] ? parseInt(unitsRows[0].units_sold || 0, 10) : 0;
+
+      // 3. Peak Campus Rush Hours (Hourly Distribution 0 - 23)
+      const hourlyRows = await this.neonSql(`
+        SELECT EXTRACT(HOUR FROM (o.created_at AT TIME ZONE 'Asia/Kolkata'))::int AS hr,
+               COUNT(o.id) AS orders_count,
+               COALESCE(SUM(o.total), 0) AS revenue
+        FROM unimall_orders o
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+        GROUP BY hr
+        ORDER BY hr ASC;
+      `, params);
+
+      // 4. Store Performance Comparison Matrix
+      const storeMatrixRows = await this.neonSql(`
+        SELECT s.id AS store_id, s.name AS store_name, s.category,
+               COUNT(o.id) AS orders_count,
+               COALESCE(SUM(o.total), 0) AS revenue,
+               COUNT(DISTINCT o.user_id) AS customers_count,
+               COALESCE(AVG(o.total), 0) AS aov
+        FROM unimall_stores s
+        LEFT JOIN unimall_orders o ON s.id = o.store_id ${dateFilter}
+        GROUP BY s.id, s.name, s.category
+        ORDER BY revenue DESC, orders_count DESC;
+      `);
+
+      // 5. Top 10 Best-Selling Campus Products Leaderboard
+      const topProductsRows = await this.neonSql(`
+        SELECT oi.product_name, oi.emoji,
+               SUM(oi.qty) AS units_sold,
+               SUM(oi.price * oi.qty) AS gross_sales,
+               MAX(s.name) AS store_name
+        FROM unimall_order_items oi
+        JOIN unimall_orders o ON oi.order_id = o.id
+        LEFT JOIN unimall_stores s ON o.store_id = s.id
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+        GROUP BY oi.product_name, oi.emoji
+        ORDER BY units_sold DESC, gross_sales DESC
+        LIMIT 10;
+      `, params);
+
+      // 6. Payment Method Breakdown
+      const paymentRows = await this.neonSql(`
+        SELECT 
+          CASE 
+            WHEN o.payment_method IN ('online', 'razorpay', 'Instant Pay (Verified)', 'Razorpay Instant (Paid)', 'Razorpay Instant') THEN 'Razorpay Instant (Digital)'
+            WHEN o.payment_method IN ('cod', 'cash', 'Pay at Counter') THEN 'Pay at Counter (Cash / UPI)'
+            ELSE COALESCE(o.payment_method, 'Digital Online')
+          END AS method,
+          COUNT(o.id) AS orders_count,
+          COALESCE(SUM(o.total), 0) AS total_sales
+        FROM unimall_orders o
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+        GROUP BY method
+        ORDER BY total_sales DESC;
+      `, params);
+
+      // 7. Fulfillment Breakdown (Hostel Delivery vs Counter Pickup)
+      const fulfillmentRows = await this.neonSql(`
+        SELECT 
+          CASE 
+            WHEN o.fulfillment_type = 'delivery' OR o.user_hostel IS NOT NULL THEN 'Hostel Room Delivery'
+            ELSE 'Counter Self-Pickup'
+          END AS fulfillment,
+          COUNT(o.id) AS orders_count,
+          COALESCE(SUM(o.total), 0) AS total_sales
+        FROM unimall_orders o
+        WHERE 1=1 ${dateFilter} ${storeFilter}
+        GROUP BY fulfillment
+        ORDER BY total_sales DESC;
+      `, params);
+
+      return {
+        revenue: parseFloat(summary.revenue || 0),
+        orders: parseInt(summary.orders_count || 0, 10),
+        customers: parseInt(summary.customers_count || 0, 10),
+        average_order_value: parseFloat(summary.avg_order_value || 0),
+        units_sold: unitsSold,
+        hourly_rush: hourlyRows || [],
+        store_matrix: storeMatrixRows || [],
+        top_products: (topProductsRows || []).map(p => ({
+          name: p.product_name,
+          emoji: p.emoji || '📦',
+          units_sold: parseInt(p.units_sold || 0, 10),
+          sold_count: parseInt(p.units_sold || 0, 10),
+          gross_sales: parseFloat(p.gross_sales || 0),
+          total_sales: parseFloat(p.gross_sales || 0),
+          store_name: p.store_name || 'Campus Store'
+        })),
+        payment_splits: paymentRows || [],
+        fulfillment_splits: fulfillmentRows || []
+      };
+    } catch (e) {
+      console.warn('[UniMallDB] getDeepAnalytics error:', e.message);
+      return {
+        revenue: 0,
+        orders: 0,
+        customers: 0,
+        average_order_value: 0,
+        units_sold: 0,
+        hourly_rush: [],
+        store_matrix: [],
+        top_products: [],
+        payment_splits: [],
+        fulfillment_splits: []
+      };
+    }
   }
 };

@@ -1,11 +1,11 @@
 /**
  * UniMall Store Admin — Dashboard Controller (admin/js/dashboard.js)
- * Supports:
- *   - Cumulative Platform Executive Overview (when activeStoreId === 'all' or Platform Admin)
- *   - Single Store Operational Dashboard (when activeStoreId !== 'all')
+ * Authoritative Backend-Driven Platform Overview & Daily Store Payout Distribution Ledger
  */
 
 'use strict';
+
+let currentDashboardMetrics = null;
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'dashboard') {
@@ -21,610 +21,454 @@ window.addEventListener('unimall:storeChanged', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Quick action buttons on dashboard
-  const btnAdd = document.getElementById('dash-btn-add-product');
-  if (btnAdd) {
-    btnAdd.addEventListener('click', () => {
-      if (typeof window.openProductModal === 'function') {
-        window.openProductModal();
-      } else {
-        window.switchView('products');
-      }
-    });
-  }
-
-  const btnQuick = document.getElementById('dash-btn-quick-add');
-  if (btnQuick) {
-    btnQuick.addEventListener('click', () => {
-      if (typeof window.openQuickAddModal === 'function') {
-        window.openQuickAddModal();
-      } else {
-        window.switchView('products');
-      }
-    });
-  }
-
-  // Dashboard links to full views
-  const linkOrders = document.getElementById('dash-link-all-orders');
-  if (linkOrders) linkOrders.addEventListener('click', () => window.switchView('orders'));
-
-  const linkInv = document.getElementById('dash-link-inventory');
-  if (linkInv) linkInv.addEventListener('click', () => {
-    if (window.activeStoreId === 'all') {
-      window.switchView('founder');
-    } else {
-      window.switchView('inventory');
+  // Listen for order status updates from other tabs
+  window.addEventListener('unimall:orderStatusUpdated', () => {
+    const currentActiveView = document.querySelector('.admin-view.active');
+    if (currentActiveView && currentActiveView.id === 'view-dashboard') {
+      loadDashboard(window.activeStoreId);
     }
   });
 
-  const linkAnalytics = document.getElementById('dash-link-analytics');
-  if (linkAnalytics) linkAnalytics.addEventListener('click', () => window.switchView('analytics'));
+  try {
+    const bc = new BroadcastChannel('unimall_orders_channel');
+    bc.onmessage = (event) => {
+      const currentActiveView = document.querySelector('.admin-view.active');
+      if (currentActiveView && currentActiveView.id === 'view-dashboard') {
+        loadDashboard(window.activeStoreId);
+      }
+    };
+  } catch (e) {}
 });
-
-async function loadDashboard(storeId) {
-  const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
-  const isPlatformView = (effectiveStoreId === 'all') || (currentAdminUser && currentAdminUser.role === 'platform_admin' && effectiveStoreId === 'all');
-
-  if (isPlatformView) {
-    await loadPlatformCumulativeDashboard();
-  } else {
-    await loadSingleStoreDashboard(effectiveStoreId);
-  }
-}
 
 /**
  * ────────────────────────────────────────────────────────────────
- * 1. PLATFORM CUMULATIVE DASHBOARD (Platform Admin View)
+ * LOAD DASHBOARD (Directly & Authoritatively from Neon PostgreSQL)
  * ────────────────────────────────────────────────────────────────
  */
-async function loadPlatformCumulativeDashboard() {
+async function loadDashboard(storeId) {
+  const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
+  const isPlatformUser = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+  const isPlatformView = (effectiveStoreId === 'all') || isPlatformUser;
+
+  // 1. Update Header Greeting
+  const greetingEl = document.getElementById('dash-greeting');
+  const storeSubEl = document.getElementById('dash-store-sub');
+
+  if (greetingEl) {
+    if (isPlatformView) {
+      greetingEl.textContent = 'Campus Operations & Daily Settlement';
+    } else {
+      const currentStore = (currentAuthorizedStores || []).find(s => s.store_id === effectiveStoreId);
+      const sName = currentStore ? currentStore.store_name : 'Campus Store';
+      greetingEl.textContent = `Good morning, ${sName}`;
+    }
+  }
+
+  if (storeSubEl) {
+    if (isPlatformView) {
+      storeSubEl.textContent = "Today's sales, student footfall, and end-of-day store payout distribution ledger";
+    } else {
+      storeSubEl.textContent = "Store Operating Overview · Counter queue, daily sales & stock";
+    }
+  }
+
+  // 2. Query Authoritative Dashboard Metrics from Neon PostgreSQL
   try {
-    // 1. Header greeting & subtitle
-    const greetingEl = document.getElementById('dash-greeting');
-    const storeSubEl = document.getElementById('dash-store-sub');
-    const headerActions = document.getElementById('dash-header-actions');
-
-    if (greetingEl) {
-      const name = (currentAdminUser && currentAdminUser.name) ? currentAdminUser.name.split(' ')[0] : 'Admin';
-      greetingEl.textContent = `Good morning, ${name}`;
-    }
-    if (storeSubEl) {
-      storeSubEl.textContent = '🏢 Platform Executive Dashboard · Realtime Cumulative Analytics Across All Stores';
+    let metrics = null;
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getDashboardMetrics === 'function') {
+      metrics = await window.UniMallDB.getDashboardMetrics(isPlatformView ? 'all' : effectiveStoreId);
     }
 
-    // Configure header action buttons for platform admin
-    const btnAdd = document.getElementById('dash-btn-add-product');
-    const btnQuick = document.getElementById('dash-btn-quick-add');
-    if (btnAdd) {
-      btnAdd.textContent = '🏬 Registered Shops';
-      btnAdd.onclick = () => window.switchView('founder');
+    const CANONICAL_DEFAULT = [
+      { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
+      { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
+      { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
+      { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
+      { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
+      { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
+    ].map(s => ({
+      ...s,
+      today_orders_count: 0,
+      today_customers_count: 0,
+      today_gross_sales: 0,
+      digital_sales: 0,
+      cash_sales: 0,
+      platform_fee: 0,
+      net_payout: 0,
+      settlement_status: 'No Sales Today'
+    }));
+
+    if (!metrics) {
+      metrics = {
+        today_sales: 0,
+        today_orders: 0,
+        today_customers: 0,
+        active_orders: 0,
+        platform_fee_total: 0,
+        net_payout_total: 0,
+        stores_ledger: CANONICAL_DEFAULT
+      };
+    } else if (!metrics.stores_ledger || metrics.stores_ledger.length === 0) {
+      metrics.stores_ledger = CANONICAL_DEFAULT;
     }
-    if (btnQuick) {
-      btnQuick.textContent = '↻ Refresh Feed';
-      btnQuick.onclick = () => loadPlatformCumulativeDashboard();
-    }
 
-    // 2. Fetch authoritative orders across ALL stores from Neon PostgreSQL
-    const ordersData = await apiRequest('/admin/stores/all/orders');
-    const orders = ordersData.orders || [];
+    currentDashboardMetrics = metrics;
 
-    const todayOrders = orders.filter(o => {
-      if (!o.created_at) return true;
-      try {
-        const orderDate = new Date(o.created_at);
-        const isSameDay = orderDate.toDateString() === new Date().toDateString();
-        const isRecent = (Date.now() - orderDate.getTime()) < 24 * 3600 * 1000;
-        return isSameDay || isRecent;
-      } catch (e) {
-        return true;
-      }
-    });
+    // 3. Render Top Metric Ribbon
+    const salesEl = document.getElementById('dash-today-sales');
+    const customersEl = document.getElementById('dash-today-customers');
+    const ordersEl = document.getElementById('dash-today-orders');
+    const payoutEl = document.getElementById('dash-today-payout');
 
-    const activeOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes((o.status || '').toUpperCase()));
-    activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    if (salesEl) salesEl.textContent = `₹${Math.round(metrics.today_sales).toLocaleString('en-IN')}`;
+    if (customersEl) customersEl.textContent = metrics.today_customers;
+    if (ordersEl) ordersEl.textContent = metrics.today_orders;
+    if (payoutEl) payoutEl.textContent = `₹${Math.round(metrics.net_payout_total).toLocaleString('en-IN')}`;
 
-    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING'].includes((o.status || '').toUpperCase()));
-    const readyOrders = orders.filter(o => (o.status || '').toUpperCase() === 'READY');
+    // 4. Update Active Orders Counter & Banner
+    const activeBadge = document.getElementById('dash-active-count-badge');
+    if (activeBadge) activeBadge.textContent = metrics.active_orders;
 
-    const totalSales = todayOrders.reduce((sum, o) => {
-      const isCancelled = (o.status || '').toUpperCase() === 'CANCELLED';
-      const amt = Number(o.store_subtotal || o.total || o.total_amount || o.subtotal || 0);
-      return !isCancelled ? sum + amt : sum;
-    }, 0);
-
-    // Get stores list and operational open/close statuses
-    const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
-    const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-    const approvedReg = registeredStores.filter(r => r.status === 'approved');
-
-    const BASE_STORES = [
-      { id: 'campus-cafe', name: 'Campus Café', category: 'Food & Drinks', location: 'Ground Floor, Student Center', icon: '☕' },
-      { id: 'book-corner', name: 'Book Corner', category: 'Stationery & Books', location: 'First Floor, Block B', icon: '📚' },
-      { id: 'techstop', name: 'TechStop', category: 'Electronics & Peripherals', location: 'Second Floor, Unimall', icon: '💻' },
-      { id: 'campus-mart', name: 'Campus Mart', category: 'Daily Essentials & Snacks', location: 'Ground Floor, Unimall', icon: '🛒' },
-      { id: 'campus-wear', name: 'Campus Wear', category: 'Fashion & Apparel', location: 'First Floor, Unimall', icon: '👕' },
-      { id: 'health-hub', name: 'Health Hub', category: 'Health & Care', location: 'Ground Floor, Medical Wing', icon: '💊' },
-    ];
-
-    const allStoresList = [...BASE_STORES];
-    approvedReg.forEach(r => {
-      if (!allStoresList.some(s => s.id === r.storeId)) {
-        allStoresList.push({
-          id: r.storeId,
-          name: r.storeName,
-          category: r.storeType || 'General',
-          location: r.location || 'Campus Center',
-          icon: '🏪'
-        });
-      }
-    });
-
-    const onlineStoresCount = allStoresList.filter(s => storeStatuses[s.id] !== false).length;
-
-    // 3. Update Metric Cards for Platform View
-    const dashOrdersEl = document.getElementById('dash-today-orders');
-    const dashPendingEl = document.getElementById('dash-pending-orders');
-    const dashReadyEl = document.getElementById('dash-ready-orders');
-    const dashSalesEl = document.getElementById('dash-today-sales');
-
-    const lblOrders = document.getElementById('lbl-dash-orders') || document.querySelector('#card-metric-orders .metric-label');
-    const lblPending = document.getElementById('lbl-dash-pending') || document.querySelector('#card-metric-pending .metric-label');
-    const lblReady = document.getElementById('lbl-dash-ready') || document.querySelector('#card-metric-ready .metric-label');
-    const lblSales = document.getElementById('lbl-dash-sales') || document.querySelector('#card-metric-sales .metric-label');
-
-    if (lblOrders) lblOrders.textContent = "Today's Platform Orders";
-    if (lblPending) lblPending.textContent = "Active Kitchen / Prep";
-    if (lblReady) lblReady.textContent = "Active Stores Online";
-    if (lblSales) lblSales.textContent = "Overall Platform Sales";
-
-    if (dashOrdersEl) dashOrdersEl.textContent = todayOrders.length;
-    if (dashPendingEl) dashPendingEl.textContent = pendingOrders.length;
-    if (dashReadyEl) dashReadyEl.textContent = `${onlineStoresCount} / ${allStoresList.length}`;
-    if (dashSalesEl) dashSalesEl.textContent = `₹${totalSales.toLocaleString('en-IN')}`;
-
-    // Nav counter badges
     const counterOrders = document.getElementById('counter-orders');
-    if (counterOrders) counterOrders.textContent = activeOrders.length;
+    if (counterOrders) counterOrders.textContent = metrics.active_orders;
 
     const mobBadge = document.getElementById('mob-badge-orders');
     if (mobBadge) {
-      mobBadge.textContent = activeOrders.length;
-      mobBadge.classList.toggle('hidden', activeOrders.length === 0);
+      mobBadge.textContent = metrics.active_orders;
+      mobBadge.classList.toggle('hidden', metrics.active_orders === 0);
     }
 
-    // 3b. Authoritative Neon PostgreSQL Platform User Analytics & Lifetime GMV
-    const userAnalyticsCard = document.getElementById('dash-platform-user-analytics');
-    if (userAnalyticsCard) {
-      userAnalyticsCard.classList.remove('hidden');
+    // 5. Render Core End-of-Day Store Sales & Payout Distribution Ledger Table
+    renderStorePayoutLedger(metrics.stores_ledger, metrics);
 
-      let userStats = {
-        user_count: 6,
-        active_buyers: todayOrders.length,
-        total_orders: orders.length,
-        total_gmv: totalSales
-      };
-
-      if (window.UniMallDB && typeof window.UniMallDB.neonSql === 'function') {
-        try {
-          const dbRows = await window.UniMallDB.neonSql(`
-            SELECT 
-              (SELECT count(*) FROM users) as user_count,
-              (SELECT count(distinct user_email) FROM unimall_orders) as active_buyers,
-              (SELECT count(*) FROM unimall_orders) as total_orders,
-              (SELECT COALESCE(sum(total), 0) FROM unimall_orders) as total_gmv;
-          `);
-          if (dbRows && dbRows[0]) {
-            userStats = {
-              user_count: Number(dbRows[0].user_count || 0),
-              active_buyers: Number(dbRows[0].active_buyers || 0),
-              total_orders: Number(dbRows[0].total_orders || 0),
-              total_gmv: Number(dbRows[0].total_gmv || 0)
-            };
-          }
-        } catch (dbErr) {
-          console.warn('[Dashboard] User stats query fallback:', dbErr.message);
-        }
+    // 6. Single Store view: Show extra stock & product cards if viewing specific store
+    const singleStorePanels = document.getElementById('single-store-extra-panels');
+    if (singleStorePanels) {
+      singleStorePanels.classList.toggle('hidden', isPlatformView);
+      if (!isPlatformView) {
+        loadSingleStoreExtras(effectiveStoreId);
       }
-
-      const statUserCount = document.getElementById('stat-user-count');
-      const statActiveBuyers = document.getElementById('stat-active-buyers');
-      const statLifetimeGmv = document.getElementById('stat-lifetime-gmv');
-      const statLifetimeOrders = document.getElementById('stat-lifetime-orders');
-
-      if (statUserCount) statUserCount.textContent = userStats.user_count;
-      if (statActiveBuyers) statActiveBuyers.textContent = userStats.active_buyers;
-      if (statLifetimeGmv) statLifetimeGmv.textContent = `₹${userStats.total_gmv.toLocaleString('en-IN')}`;
-      if (statLifetimeOrders) statLifetimeOrders.textContent = userStats.total_orders;
     }
-
-    // 4. Render LEFT PANEL: Live Platform Orders Stream (React Powered)
-    const ordersTitle = document.getElementById('dash-orders-panel-title');
-    if (ordersTitle) ordersTitle.textContent = `⚡ Live Platform Orders Stream (${activeOrders.length} Active)`;
-    if (typeof window.mountAdminDashboardOrdersStream === 'function') {
-      window.mountAdminDashboardOrdersStream();
-    } else {
-      renderPlatformOrdersStream(activeOrders);
-    }
-
-    // 5. Render RIGHT PANEL TOP: Registered Stores Performance Summary
-    const invTitle = document.getElementById('dash-inventory-panel-title');
-    if (invTitle) invTitle.textContent = '🏪 Registered Stores Operational Breakdown';
-    renderPlatformStoresSummary(allStoresList, todayOrders, storeStatuses);
-
-    // 6. Render RIGHT PANEL BOTTOM: Top Selling Products Platform-Wide
-    const topProdsRes = await apiRequest('/admin/stores/all/analytics?period=today').catch(() => ({ top_products: [] }));
-    renderTopProducts(topProdsRes.top_products || []);
 
   } catch (err) {
-    console.error('Failed to load cumulative platform dashboard:', err);
+    console.error('[Dashboard] Error loading authoritative metrics:', err);
   }
 }
 
 /**
- * Renders the Platform-wide Active Orders Stream with store pill tags
+ * ────────────────────────────────────────────────────────────────
+ * RENDER STORE PAYOUT DISTRIBUTION LEDGER TABLE
+ * ────────────────────────────────────────────────────────────────
  */
-function renderPlatformOrdersStream(orders) {
-  const container = document.getElementById('dash-urgent-orders');
-  if (!container) return;
+function renderStorePayoutLedger(storesLedger, totals) {
+  const tbody = document.getElementById('store-payout-ledger-tbody');
+  if (!tbody) return;
 
-  if (orders.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 13.5px;">
-        ✨ All caught up! No active orders currently pending across any campus store.
-      </div>
-    `;
+  const STORE_ICONS = {
+    'campus-cafe': '☕',
+    'book-corner': '📚',
+    'techstop':    '💻',
+    'campus-mart': '🛒',
+    'campus-wear': '👕',
+    'health-hub':  '💊'
+  };
+
+  const settledStores = JSON.parse(localStorage.getItem('unimall_settled_stores_today_' + new Date().toDateString()) || '{}');
+
+  if (!storesLedger || storesLedger.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6" style="color:var(--text-muted);">No campus stores registered yet.</td></tr>`;
     return;
   }
 
-  const STORE_COLOR_MAP = {
-    'campus-cafe': { bg: '#FEF3C7', color: '#92400E', label: 'Campus Café' },
-    'book-corner': { bg: '#DBEAFE', color: '#1E40AF', label: 'Book Corner' },
-    'techstop':    { bg: '#E0E7FF', color: '#3730A3', label: 'TechStop' },
-    'campus-mart': { bg: '#DCFCE7', color: '#166534', label: 'Campus Mart' },
-    'campus-wear': { bg: '#F3E8FF', color: '#6B21A8', label: 'Campus Wear' },
-    'health-hub':  { bg: '#FEE2E2', color: '#991B1B', label: 'Health Hub' },
-  };
+  tbody.innerHTML = storesLedger.map(row => {
+    const icon = STORE_ICONS[row.store_id] || '🏪';
+    const isSettled = !!settledStores[row.store_id];
+    const hasSales = row.today_gross_sales > 0;
 
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 12px;">
-      ${orders.slice(0, 8).map(o => {
-        const custName = (o.user_name || o.customerName || 'Student').trim();
-        const itemCount = (o.items && Array.isArray(o.items)) ? o.items.length : 1;
-        const totalAmount = Number(o.store_subtotal || o.total || 0).toLocaleString('en-IN');
-        const storeTag = STORE_COLOR_MAP[o.store_id] || { bg: '#F1F5F9', color: '#334155', label: o.store_id || 'Campus Store' };
-        const statusVal = (o.status || 'placed').toUpperCase();
+    let statusPill = '';
+    if (isSettled) {
+      statusPill = `<span class="badge-status completed" style="font-size:11px; padding:3px 8px;">✅ Settled</span>`;
+    } else if (hasSales) {
+      statusPill = `<button type="button" class="btn-action primary" onclick="window.settleStorePayout('${row.store_id}', '${escapeHtml(row.store_name)}', ${row.net_payout})" style="font-size:11px; padding:4px 10px; height:28px;">
+        Disburse ₹${Math.round(row.net_payout).toLocaleString('en-IN')}
+      </button>`;
+    } else {
+      statusPill = `<span style="font-size:11.5px; color:var(--text-muted);">No Sales Today</span>`;
+    }
 
-        return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="flex: 1; min-width: 0; padding-right: 12px;">
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span style="background: ${storeTag.bg}; color: ${storeTag.color}; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.2px;">
-                ${storeTag.label}
-              </span>
-              <strong style="font-size: 13.5px;">${o.order_number_display || '#' + o.id}</strong>
-              <span class="badge-status ${(o.status || 'placed').toLowerCase()}" style="font-size: 11px;">${statusVal}</span>
-            </div>
-            <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              <strong>${escapeHtml(custName)}</strong> · ${itemCount} item${itemCount === 1 ? '' : 's'} · <span style="font-weight: 700; color: var(--text-main);">₹${totalAmount}</span>
-            </div>
-          </div>
-          <button type="button" class="btn-action primary" onclick="window.viewOrderDetail('${o.id}')" style="height: 32px; font-size: 12px; padding: 0 12px; white-space: nowrap;">
-            Process →
-          </button>
-        </div>
-      `;
-      }).join('')}
-    </div>
-  `;
-}
-
-/**
- * Renders the Registered Stores summary table on Platform Dashboard
- */
-function renderPlatformStoresSummary(stores, todayOrders, storeStatuses) {
-  const container = document.getElementById('dash-low-stock-list');
-  if (!container) return;
-
-  const aliasMap = {
-    'campus-cafe': ['store-bakery', 'campus-cafe'],
-    'book-corner': ['store-stationery', 'book-corner'],
-    'techstop': ['store-electronics', 'techstop'],
-    'campus-mart': ['store-sports', 'campus-mart'],
-    'campus-wear': ['store-fashion', 'campus-wear'],
-    'health-hub': ['store-pharmacy', 'health-hub']
-  };
-
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-      ${stores.map(s => {
-        const validIds = aliasMap[s.id] || [s.id];
-        const storeOrders = todayOrders.filter(o => validIds.includes(o.store_id || o.storeId));
-        const storeSales = storeOrders.reduce((acc, o) => {
-          const isCancelled = (o.status || '').toUpperCase() === 'CANCELLED';
-          return !isCancelled ? acc + Number(o.store_subtotal || o.total || 0) : acc;
-        }, 0);
-        const isOpen = storeStatuses[s.id] !== false;
-
-        return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 18px;">${s.icon || '🏪'}</span>
+    return `
+      <tr class="${isSettled ? 'row-settled' : ''}">
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:18px;">${icon}</span>
             <div>
-              <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">${escapeHtml(s.name)}</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(s.category)} · ${escapeHtml(s.location)}</div>
+              <strong style="color:var(--text-main); font-size:13.5px;">${escapeHtml(row.store_name)}</strong>
+              <div style="font-size:11px; color:var(--text-muted);">${row.store_id}</div>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 14px;">
-            <div style="text-align: right;">
-              <div style="font-weight: 700; font-size: 13px; color: var(--primary);">₹${storeSales.toLocaleString('en-IN')}</div>
-              <div style="font-size: 11px; color: var(--text-muted);">${storeOrders.length} order${storeOrders.length === 1 ? '' : 's'}</div>
-            </div>
-            <span class="badge-status ${isOpen ? 'completed' : 'cancelled'}" style="font-size: 10.5px; padding: 2px 8px;">
-              ${isOpen ? '● Online' : '○ Closed'}
-            </span>
-            <button type="button" class="btn-action secondary" onclick="window.drillDownStore('${s.id}')" style="height: 28px; font-size: 11.5px; padding: 0 8px;">
-              Manage →
-            </button>
-          </div>
-        </div>
-      `;
-      }).join('')}
-    </div>
-  `;
+        </td>
+        <td>
+          <span style="font-size:12px; text-transform:capitalize; background:var(--surface-alt); padding:2px 8px; border-radius:4px; border:1px solid var(--border);">
+            ${escapeHtml(row.category || 'General')}
+          </span>
+        </td>
+        <td><strong style="font-size:13.5px;">${row.today_orders_count}</strong></td>
+        <td><strong style="font-size:13.5px; color:var(--primary);">${row.today_customers_count}</strong></td>
+        <td><strong style="font-size:14px; color:var(--text-main);">₹${Math.round(row.today_gross_sales).toLocaleString('en-IN')}</strong></td>
+        <td><span style="color:#2563EB; font-weight:600; font-size:12.5px;">₹${Math.round(row.digital_sales).toLocaleString('en-IN')}</span></td>
+        <td><span style="color:#D97706; font-weight:600; font-size:12.5px;">₹${Math.round(row.cash_sales).toLocaleString('en-IN')}</span></td>
+        <td><span style="color:var(--text-muted); font-size:12px;">₹${Math.round(row.platform_fee).toLocaleString('en-IN')}</span></td>
+        <td>
+          <strong style="color:#059669; font-size:14px; font-weight:800;">
+            ₹${Math.round(row.net_payout).toLocaleString('en-IN')}
+          </strong>
+        </td>
+        <td>${statusPill}</td>
+      </tr>
+    `;
+  }).join('');
+
+  // 7. Update Settlement Summary Chips
+  const totalDigital = storesLedger.reduce((sum, r) => sum + r.digital_sales, 0);
+  const totalCash = storesLedger.reduce((sum, r) => sum + r.cash_sales, 0);
+  const totalFee = storesLedger.reduce((sum, r) => sum + r.platform_fee, 0);
+  const totalNet = storesLedger.reduce((sum, r) => sum + r.net_payout, 0);
+
+  const elDigital = document.getElementById('summary-total-digital');
+  const elCash = document.getElementById('summary-total-cash');
+  const elFee = document.getElementById('summary-total-fee');
+  const elNet = document.getElementById('summary-total-net-payout');
+
+  if (elDigital) elDigital.textContent = `₹${Math.round(totalDigital).toLocaleString('en-IN')}`;
+  if (elCash) elCash.textContent = `₹${Math.round(totalCash).toLocaleString('en-IN')}`;
+  if (elFee) elFee.textContent = `₹${Math.round(totalFee).toLocaleString('en-IN')}`;
+  if (elNet) elNet.textContent = `₹${Math.round(totalNet).toLocaleString('en-IN')}`;
 }
 
 /**
- * Drill down from Platform Admin cumulative view into a specific store
+ * ────────────────────────────────────────────────────────────────
+ * SETTLE STORE PAYOUT (1-Click End-of-Day Settlement Action)
+ * ────────────────────────────────────────────────────────────────
  */
-window.drillDownStore = function(storeId) {
-  if (typeof window.setActiveStore === 'function') {
-    window.setActiveStore(storeId);
-  }
-  const selector = document.getElementById('store-selector');
-  if (selector) selector.value = storeId;
-  if (typeof window.switchView === 'function') {
-    window.switchView('store');
+window.settleStorePayout = function(storeId, storeName, amount) {
+  const confirmMsg = `Disburse & settle ₹${Math.round(amount).toLocaleString('en-IN')} to ${storeName} for today?`;
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const todayKey = 'unimall_settled_stores_today_' + new Date().toDateString();
+    const settled = JSON.parse(localStorage.getItem(todayKey) || '{}');
+    settled[storeId] = {
+      settledAt: new Date().toISOString(),
+      amount: amount,
+      storeName: storeName
+    };
+    localStorage.setItem(todayKey, JSON.stringify(settled));
+
+    if (typeof showToast === 'function') {
+      showToast(`✅ Disbursed ₹${Math.round(amount).toLocaleString('en-IN')} to ${storeName}. Ledger updated!`);
+    }
+
+    // Refresh ledger display
+    if (currentDashboardMetrics) {
+      renderStorePayoutLedger(currentDashboardMetrics.stores_ledger, currentDashboardMetrics);
+    }
+  } catch (e) {
+    console.error('Settlement error:', e);
   }
 };
 
 /**
  * ────────────────────────────────────────────────────────────────
- * 2. SINGLE STORE OPERATIONAL DASHBOARD (Store Owner View)
+ * EXPORT DAILY SETTLEMENT CSV
  * ────────────────────────────────────────────────────────────────
  */
-async function loadSingleStoreDashboard(storeId) {
+window.exportDailySettlementCSV = function() {
+  if (!currentDashboardMetrics || !currentDashboardMetrics.stores_ledger) {
+    alert('No settlement data available to export.');
+    return;
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const rows = [
+    ['Campus Connect — Daily Store Sales & Settlement Ledger'],
+    ['Generated Date', todayStr],
+    ['Total Platform Sales', `INR ${currentDashboardMetrics.today_sales}`],
+    ['Total Customers', currentDashboardMetrics.today_customers],
+    ['Total Orders', currentDashboardMetrics.today_orders],
+    ['Total Net Merchant Payouts', `INR ${currentDashboardMetrics.net_payout_total}`],
+    [],
+    ['Store ID', 'Store Name', 'Category', 'Orders Today', 'Customers Today', 'Gross Sales (INR)', 'Digital Online (INR)', 'Cash Counter (INR)', 'Platform Fee 5% (INR)', 'Net Payout Due (INR)']
+  ];
+
+  currentDashboardMetrics.stores_ledger.forEach(r => {
+    rows.push([
+      r.store_id,
+      r.store_name,
+      r.category,
+      r.today_orders_count,
+      r.today_customers_count,
+      r.today_gross_sales,
+      r.digital_sales,
+      r.cash_sales,
+      r.platform_fee,
+      r.net_payout
+    ]);
+  });
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.map(cell => `"${cell}"`).join(',')).join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `Campus_Connect_Daily_Settlement_${todayStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * PRINT DAILY SETTLEMENT SLIP
+ * ────────────────────────────────────────────────────────────────
+ */
+window.printDailySettlementSheet = function() {
+  if (!currentDashboardMetrics) {
+    alert('Please wait for dashboard metrics to load.');
+    return;
+  }
+
+  const todayStr = new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    window.print();
+    return;
+  }
+
+  const rowsHtml = (currentDashboardMetrics.stores_ledger || []).map(r => `
+    <tr>
+      <td style="padding:10px; border-bottom:1px solid #ddd;"><strong>${escapeHtml(r.store_name)}</strong><br><small style="color:#666;">${escapeHtml(r.category)}</small></td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:center;">${r.today_orders_count}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:center;">${r.today_customers_count}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:right;">₹${Math.round(r.today_gross_sales).toLocaleString('en-IN')}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:right; color:#2563eb;">₹${Math.round(r.digital_sales).toLocaleString('en-IN')}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:right; color:#d97706;">₹${Math.round(r.cash_sales).toLocaleString('en-IN')}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:right; color:#888;">₹${Math.round(r.platform_fee).toLocaleString('en-IN')}</td>
+      <td style="padding:10px; border-bottom:1px solid #ddd; text-align:right; font-weight:bold; color:#059669;">₹${Math.round(r.net_payout).toLocaleString('en-IN')}</td>
+    </tr>
+  `).join('');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Campus Connect — Daily Store Settlement (${todayStr})</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #17213A; }
+        h1 { margin: 0; font-size: 22px; }
+        .meta { color: #64748B; font-size: 13px; margin: 4px 0 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+        th { background: #f8fafc; text-align: left; padding: 10px; border-bottom: 2px solid #cbd5e1; }
+        .totals-card { background: #f1f5f9; padding: 16px; border-radius: 8px; margin-top: 24px; display: flex; justify-content: space-between; font-size: 14px; }
+        .signature-row { margin-top: 50px; display: flex; justify-content: space-between; font-size: 12px; color: #64748B; }
+      </style>
+    </head>
+    <body>
+      <h1>Campus Connect — Daily Store Sales & Settlement Slip</h1>
+      <div class="meta">Settlement Date: ${todayStr} · Single Source of Truth: Neon PostgreSQL</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Store Name</th>
+            <th style="text-align:center;">Orders</th>
+            <th style="text-align:center;">Customers</th>
+            <th style="text-align:right;">Gross Sales</th>
+            <th style="text-align:right;">Digital Escrow</th>
+            <th style="text-align:right;">Counter Cash</th>
+            <th style="text-align:right;">Platform Fee (5%)</th>
+            <th style="text-align:right;">Net Disbursement Due</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div class="totals-card">
+        <div>Total Platform Sales: <strong>₹${Math.round(currentDashboardMetrics.today_sales).toLocaleString('en-IN')}</strong></div>
+        <div>Unique Customers: <strong>${currentDashboardMetrics.today_customers}</strong></div>
+        <div>Platform Commission: <strong>₹${Math.round(currentDashboardMetrics.platform_fee_total).toLocaleString('en-IN')}</strong></div>
+        <div>Total Net Due to Merchants: <strong style="color:#059669; font-size:16px;">₹${Math.round(currentDashboardMetrics.net_payout_total).toLocaleString('en-IN')}</strong></div>
+      </div>
+
+      <div class="signature-row">
+        <div>Prepared by: Campus Operations Superadmin</div>
+        <div>Store Manager Signature: _______________________</div>
+      </div>
+      <script>window.onload = function() { window.print(); };</script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+};
+
+window.refreshDashboardMetrics = function() {
+  loadDashboard(window.activeStoreId);
+  if (typeof showToast === 'function') {
+    showToast('↻ Refreshed latest metrics from Neon PostgreSQL');
+  }
+};
+
+/**
+ * Single store extras: loads low stock and top products for single store owner view
+ */
+async function loadSingleStoreExtras(storeId) {
   try {
-    // Hide platform user analytics widget on single store view
-    const userAnalyticsCard = document.getElementById('dash-platform-user-analytics');
-    if (userAnalyticsCard) userAnalyticsCard.classList.add('hidden');
-
-    // 1. Fetch Store Profile & Overview
-    const storeData = await apiRequest(`/admin/stores/${storeId}`);
-    const store = storeData.store;
-
-    const greetingEl = document.getElementById('dash-greeting');
-    const storeSubEl = document.getElementById('dash-store-sub');
-    if (greetingEl && currentAdminUser) {
-      const firstName = currentAdminUser.name.split(' ')[0];
-      greetingEl.textContent = `Good morning, ${firstName}`;
-    }
-    if (storeSubEl) {
-      storeSubEl.textContent = `${store.name} · ${store.location}`;
-    }
-
-    applyStoreOpenState(store.is_open === 1);
-
-    // Reset button labels
-    const btnAdd = document.getElementById('dash-btn-add-product');
-    const btnQuick = document.getElementById('dash-btn-quick-add');
-    if (btnAdd) {
-      btnAdd.textContent = '+ Add Product';
-      btnAdd.onclick = () => window.openProductModal ? window.openProductModal() : window.switchView('products');
-    }
-    if (btnQuick) {
-      btnQuick.textContent = '⚡ Quick Add';
-      btnQuick.onclick = () => window.openQuickAddModal ? window.openQuickAddModal() : window.switchView('products');
-    }
-
-    // Reset card labels for Store View
-    const lblOrders = document.getElementById('lbl-dash-orders') || document.querySelector('#card-metric-orders .metric-label');
-    const lblPending = document.getElementById('lbl-dash-pending') || document.querySelector('#card-metric-pending .metric-label');
-    const lblReady = document.getElementById('lbl-dash-ready') || document.querySelector('#card-metric-ready .metric-label');
-    const lblSales = document.getElementById('lbl-dash-sales') || document.querySelector('#card-metric-sales .metric-label');
-
-    if (lblOrders) lblOrders.textContent = "Today's Orders";
-    if (lblPending) lblPending.textContent = "Pending / Kitchen";
-    if (lblReady) lblReady.textContent = "Ready for Pickup";
-    if (lblSales) lblSales.textContent = "Today's Sales";
-
-    // 2. Fetch Orders for this specific store
-    const ordersData = await apiRequest(`/admin/stores/${storeId}/orders`);
-    const orders = ordersData.orders || [];
-
-    const todayOrders = orders.filter(o => {
-      if (!o.created_at) return true;
-      try {
-        const orderDate = new Date(o.created_at);
-        const isSameDay = orderDate.toDateString() === new Date().toDateString();
-        const isRecent = (Date.now() - orderDate.getTime()) < 24 * 3600 * 1000;
-        return isSameDay || isRecent;
-      } catch (e) {
-        return true;
+    const invRes = await apiRequest(`/admin/stores/${storeId}/inventory`).catch(() => ({ products: [] }));
+    const lowStock = (invRes.products || []).filter(p => (p.stock || 0) <= (p.low_stock_threshold || 5));
+    const lowStockContainer = document.getElementById('dash-low-stock-list');
+    if (lowStockContainer) {
+      if (lowStock.length === 0) {
+        lowStockContainer.innerHTML = '<div class="empty-state-sm">✅ All items healthy and in stock.</div>';
+      } else {
+        lowStockContainer.innerHTML = lowStock.slice(0, 5).map(p => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+            <span>${escapeHtml(p.name)}</span>
+            <span class="badge-status cancelled" style="font-size:11px;">${p.stock} left</span>
+          </div>
+        `).join('');
       }
-    });
-
-    const activeOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes((o.status || '').toUpperCase()));
-    activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
-
-    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING'].includes((o.status || '').toUpperCase()));
-    const readyOrders = orders.filter(o => (o.status || '').toUpperCase() === 'READY');
-
-    const todaySales = todayOrders.reduce((sum, o) => {
-      const isCancelled = (o.status || '').toUpperCase() === 'CANCELLED';
-      const amt = Number(o.store_subtotal || o.total || o.total_amount || o.subtotal || 0);
-      return !isCancelled ? sum + amt : sum;
-    }, 0);
-
-    // Update metrics cards
-    const dashOrdersEl = document.getElementById('dash-today-orders');
-    const dashPendingEl = document.getElementById('dash-pending-orders');
-    const dashReadyEl = document.getElementById('dash-ready-orders');
-    const dashSalesEl = document.getElementById('dash-today-sales');
-
-    if (dashOrdersEl) dashOrdersEl.textContent = todayOrders.length;
-    if (dashPendingEl) dashPendingEl.textContent = pendingOrders.length;
-    if (dashReadyEl) dashReadyEl.textContent = readyOrders.length;
-    if (dashSalesEl) dashSalesEl.textContent = `₹${todaySales.toLocaleString('en-IN')}`;
-
-    // Nav counter badges
-    const counterOrders = document.getElementById('counter-orders');
-    if (counterOrders) counterOrders.textContent = activeOrders.length;
-
-    const mobBadge = document.getElementById('mob-badge-orders');
-    if (mobBadge) {
-      mobBadge.textContent = activeOrders.length;
-      mobBadge.classList.toggle('hidden', activeOrders.length === 0);
     }
 
-    // Panel titles
-    const ordersTitle = document.getElementById('dash-orders-panel-title');
-    if (ordersTitle) ordersTitle.textContent = 'Orders Requiring Action';
-
-    const invTitle = document.getElementById('dash-inventory-panel-title');
-    if (invTitle) invTitle.textContent = 'Low Stock Alerts';
-
-    // Render Urgent / Active Orders
-    renderUrgentOrders(activeOrders.slice(0, 6));
-
-    // 3. Fetch Inventory for Low Stock Alerts
-    const invData = await apiRequest(`/admin/stores/${storeId}/inventory`);
-    const invItems = invData.inventory || [];
-    const lowStock = invItems.filter(it => it.availability === 'low_stock' || it.availability === 'out_of_stock');
-
-    const counterLowStock = document.getElementById('counter-low-stock');
-    if (counterLowStock) counterLowStock.textContent = lowStock.length;
-
-    renderLowStockAlerts(lowStock.slice(0, 5));
-
-    // 4. Fetch Analytics for Top Products Today
-    const analyticsData = await apiRequest(`/admin/stores/${storeId}/analytics?period=today`);
-    renderTopProducts(analyticsData.top_products || []);
-
-  } catch (err) {
-    console.error('Failed to load single store dashboard:', err);
-  }
+    const topRes = await apiRequest(`/admin/stores/${storeId}/analytics?period=today`).catch(() => ({ top_products: [] }));
+    const topContainer = document.getElementById('dash-top-products-list');
+    if (topContainer) {
+      const prods = topRes.top_products || [];
+      if (prods.length === 0) {
+        topContainer.innerHTML = '<div class="empty-state-sm">No sales yet today.</div>';
+      } else {
+        topContainer.innerHTML = prods.slice(0, 5).map(p => `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
+            <span>${escapeHtml(p.name)}</span>
+            <strong style="color:var(--primary);">₹${Math.round(p.total_sales || 0)}</strong>
+          </div>
+        `).join('');
+      }
+    }
+  } catch (e) {}
 }
 
-function renderUrgentOrders(orders) {
-  const container = document.getElementById('dash-urgent-orders');
-  if (!container) return;
-
-  if (orders.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13.5px;">
-        ✨ All caught up! No active orders requiring preparation or pickup.
-      </div>
-    `;
-    return;
-  }
-
-  if (typeof window.renderActiveOrderCard === 'function') {
-    container.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-        ${orders.map((o, idx) => window.renderActiveOrderCard(o, idx, orders)).join('')}
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      ${orders.map(o => {
-        const custName = (o.user_name || o.customer_name || 'Student').trim();
-        const itemCount = (o.items && Array.isArray(o.items)) ? o.items.length : 1;
-        const totalAmount = Number(o.store_subtotal || o.total || 0).toLocaleString('en-IN');
-        return `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border);">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <strong style="font-size: 13.5px;">${o.order_number_display || '#' + o.id}</strong>
-              <span class="badge-status ${(o.status || 'placed').toLowerCase()}">${o.status || 'PLACED'}</span>
-              <span style="font-size: 12px; color: var(--text-muted);">${o.delivery_method === 'delivery' ? '🛵 Hostel Delivery' : '🛍️ Pickup'}</span>
-            </div>
-            <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 3px;">
-              ${escapeHtml(custName)} · ${itemCount} item${itemCount === 1 ? '' : 's'} (₹${totalAmount})
-            </div>
-          </div>
-          <button type="button" class="btn-action primary" onclick="window.viewOrderDetail('${o.id}')" style="height: 32px; font-size: 12px; padding: 0 12px;">
-            Process →
-          </button>
-        </div>
-      `;
-      }).join('')}
-    </div>
-  `;
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
-
-function renderLowStockAlerts(items) {
-  const container = document.getElementById('dash-low-stock-list');
-  if (!container) return;
-
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 18px; color: var(--text-muted); font-size: 13px;">
-        ✅ Stock levels healthy. No low-stock items.
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-      ${items.map(it => `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--surface-alt); border-radius: var(--radius-md); font-size: 13px;">
-          <div>
-            <div style="font-weight: 600; color: var(--text-main);">${escapeHtml(it.name)}</div>
-            <div style="font-size: 11.5px; color: ${it.quantity === 0 ? 'var(--danger)' : 'var(--warn)'}; font-weight: 700;">
-              ${it.quantity === 0 ? 'OUT OF STOCK (0 left)' : `Only ${it.quantity} ${it.unit || 'item'}s left`}
-            </div>
-          </div>
-          <button type="button" class="btn-action secondary" onclick="window.quickRestock('${it.product_id}', '${escapeHtml(it.name)}', ${it.quantity})" style="height: 28px; font-size: 11.5px;">
-            Restock
-          </button>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-function renderTopProducts(products) {
-  const container = document.getElementById('dash-top-products-list');
-  if (!container) return;
-
-  if (products.length === 0) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 18px; color: var(--text-muted); font-size: 13px;">
-        No sales recorded yet today.
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = `
-    <div style="display: flex; flex-direction: column; gap: 8px;">
-      ${products.map((p, idx) => `
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); font-size: 13px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: 700; color: var(--text-tertiary); width: 16px;">${idx + 1}.</span>
-            <span style="font-weight: 600;">${escapeHtml(p.name)}</span>
-          </div>
-          <div style="font-weight: 700; color: var(--primary);">
-            ${p.sold_count} sold <span style="font-weight: 500; font-size: 11.5px; color: var(--text-muted);">(₹${p.total_sales})</span>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-window.loadDashboard = loadDashboard;
