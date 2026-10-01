@@ -44,13 +44,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupMobileDrawer();
     setupStoreToggle();
     setupLogout();
+    setupInactivityGuard();
+
+    // Remove auth cloak now that session is authenticated
+    document.documentElement.classList.remove('auth-checking');
 
     // Trigger initial view load
     switchView('dashboard');
   } catch (err) {
     console.error('Session initialization failed:', err);
     sessionStorage.removeItem('unimall_admin_token');
-    window.location.href = '/admin/login.html';
+    sessionStorage.removeItem('unimall_admin_user');
+    sessionStorage.removeItem('unimall_admin_stores');
+    sessionStorage.removeItem('unimall_admin_active_store');
+    window.location.replace('/admin/login.html');
   }
 });
 
@@ -237,6 +244,15 @@ function setupNavigation() {
 }
 
 function switchView(viewName) {
+  // CIA Triad: RBAC Route Guard
+  const isPlatformUser = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+  if (viewName === 'founder' && !isPlatformUser) {
+    if (typeof showToast === 'function') {
+      showToast('Access restricted: Platform Superadmin credentials required.', 'error');
+    }
+    viewName = 'dashboard';
+  }
+
   // Update sidebar active state
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
@@ -417,3 +433,60 @@ function syncStoreStatusToUserApp(storeId, isOpen) {
   } catch(e) {}
 }
 window.syncStoreStatusToUserApp = syncStoreStatusToUserApp;
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * CIA CONFIDENTIALITY: INACTIVITY SESSION TIMEOUT (30-MIN NIST SPEC)
+ * Automatically clears privileged credentials and forces re-login
+ * when admin console is left unattended.
+ * ────────────────────────────────────────────────────────────────
+ */
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+let inactivityTimer = null;
+
+function resetInactivityTimer() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    console.warn('[Security] Session timed out after 30 minutes of idle inactivity.');
+    sessionStorage.removeItem('unimall_admin_token');
+    sessionStorage.removeItem('unimall_admin_user');
+    sessionStorage.removeItem('unimall_admin_stores');
+    sessionStorage.removeItem('unimall_admin_active_store');
+    window.location.replace('/admin/login.html?reason=timeout');
+  }, INACTIVITY_TIMEOUT_MS);
+}
+
+function setupInactivityGuard() {
+  resetInactivityTimer();
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+  let lastRecorded = Date.now();
+  events.forEach(evt => {
+    window.addEventListener(evt, () => {
+      const now = Date.now();
+      // Throttle timer reset to once every 10 seconds to eliminate CPU overhead
+      if (now - lastRecorded > 10000) {
+        lastRecorded = now;
+        resetInactivityTimer();
+      }
+    }, { passive: true });
+  });
+}
+window.setupInactivityGuard = setupInactivityGuard;
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * CIA AVAILABILITY: GLOBAL DEFENSIVE ERROR BOUNDARY
+ * Prevents intermittent network drops or malformed telemetry
+ * from crashing the admin UI thread or locking the viewport.
+ * ────────────────────────────────────────────────────────────────
+ */
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('[Admin Security & Resilience] Unhandled Promise Rejection:', event.reason);
+  // Prevent unhandled promise errors from crashing the console
+  event.preventDefault();
+});
+
+window.addEventListener('error', (event) => {
+  console.error('[Admin Security & Resilience] Caught error:', event.message, event.filename, event.lineno);
+});
+

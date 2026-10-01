@@ -625,7 +625,14 @@ function renderActiveOrdersBoard() {
     return;
   }
 
-  container.innerHTML = activeOrders.map(o => renderActiveOrderCard(o)).join('');
+  container.innerHTML = activeOrders.map((o, idx) => {
+    try {
+      return renderActiveOrderCard(o, idx, activeOrders);
+    } catch (cardErr) {
+      console.warn('[Orders Board] Error rendering order card:', o?.id, cardErr);
+      return '';
+    }
+  }).join('');
 }
 
 function formatTimeElapsed(isoDate) {
@@ -783,6 +790,10 @@ function renderActiveOrderCard(o, index, allOrders) {
   const status = (o.status || 'PLACED').toUpperCase();
   const displayNumber = formatDisplayOrderNumber(o, index, allOrders || currentOrdersList);
 
+  // Sanitized attributes to eliminate quote/script breakout vulnerabilities
+  const safeOrderId = String(o.id || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
+  const safeDisplayNumber = String(displayNumber || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
+
   const STORE_COLOR_MAP = {
     'campus-cafe': { bg: '#FEF3C7', color: '#92400E', label: 'Campus Café' },
     'book-corner': { bg: '#DBEAFE', color: '#1E40AF', label: 'Book Corner' },
@@ -818,7 +829,7 @@ function renderActiveOrderCard(o, index, allOrders) {
     // Stage 1: Placed -> Click to Accept & Process
     buttonHtml = `
       <button type="button" class="btn-order-step step-accept" 
-              onclick="progressOrderStep('${o.id}', 'PREPARING')"
+              onclick="progressOrderStep('${safeOrderId}', 'PREPARING')"
               title="Click to accept order and start preparation">
         <span class="step-icon">⚡</span>
         <span class="step-text">Accept & Process</span>
@@ -829,7 +840,7 @@ function renderActiveOrderCard(o, index, allOrders) {
     // Stage 2: Preparing -> Click to Done Packing
     buttonHtml = `
       <button type="button" class="btn-order-step step-packing" 
-              onclick="progressOrderStep('${o.id}', 'READY')"
+              onclick="progressOrderStep('${safeOrderId}', 'READY')"
               title="Click when items are packed to notify student in bell notification">
         <span class="step-icon">🛍️</span>
         <span class="step-text">Done Packing</span>
@@ -840,7 +851,7 @@ function renderActiveOrderCard(o, index, allOrders) {
     // Stage 3: Ready -> Click to Delivered
     buttonHtml = `
       <button type="button" class="btn-order-step step-deliver" 
-              onclick="progressOrderStep('${o.id}', 'DELIVERED')"
+              onclick="progressOrderStep('${safeOrderId}', 'DELIVERED')"
               title="Click when student receives their order">
         <span class="step-icon">📦</span>
         <span class="step-text">Mark Delivered</span>
@@ -920,7 +931,7 @@ function renderActiveOrderCard(o, index, allOrders) {
   const isDelivery = o.delivery_method === 'delivery' || o.fulfillment_type === 'delivery' || o.fulfillmentType === 'delivery';
 
   return `
-    <div class="active-order-card status-${statusClass} order-card-${o.id}" id="order-card-${o.id}">
+    <div class="active-order-card status-${statusClass} order-card-${safeOrderId}" id="order-card-${safeOrderId}">
       <!-- 1. TOP HEADER: STORE TAG, NEXT ORDER TAG & WAITING TIME -->
       <div class="order-top-banner">
         <div style="display:flex; align-items:center; gap:6px;">
@@ -946,8 +957,8 @@ function renderActiveOrderCard(o, index, allOrders) {
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <h3 class="order-user-name">${escapeHtml(custName)}</h3>
               <div class="order-token-line">
-                <span class="order-token-code">${displayNumber}</span>
-                <button type="button" class="btn-copy-token" onclick="copyOrderToken('${displayNumber}', event)" title="Copy order number">
+                <span class="order-token-code">${safeDisplayNumber}</span>
+                <button type="button" class="btn-copy-token" onclick="copyOrderToken('${safeDisplayNumber}', event)" title="Copy order number">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <rect x="9" y="9" width="13" height="13" rx="2"></rect>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -997,6 +1008,32 @@ window.renderActiveOrderCard = renderActiveOrderCard;
  * Click 3: READY -> DELIVERED (User receives order: 2s hold + smooth fade out)
  */
 async function progressOrderStep(orderId, nextStatus) {
+  // State Machine Integrity Guard (CIA Integrity)
+  const ord = currentOrdersList.find(o => String(o.id) === String(orderId));
+  if (ord) {
+    const curStatus = (ord.status || 'PLACED').toUpperCase();
+    if (curStatus === 'DELIVERED' || curStatus === 'COMPLETED') {
+      showToast('Order is already delivered and finalized.', 'info');
+      return;
+    }
+    if (curStatus === 'CANCELLED') {
+      showToast('Order is cancelled and cannot be updated.', 'warn');
+      return;
+    }
+    const ALLOWED = {
+      'PLACED': ['PREPARING', 'ACCEPTED', 'CANCELLED'],
+      'ACCEPTED': ['PREPARING', 'READY', 'CANCELLED'],
+      'PREPARING': ['READY', 'CANCELLED'],
+      'READY': ['DELIVERED', 'COMPLETED', 'CANCELLED']
+    };
+    const allowedNext = ALLOWED[curStatus] || [];
+    if (!allowedNext.includes(nextStatus.toUpperCase())) {
+      console.warn(`[Security] Invalid state transition rejected: ${curStatus} -> ${nextStatus}`);
+      showToast(`Cannot move order from ${curStatus} to ${nextStatus}`, 'warn');
+      return;
+    }
+  }
+
   try {
     const cardEl = document.getElementById(`order-card-${orderId}`);
     if (cardEl) {
@@ -1157,6 +1194,7 @@ function renderOrdersTable() {
   }
 
   tbody.innerHTML = filtered.map(o => {
+    const safeId = String(o.id || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
     const placedTime = new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const custName = o.customer_name || o.user_name || 'Student';
     const custContact = o.customer_phone || o.customer_email || '—';
@@ -1165,18 +1203,18 @@ function renderOrdersTable() {
 
     let actionBtn = '';
     if (status === 'PLACED') {
-      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${o.id}', 'PREPARING')" style="height: 28px; font-size: 11.5px; padding: 0 10px;">⚡ Accept</button>`;
+      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${safeId}', 'PREPARING')" style="height: 28px; font-size: 11.5px; padding: 0 10px;">⚡ Accept</button>`;
     } else if (status === 'ACCEPTED' || status === 'PREPARING') {
-      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${o.id}', 'READY')" style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #7C3AED; border-color: #7C3AED;">✓ Ready</button>`;
+      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${safeId}', 'READY')" style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #7C3AED; border-color: #7C3AED;">✓ Ready</button>`;
     } else if (status === 'READY') {
-      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${o.id}', 'DELIVERED')" style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #059669; border-color: #059669;">📦 Deliver</button>`;
+      actionBtn = `<button type="button" class="btn-action primary" onclick="progressOrderStep('${safeId}', 'DELIVERED')" style="height: 28px; font-size: 11.5px; padding: 0 10px; background: #059669; border-color: #059669;">📦 Deliver</button>`;
     } else {
       actionBtn = '<span style="font-size: 12px; color: var(--text-muted);">—</span>';
     }
 
     return `
       <tr>
-        <td><strong>#${o.id}</strong></td>
+        <td><strong>#${escapeHtml(o.id)}</strong></td>
         <td>
           <div style="font-weight: 700; font-size: 13.5px;">${escapeHtml(custName)}</div>
           <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(custContact)}</div>
@@ -1191,7 +1229,7 @@ function renderOrdersTable() {
         <td>
           <div style="display: flex; align-items: center; gap: 6px;">
             ${actionBtn}
-            <button type="button" class="btn-action secondary" onclick="viewOrderDetail('${o.id}')" style="height: 28px; font-size: 11.5px; padding: 0 8px;">
+            <button type="button" class="btn-action secondary" onclick="viewOrderDetail('${safeId}')" style="height: 28px; font-size: 11.5px; padding: 0 8px;">
               Details
             </button>
           </div>
@@ -1289,12 +1327,13 @@ async function viewOrderDetail(orderId) {
       'READY': { next: 'DELIVERED', label: 'Mark Delivered', btnClass: 'primary' }
     };
 
+    const safeModalOrderId = String(order.id || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
     let actionsHtml = `<button type="button" class="btn-action secondary" data-close="modal-order-detail">Close</button>`;
 
     if (nextTransitions[s]) {
       const trans = nextTransitions[s];
       actionsHtml += `
-        <button type="button" class="btn-action ${trans.btnClass}" onclick="executeOrderTransition('${order.id}', '${trans.next}')">
+        <button type="button" class="btn-action ${trans.btnClass}" onclick="executeOrderTransition('${safeModalOrderId}', '${trans.next}')">
           ${trans.label}
         </button>
       `;
@@ -1302,7 +1341,7 @@ async function viewOrderDetail(orderId) {
 
     if (!['DELIVERED', 'COMPLETED', 'CANCELLED'].includes(order.status)) {
       actionsHtml += `
-        <button type="button" class="btn-action secondary" style="color: var(--danger);" onclick="executeOrderTransition('${order.id}', 'CANCELLED')">
+        <button type="button" class="btn-action secondary" style="color: var(--danger);" onclick="executeOrderTransition('${safeModalOrderId}', 'CANCELLED')">
           Cancel Order
         </button>
       `;

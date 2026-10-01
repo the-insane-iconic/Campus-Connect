@@ -66,9 +66,12 @@ function initLoginPortal() {
     }
   });
 
-  // Check URL params or hash to auto-open admin modal (e.g. login.html?login=admin or #admin)
+  // Check URL params or hash to auto-open admin modal (e.g. login.html?login=admin or #admin or timeout)
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('login') === 'admin' || window.location.hash === '#admin') {
+  if (urlParams.get('reason') === 'timeout') {
+    openModal();
+    showInfo('🔒 Your session was securely locked after 30 minutes of idle inactivity to protect store finances and customer data. Please sign in again.');
+  } else if (urlParams.get('login') === 'admin' || window.location.hash === '#admin') {
     openModal();
   }
 
@@ -349,79 +352,81 @@ function initLoginPortal() {
     googleBtn.addEventListener('click', async () => {
       googleBtn.disabled = true;
       const originalHtml = googleBtn.innerHTML;
-      googleBtn.innerHTML = '<span class="btn-label">Connecting with Google…</span>';
+      googleBtn.innerHTML = '<span class="btn-label">Redirecting to Google…</span>';
 
       try {
         if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signInWithGoogle === 'function') {
-          try {
-            await window.UniMallAuth.signInWithGoogle({ callbackURL: window.location.origin + '/index.html' });
-            return;
-          } catch (neonErr) {
-            console.info('[Login] Neon Auth cloud OAuth redirect deferred:', neonErr.message || neonErr);
-          }
+          await window.UniMallAuth.signInWithGoogle({ callbackURL: window.location.origin + '/index.html' });
+          return;
         }
-
-        const googleUser = {
-          uid: 'google_' + Date.now(),
-          name: 'Campus Student',
-          email: 'student@campusconnect.edu',
-          avatar: '',
-          hostel: 'Hostel 3',
-          room: '204',
-          phone: '+91 98765 43210',
-          provider: 'google',
-          isGuest: false
-        };
-
-        if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.setGoogleProfile === 'function') {
-          window.UserManager.setGoogleProfile(googleUser);
-        } else {
-          if (window.UniMallDB && typeof window.UniMallDB.syncUser === 'function') {
-            await window.UniMallDB.syncUser(googleUser).catch(() => {});
-          }
-          localStorage.setItem(AUTH_KEY, JSON.stringify(googleUser));
-          const raw = localStorage.getItem(STORAGE_KEY);
-          const appData = raw ? JSON.parse(raw) : {};
-          appData.currentUser = { ...googleUser };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        }
-        localStorage.setItem('userMode', 'student');
-
-        showToast('Signed in as Campus Student!');
-        setTimeout(() => { window.location.href = '/index.html'; }, 500);
+        throw new Error('Google OAuth service is currently initializing. Please try again.');
       } catch (err) {
-        showToast(err.message || 'Google login failed.', true);
+        console.error('[Google Login Error]', err);
+        showToast(err.message || 'Google login failed. Please try again or continue as guest.', true);
         googleBtn.disabled = false;
         googleBtn.innerHTML = originalHtml;
       }
     });
   }
 
-  // ── GUEST STUDENT LOGIN ───────────────────────────────────────
+  // ── GUEST STUDENT LOGIN (GLOBAL AUTHORITATIVE SEQUENCE) ────────
   if (guestBtn) {
-    guestBtn.addEventListener('click', () => {
+    guestBtn.addEventListener('click', async () => {
+      guestBtn.disabled = true;
+      const originalHtml = guestBtn.innerHTML;
+      guestBtn.innerHTML = '<span class="btn-label">Creating Guest Session…</span>';
+
       try {
         let guestUser;
 
-        // Use UserManager for canonical "Student N" guest profile
-        if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.ensureGuestProfile === 'function') {
-          guestUser = window.UserManager.ensureGuestProfile();
-        } else {
-          // Fallback: sequential guest numbering
-          const counterKey = 'cc_guest_counter';
-          const n = (parseInt(localStorage.getItem(counterKey) || '0', 10) || 0) + 1;
-          localStorage.setItem(counterKey, String(n));
+        // Use UserManager's async global sequence query against Neon PostgreSQL
+        if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.ensureGuestProfileAsync === 'function') {
+          guestUser = await window.UserManager.ensureGuestProfileAsync();
+        } else if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getNextGuestNumber === 'function') {
+          const n = await window.UniMallDB.getNextGuestNumber();
+          const guestId = 'usr_guest_' + n;
           guestUser = {
-            uid:      'guest_' + n + '_' + Date.now(),
+            id:       guestId,
+            uid:      guestId,
+            guestId:  guestId,
             name:     'Student ' + n,
-            email:    '',
+            email:    `student${n}@campusconnect.edu`,
             avatar:   '',
+            phone:    '',
             hostel:   '',
             room:     '',
-            phone:    '',
-            provider: 'guest',
             isGuest:  true,
-            guestId:  'guest_' + n
+            provider: 'guest'
+          };
+          if (typeof window.UserManager !== 'undefined' && typeof window.UserManager._persist === 'function') {
+            window.UserManager._persist(guestUser);
+          } else {
+            localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
+            const raw = localStorage.getItem(STORAGE_KEY);
+            const appData = raw ? JSON.parse(raw) : {};
+            appData.currentUser = { ...guestUser };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+          }
+          if (typeof window.UniMallDB.syncUser === 'function') {
+            await window.UniMallDB.syncUser(guestUser).catch(() => {});
+          }
+        } else {
+          // Synchronous fallback
+          const n = (parseInt(localStorage.getItem('cc_guest_counter') || '0', 10) || 0) + 1;
+          localStorage.setItem('cc_guest_counter', String(n));
+          const guestId = 'usr_guest_' + n;
+          guestUser = {
+            id:       guestId,
+            uid:      guestId,
+            guestId:  guestId,
+            name:     'Student ' + n,
+            email:    `student${n}@campusconnect.edu`,
+            avatar:   '',
+            phone:    '',
+            hostel:   '',
+            room:     '',
+            isGuest:  true,
+            provider: 'guest'
           };
           localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
           const raw = localStorage.getItem(STORAGE_KEY);
@@ -431,12 +436,13 @@ function initLoginPortal() {
         }
 
         localStorage.setItem('userMode', 'guest');
-        showToast('Continuing as ' + (guestUser.name || 'Student') + '…');
+        showToast('Continuing as ' + (guestUser?.name || 'Student') + '…');
+        setTimeout(() => { window.location.href = '/index.html'; }, 350);
       } catch (e) {
         console.error('[Login] Guest session error:', e);
         showToast('Continuing as guest…');
+        setTimeout(() => { window.location.href = '/index.html'; }, 350);
       }
-      setTimeout(() => { window.location.href = '/index.html'; }, 500);
     });
   }
 

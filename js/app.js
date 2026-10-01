@@ -14,9 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 0. Boot UserManager — ensures correct Guest/Google profile is active */
   if (typeof window.UserManager !== 'undefined') {
     const activeUser = window.UserManager.boot();
-    // If no user yet (brand new visit), assign a guest profile
+    // If no user yet (brand new visit), assign a global database-backed guest profile
     if (!activeUser) {
-      window.UserManager.ensureGuestProfile();
+      if (typeof window.UserManager.ensureGuestProfileAsync === 'function') {
+        window.UserManager.ensureGuestProfileAsync().then(() => {
+          setHeaderGreeting();
+        });
+      } else {
+        window.UserManager.ensureGuestProfile();
+      }
     }
   }
 

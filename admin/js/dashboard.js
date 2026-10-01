@@ -185,12 +185,16 @@ function renderStorePayoutLedger(storesLedger, totals) {
     const isSettled = !!settledStores[row.store_id];
     const hasSales = row.today_gross_sales > 0;
 
+    const safeStoreId = String(row.store_id || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
+    const safeNetPayout = Number(row.net_payout || 0);
+    const safeEscapedName = escapeHtml(row.store_name).replace(/'/g, "\\'");
+
     let statusPill = '';
     if (isSettled) {
       statusPill = `<span class="badge-status completed" style="font-size:11px; padding:3px 8px;">✅ Settled</span>`;
     } else if (hasSales) {
-      statusPill = `<button type="button" class="btn-action primary" onclick="window.settleStorePayout('${row.store_id}', '${escapeHtml(row.store_name)}', ${row.net_payout})" style="font-size:11px; padding:4px 10px; height:28px;">
-        Disburse ₹${Math.round(row.net_payout).toLocaleString('en-IN')}
+      statusPill = `<button type="button" class="btn-action primary" onclick="window.settleStorePayout('${safeStoreId}', '${safeEscapedName}', ${safeNetPayout})" style="font-size:11px; padding:4px 10px; height:28px;">
+        Disburse ₹${Math.round(safeNetPayout).toLocaleString('en-IN')}
       </button>`;
     } else {
       statusPill = `<span style="font-size:11.5px; color:var(--text-muted);">No Sales Today</span>`;
@@ -248,24 +252,55 @@ function renderStorePayoutLedger(storesLedger, totals) {
 /**
  * ────────────────────────────────────────────────────────────────
  * SETTLE STORE PAYOUT (1-Click End-of-Day Settlement Action)
+ * Guarded by CIA Triad: RBAC Authorization, Validation & Idempotency
  * ────────────────────────────────────────────────────────────────
  */
 window.settleStorePayout = function(storeId, storeName, amount) {
-  const confirmMsg = `Disburse & settle ₹${Math.round(amount).toLocaleString('en-IN')} to ${storeName} for today?`;
+  // 1. RBAC Guard (Confidentiality & Authorization)
+  const isPlatformUser = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+  if (!isPlatformUser) {
+    if (typeof showToast === 'function') {
+      showToast('Unauthorized: Only Platform Superadmins can disburse merchant payouts.', 'error');
+    }
+    return;
+  }
+
+  // 2. Numerical Validation (Integrity)
+  const numAmount = Number(amount);
+  if (!Number.isFinite(numAmount) || numAmount <= 0) {
+    if (typeof showToast === 'function') {
+      showToast('Disbursement rejected: Invalid settlement amount.', 'error');
+    }
+    return;
+  }
+
+  // 3. Idempotency & Duplicate Prevention Guard (Integrity)
+  const todayKey = 'unimall_settled_stores_today_' + new Date().toDateString();
+  const settled = JSON.parse(localStorage.getItem(todayKey) || '{}');
+  if (settled[storeId]) {
+    const prevTime = new Date(settled[storeId].settledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (typeof showToast === 'function') {
+      showToast(`Payout for ${storeName} has already been settled today at ${prevTime}. Duplicate payout prevented.`, 'warn');
+    }
+    return;
+  }
+
+  const confirmMsg = `Disburse & settle ₹${Math.round(numAmount).toLocaleString('en-IN')} to ${storeName} for today?`;
   if (!confirm(confirmMsg)) return;
 
   try {
-    const todayKey = 'unimall_settled_stores_today_' + new Date().toDateString();
-    const settled = JSON.parse(localStorage.getItem(todayKey) || '{}');
+    const txReceipt = 'TX-DISBURSE-' + Date.now().toString(36).toUpperCase() + '-' + String(storeId).slice(-4);
     settled[storeId] = {
+      receiptId: txReceipt,
       settledAt: new Date().toISOString(),
-      amount: amount,
-      storeName: storeName
+      amount: numAmount,
+      storeName: storeName,
+      settledBy: currentAdminUser?.email || currentAdminUser?.name || 'Platform Superadmin'
     };
     localStorage.setItem(todayKey, JSON.stringify(settled));
 
     if (typeof showToast === 'function') {
-      showToast(`✅ Disbursed ₹${Math.round(amount).toLocaleString('en-IN')} to ${storeName}. Ledger updated!`);
+      showToast(`✅ Disbursed ₹${Math.round(numAmount).toLocaleString('en-IN')} to ${storeName}. Receipt: ${txReceipt}`);
     }
 
     // Refresh ledger display

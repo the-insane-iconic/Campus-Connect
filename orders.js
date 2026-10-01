@@ -51,7 +51,17 @@ function saveOrdersToStorage() {
     if (raw) {
       currentData = JSON.parse(raw);
     }
-    currentData.orders = OrdersState.orders;
+    let existingOrders = Array.isArray(currentData.orders) ? currentData.orders : [];
+    let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
+      ? window.UserManager.getActiveUser()
+      : null;
+    const currentUid = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+    if (currentUid) {
+      const otherUsersOrders = existingOrders.filter(o => o.user_id && o.user_id !== currentUid);
+      currentData.orders = [...otherUsersOrders, ...OrdersState.orders];
+    } else {
+      currentData.orders = OrdersState.orders;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
   } catch (e) {
     console.error('Failed to save orders to localStorage:', e);

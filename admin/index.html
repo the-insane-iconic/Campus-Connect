@@ -9,6 +9,35 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="description" content="Operational store administration portal for UniMall campus stores." />
 
+  <!-- SECURITY HEADERS & DEFENSE-IN-DEPTH META (CIA CONFIDENTIALITY) -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+
+  <!-- CIA TRIAD: EARLY SYNCHRONOUS ROUTE GUARD (ZERO FLASH OF UNAUTHENTICATED CONTENT) -->
+  <script>
+    (function() {
+      try {
+        var token = sessionStorage.getItem('unimall_admin_token');
+        if (!token) {
+          window.location.replace('/admin/login.html');
+          return;
+        }
+      } catch (e) {
+        window.location.replace('/admin/login.html');
+      }
+    })();
+  </script>
+  <style id="auth-cloak-style">
+    html.auth-checking body {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  </style>
+  <script>document.documentElement.classList.add('auth-checking');</script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet" />

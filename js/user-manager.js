@@ -43,6 +43,65 @@
       return null;
     },
 
+    async ensureGuestProfileAsync() {
+      // Return existing named guest profile if active in current session
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          const u = parsed.currentUser;
+          if (u && u.isGuest && u.name && /^Student \d+$/.test(u.name)) {
+            const num = u.name.split(' ')[1] || '1';
+            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
+            u.id = guestId;
+            u.uid = guestId;
+            u.guestId = guestId;
+            u.email = u.email || `${guestId}@campusconnect.edu`;
+            this._persist(u);
+            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+              window.UniMallDB.syncUser(u).catch(() => {});
+            }
+            return u;
+          }
+        }
+      } catch (e) {}
+
+      // Query authoritative Neon database for next global sequential student number
+      let n = 1;
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getNextGuestNumber === 'function') {
+        try {
+          n = await window.UniMallDB.getNextGuestNumber();
+        } catch (e) {
+          n = _bumpCounter();
+        }
+      } else {
+        n = _bumpCounter();
+      }
+
+      const guestId = 'usr_guest_' + n;
+      const guestUser = {
+        id:       guestId,
+        uid:      guestId,
+        guestId:  guestId,
+        name:     'Student ' + n,
+        email:    `student${n}@campusconnect.edu`,
+        avatar:   '',
+        phone:    '',
+        hostel:   '',
+        room:     '',
+        isGuest:  true,
+        provider: 'guest'
+      };
+      this._persist(guestUser);
+
+      // Instantly sync guest profile to authoritative Neon PostgreSQL
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+        await window.UniMallDB.syncUser(guestUser).catch(() => {});
+      }
+
+      return guestUser;
+    },
+
     ensureGuestProfile() {
       // Return existing named guest profile
       try {
@@ -120,6 +179,23 @@
 
       try { localStorage.setItem(AUTH_KEY, JSON.stringify(userData)); } catch (e) {}
       this._persist(userData);
+
+      // Seamless Guest-to-Google Order Linking: associate previous in-flight orders with verified account
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const appData = JSON.parse(raw);
+          if (Array.isArray(appData.orders)) {
+            appData.orders.forEach(o => {
+              if (o && (!o.user_id || String(o.user_id).startsWith('usr_guest_'))) {
+                o.user_id = uid;
+                o.userName = name;
+              }
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+          }
+        }
+      } catch (e) {}
 
       if (typeof AppState !== 'undefined') {
         AppState.currentUser = Object.assign({}, AppState.currentUser, userData);

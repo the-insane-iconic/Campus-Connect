@@ -528,6 +528,30 @@ window.UniMallDB = {
     }
   },
 
+  /* ── Get Next Global Sequential Guest Number from Neon PostgreSQL ── */
+  async getNextGuestNumber() {
+    try {
+      const rows = await this.neonSql(`
+        SELECT COALESCE(MAX(CAST(REGEXP_REPLACE(name, '[^0-9]', '', 'g') AS INTEGER)), 0) AS max_num
+        FROM users
+        WHERE name ~ '^Student [0-9]+$';
+      `);
+      if (rows && rows.length > 0 && rows[0].max_num !== undefined) {
+        const dbMax = parseInt(rows[0].max_num, 10) || 0;
+        const localMax = parseInt(localStorage.getItem('cc_guest_counter') || '0', 10) || 0;
+        const next = Math.max(dbMax, localMax) + 1;
+        localStorage.setItem('cc_guest_counter', String(next));
+        return next;
+      }
+    } catch (e) {
+      console.warn('[UniMallDB] getNextGuestNumber query fallback:', e.message);
+    }
+    const local = parseInt(localStorage.getItem('cc_guest_counter') || '0', 10) || 0;
+    const next = local + 1;
+    localStorage.setItem('cc_guest_counter', String(next));
+    return next;
+  },
+
   /* ── Authenticate Merchant / Admin via Neon PostgreSQL ── */
   async authenticateAdmin(userOrEmail) {
     try {

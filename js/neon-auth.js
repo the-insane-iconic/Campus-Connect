@@ -108,7 +108,8 @@
         try {
           const res = await client.signIn.social({
             provider: 'google',
-            callbackURL: returnUrl
+            callbackURL: returnUrl,
+            newUserCallbackURL: returnUrl
           });
           if (res && res.data && res.data.url) {
             window.location.href = res.data.url;
@@ -124,12 +125,12 @@
         const res = await fetch(`${NEON_AUTH_URL}/sign-in/social`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             provider: 'google',
-            callbackURL: returnUrl
+            callbackURL: returnUrl,
+            newUserCallbackURL: returnUrl
           })
         });
 
@@ -178,7 +179,6 @@
 
         const res = await fetch(fetchUrl, {
           method: 'GET',
-          headers: { 'Origin': window.location.origin },
           credentials: 'include'
         });
 
@@ -213,7 +213,6 @@
       try {
         await fetch(`${NEON_AUTH_URL}/sign-out`, {
           method: 'POST',
-          headers: { 'Origin': window.location.origin },
           credentials: 'include'
         }).catch(() => {});
       } catch (e) {}
