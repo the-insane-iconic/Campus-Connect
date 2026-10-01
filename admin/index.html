@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>UniMall — Store Admin Dashboard</title>
+  <title>UniMall — Merchant Dashboard</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/favicon.png" />
   <meta name="theme-color" content="#0F172A" />
@@ -53,7 +53,7 @@
       <div class="sidebar-header">
         <div class="sidebar-brand">
           <div class="brand-wordmark">Uni<span>Mall</span></div>
-          <div class="brand-portal-label">Store Admin</div>
+          <div class="brand-portal-label" id="brand-portal-label">Merchant Dashboard</div>
         </div>
         <button type="button" id="btn-close-drawer" class="btn-close-drawer" aria-label="Close menu">✕</button>
       </div>
@@ -92,12 +92,7 @@
         <!-- SINGLE STORE ONLY NAVIGATION (Hidden for Platform Admin) -->
         <button type="button" class="nav-item store-only-nav" data-view="products" id="nav-products">
           <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          <span>Products & Menu</span>
-        </button>
-
-        <button type="button" class="nav-item store-only-nav" data-view="inventory" id="nav-inventory">
-          <svg viewBox="0 0 24 24"><path d="M20 7h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM10 4h4v3h-4V4z"/></svg>
-          <span>Inventory & Stock</span>
+          <span>Products & Stock</span>
           <span class="nav-counter warn" id="counter-low-stock">0</span>
         </button>
 
@@ -197,10 +192,10 @@
               <p class="view-subtitle" id="dash-store-sub">Today's sales, student footfall, and end-of-day store payout distribution ledger</p>
             </div>
             <div class="view-actions" id="dash-header-actions">
-              <button type="button" class="btn-action secondary" id="dash-btn-export-settlement" onclick="window.exportDailySettlementCSV && window.exportDailySettlementCSV()">
+              <button type="button" class="btn-action secondary platform-admin-only" id="dash-btn-export-settlement" onclick="window.exportDailySettlementCSV && window.exportDailySettlementCSV()">
                 📥 Export CSV
               </button>
-              <button type="button" class="btn-action secondary" id="dash-btn-print-settlement" onclick="window.printDailySettlementSheet && window.printDailySettlementSheet()">
+              <button type="button" class="btn-action secondary platform-admin-only" id="dash-btn-print-settlement" onclick="window.printDailySettlementSheet && window.printDailySettlementSheet()">
                 🖨️ Print Settlement Slip
               </button>
               <button type="button" class="btn-action primary" id="dash-btn-goto-orders" onclick="window.switchView('orders')">
@@ -209,8 +204,8 @@
             </div>
           </div>
 
-          <!-- LIVE ORDERS FAST JUMP BANNER (Keeps Dashboard clean while giving instant access to live queue) -->
-          <div class="order-queue-shortcut-card" id="dash-orders-shortcut-banner">
+          <!-- LIVE ORDERS FAST JUMP BANNER (Platform Admin: Shows shortcut; Merchant: hidden since queue is embedded) -->
+          <div class="order-queue-shortcut-card platform-admin-only" id="dash-orders-shortcut-banner">
             <div class="shortcut-info">
               <span class="shortcut-pulse-dot"></span>
               <div>
@@ -262,8 +257,8 @@
             </div>
           </div>
 
-          <!-- ════ CORE SECTION: DAILY STORE SALES & MONEY DISTRIBUTION LEDGER ════ -->
-          <div class="card-panel mt-6" id="payouts-ledger-section">
+          <!-- ════ PLATFORM ADMIN ONLY: DAILY STORE SALES & MONEY DISTRIBUTION LEDGER ════ -->
+          <div class="card-panel mt-6 platform-admin-only" id="payouts-ledger-section">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div>
                 <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
@@ -325,13 +320,42 @@
             </div>
           </div>
 
+          <!-- ════ MERCHANT ONLY: LIVE ORDER QUEUE (Embedded in Dashboard) ════ -->
+          <div class="merchant-only" id="merchant-dash-orders-section">
+            <div class="card-panel mt-6">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div>
+                  <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                    <span class="shortcut-pulse-dot"></span>
+                    <span>📋 Live Order Queue</span>
+                  </div>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                    Active orders requiring preparation, counter pickup, or delivery — updated in real-time.
+                  </p>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="badge-status accepted" style="font-size:11px; padding:3px 10px;" id="merchant-dash-active-badge">0 Active</span>
+                  <button type="button" class="btn-action secondary" onclick="window.refreshMerchantDashOrders && window.refreshMerchantDashOrders()" style="font-size:12px; padding:4px 10px;">
+                    ↻ Refresh
+                  </button>
+                  <button type="button" class="btn-action primary" onclick="window.switchView('orders')" style="font-size:12px; padding:4px 12px;">
+                    Full Orders View →
+                  </button>
+                </div>
+              </div>
+              <div class="active-orders-grid" id="merchant-dash-orders-container" style="padding: 16px;">
+                <div class="empty-state-sm">Loading live orders...</div>
+              </div>
+            </div>
+          </div>
+
           <!-- SINGLE STORE OPERATIONAL DETAILS (Shown only when viewing single store) -->
           <div id="single-store-extra-panels" class="dashboard-two-col mt-6 hidden">
             <!-- LOW STOCK ALERTS FOR CURRENT STORE -->
             <div class="card-panel">
               <div class="panel-header">
                 <div class="panel-title" id="dash-inventory-panel-title">Low Stock Alerts</div>
-                <button type="button" class="panel-link" onclick="window.switchView('inventory')">Manage Stock →</button>
+                <button type="button" class="panel-link" onclick="window.switchView('products')">Manage Stock →</button>
               </div>
               <div class="panel-body" id="dash-low-stock-list">
                 <div class="empty-state-sm">Checking stock levels...</div>
@@ -450,12 +474,12 @@
           </div>
         </section>
 
-        <!-- 3. PRODUCTS VIEW -->
+        <!-- 3. MERGED PRODUCTS & STOCK VIEW -->
         <section class="admin-view" id="view-products">
           <div class="view-header">
             <div>
-              <h1 class="view-title">Products</h1>
-              <p class="view-subtitle">Catalog items, prices, and status</p>
+              <h1 class="view-title">Products & Stock</h1>
+              <p class="view-subtitle">Manage your catalog, prices, stock levels, and availability — all in one place</p>
             </div>
             <div class="view-actions">
               <button type="button" class="btn-action secondary" id="btn-open-quick-add">⚡ Quick Add</button>
@@ -463,23 +487,29 @@
             </div>
           </div>
 
-          <!-- CONTROLS & SEARCH -->
-          <div class="catalog-controls-bar">
+          <!-- STOCK HEALTH SUMMARY STRIP -->
+          <div class="catalog-controls-bar" style="flex-wrap: wrap;">
             <div class="search-input-wrap">
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               <input type="text" id="product-search-input" placeholder="Search by product name, SKU, or category..." />
             </div>
 
-            <div class="stock-filter-pills">
-              <button type="button" class="pill-btn active" data-filter="all">All</button>
-              <button type="button" class="pill-btn" data-filter="in_stock">In Stock</button>
-              <button type="button" class="pill-btn" data-filter="low_stock">Low Stock</button>
-              <button type="button" class="pill-btn" data-filter="out_of_stock">Out of Stock</button>
-              <button type="button" class="pill-btn" data-filter="inactive">Inactive</button>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div class="inventory-summary-chips">
+                <span class="inv-chip alert" id="inv-chip-out">0 Out of Stock</span>
+                <span class="inv-chip warn" id="inv-chip-low">0 Low Stock</span>
+              </div>
+              <div class="stock-filter-pills">
+                <button type="button" class="pill-btn active" data-filter="all">All</button>
+                <button type="button" class="pill-btn" data-filter="in_stock">In Stock</button>
+                <button type="button" class="pill-btn" data-filter="low_stock">Low Stock</button>
+                <button type="button" class="pill-btn" data-filter="out_of_stock">Out of Stock</button>
+                <button type="button" class="pill-btn" data-filter="inactive">Inactive</button>
+              </div>
             </div>
           </div>
 
-          <!-- PRODUCTS TABLE -->
+          <!-- MERGED PRODUCTS + STOCK TABLE -->
           <div class="card-panel">
             <div class="table-responsive">
               <table class="data-table" id="products-table">
@@ -490,62 +520,23 @@
                     <th>SKU</th>
                     <th>Price</th>
                     <th>Stock</th>
+                    <th>Quick Adjust</th>
+                    <th>Low Threshold</th>
                     <th>Availability</th>
                     <th>Active</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="products-tbody">
-                  <tr><td colspan="8" class="text-center py-6">Loading products...</td></tr>
+                  <tr><td colspan="10" class="text-center py-6">Loading products & stock...</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         </section>
 
-        <!-- 4. INVENTORY VIEW -->
-        <section class="admin-view" id="view-inventory">
-          <div class="view-header">
-            <div>
-              <h1 class="view-title">Inventory Management</h1>
-              <p class="view-subtitle">Fast stock adjustments, low stock alerts, and thresholds</p>
-            </div>
-            <div class="view-actions">
-              <button type="button" class="btn-action secondary" id="btn-refresh-inventory">↻ Refresh</button>
-            </div>
-          </div>
-
-          <div class="catalog-controls-bar">
-            <div class="search-input-wrap">
-              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="inventory-search-input" placeholder="Filter inventory items..." />
-            </div>
-            <div class="inventory-summary-chips">
-              <span class="inv-chip alert" id="inv-chip-out">0 Out of Stock</span>
-              <span class="inv-chip warn" id="inv-chip-low">0 Low Stock</span>
-            </div>
-          </div>
-
-          <div class="card-panel">
-            <div class="table-responsive">
-              <table class="data-table" id="inventory-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Current Stock</th>
-                    <th>Quick Adjust</th>
-                    <th>Low Threshold</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody id="inventory-tbody">
-                  <tr><td colspan="6" class="text-center py-6">Loading inventory...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+        <!-- 4. INVENTORY VIEW (Hidden — Merged into Products; kept for backward compat redirect) -->
+        <section class="admin-view" id="view-inventory" style="display:none;"></section>
 
         <!-- 5. STORE SETTINGS & HOURS VIEW -->
         <section class="admin-view" id="view-store">
@@ -1086,7 +1077,7 @@
     </button>
     <button type="button" class="mobile-nav-item" data-view="products" id="mob-nav-products">
       <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-      <span>Products</span>
+      <span>Products & Stock</span>
     </button>
     <button type="button" class="mobile-nav-item" data-view="store" id="mob-nav-store">
       <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>

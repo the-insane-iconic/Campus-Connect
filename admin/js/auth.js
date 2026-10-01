@@ -100,11 +100,21 @@ function setupUserProfile() {
     }
     if (analyticsLabel) analyticsLabel.textContent = 'Deep Analytics';
     if (requestsLabel) requestsLabel.textContent = 'Student Demand';
+
+    // Branding
+    const brandLabel = document.getElementById('brand-portal-label');
+    if (brandLabel) brandLabel.textContent = 'Platform Admin';
+
+    // Role-based visibility: show platform-admin sections, hide merchant sections
+    document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll('.merchant-only').forEach(el => {
+      el.style.display = 'none';
+    });
   } else {
-    // ── Single Store Owner Experience ──
-    if (opsLabel) opsLabel.textContent = 'STORE OPERATIONS';
+    // ── Merchant / Single Store Owner Experience ──
+    if (opsLabel) opsLabel.textContent = 'MY STORE';
     if (dashLabel) dashLabel.textContent = 'Store Dashboard';
-    if (ordersLabel) ordersLabel.textContent = 'Live Orders Queue';
+    if (ordersLabel) ordersLabel.textContent = 'Live Orders';
     if (founderNav) founderNav.classList.add('hidden');
 
     document.querySelectorAll('.store-only-nav').forEach(el => el.classList.remove('hidden'));
@@ -115,6 +125,37 @@ function setupUserProfile() {
     }
     if (analyticsLabel) analyticsLabel.textContent = 'Store Analytics';
     if (requestsLabel) requestsLabel.textContent = 'Product Requests';
+
+    // Branding
+    const brandLabel = document.getElementById('brand-portal-label');
+    if (brandLabel) brandLabel.textContent = 'Merchant Dashboard';
+
+    // Role-based visibility: hide platform-admin sections, show merchant sections
+    document.querySelectorAll('.platform-admin-only').forEach(el => {
+      el.style.display = 'none';
+    });
+    document.querySelectorAll('.merchant-only').forEach(el => {
+      el.style.display = '';
+    });
+
+    // Update merchant-specific metric labels
+    const lblSales = document.getElementById('lbl-dash-sales');
+    const lblCustomers = document.getElementById('lbl-dash-customers');
+    const lblOrders = document.getElementById('lbl-dash-orders');
+    const lblPayout = document.getElementById('lbl-dash-payout');
+    const subSales = document.getElementById('sub-dash-sales');
+    const subCustomers = document.getElementById('sub-dash-customers');
+    const subOrders = document.getElementById('sub-dash-orders');
+    const subPayout = document.getElementById('sub-dash-payout');
+
+    if (lblSales) lblSales.textContent = "Today's Revenue";
+    if (lblCustomers) lblCustomers.textContent = 'My Customers';
+    if (lblOrders) lblOrders.textContent = 'Orders Received';
+    if (lblPayout) lblPayout.textContent = 'My Earnings';
+    if (subSales) subSales.textContent = 'Your store sales today';
+    if (subCustomers) subCustomers.textContent = 'Students who ordered from you';
+    if (subOrders) subOrders.textContent = 'Orders placed at your store';
+    if (subPayout) subPayout.textContent = 'Net earnings after platform fee';
   }
 }
 
@@ -251,6 +292,11 @@ function switchView(viewName) {
       showToast('Access restricted: Platform Superadmin credentials required.', 'error');
     }
     viewName = 'dashboard';
+  }
+
+  // Redirect inventory view to merged products view
+  if (viewName === 'inventory') {
+    viewName = 'products';
   }
 
   // Update sidebar active state

@@ -2975,3 +2975,61 @@ tr.row-settled {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════
+   MERCHANT / PLATFORM ADMIN ROLE-BASED VISIBILITY
+   Toggled via JS in auth.js — default states before JS runs
+   ═══════════════════════════════════════════════════════════ */
+
+/* Merchant-only sections: hidden by default (shown by JS for merchant role) */
+.merchant-only {
+  display: none;
+}
+
+/* Merchant Dashboard: Embedded Live Order Queue Grid */
+#merchant-dash-orders-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+#merchant-dash-orders-container .empty-active-orders {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+#merchant-dash-orders-container .empty-active-orders .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+#merchant-dash-orders-container .empty-active-orders h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+#merchant-dash-orders-container .empty-active-orders p {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+/* Merchant order card hover effect */
+#merchant-dash-orders-container .order-card-compact {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+#merchant-dash-orders-container .order-card-compact:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 600px) {
+  #merchant-dash-orders-container {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

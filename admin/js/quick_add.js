@@ -180,7 +180,7 @@ async function handleSaveAllQuickRows() {
     const modal = document.getElementById('modal-quick-add');
     if (modal) modal.classList.add('hidden');
 
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId && typeof loadProductsAndStock === 'function') loadProductsAndStock(activeStoreId);
   } catch {
     // Handled
   } finally {
@@ -241,7 +241,7 @@ async function handleProcessCsv() {
     const modal = document.getElementById('modal-quick-add');
     if (modal) modal.classList.add('hidden');
 
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId && typeof loadProductsAndStock === 'function') loadProductsAndStock(activeStoreId);
   } catch {
     // Handled
   } finally {

@@ -68,7 +68,7 @@ async function loadDashboard(storeId) {
     if (isPlatformView) {
       storeSubEl.textContent = "Today's sales, student footfall, and end-of-day store payout distribution ledger";
     } else {
-      storeSubEl.textContent = "Store Operating Overview · Counter queue, daily sales & stock";
+      storeSubEl.textContent = "Your store's live orders, daily revenue & stock overview";
     }
   }
 
@@ -138,10 +138,17 @@ async function loadDashboard(storeId) {
       mobBadge.classList.toggle('hidden', metrics.active_orders === 0);
     }
 
-    // 5. Render Core End-of-Day Store Sales & Payout Distribution Ledger Table
-    renderStorePayoutLedger(metrics.stores_ledger, metrics);
+    // 5. Render Core End-of-Day Store Sales & Payout Distribution Ledger Table (Platform Admin Only)
+    if (isPlatformView) {
+      renderStorePayoutLedger(metrics.stores_ledger, metrics);
+    }
 
-    // 6. Single Store view: Show extra stock & product cards if viewing specific store
+    // 6. Merchant View: Load live orders embedded in dashboard
+    if (!isPlatformView) {
+      loadMerchantDashOrders(effectiveStoreId);
+    }
+
+    // 7. Single Store view: Show extra stock & product cards if viewing specific store
     const singleStorePanels = document.getElementById('single-store-extra-panels');
     if (singleStorePanels) {
       singleStorePanels.classList.toggle('hidden', isPlatformView);
@@ -507,3 +514,158 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * MERCHANT DASHBOARD: LIVE ORDER QUEUE (Embedded in Dashboard)
+ * Loads active orders and renders them directly in the merchant's dashboard
+ * using the same order card format as the dedicated Orders view.
+ * ────────────────────────────────────────────────────────────────
+ */
+async function loadMerchantDashOrders(storeId) {
+  const container = document.getElementById('merchant-dash-orders-container');
+  const badge = document.getElementById('merchant-dash-active-badge');
+  if (!container) return;
+
+  try {
+    const data = await apiRequest(`/admin/stores/${storeId}/orders`);
+    const fetchedOrders = data.orders || [];
+
+    // Filter active orders
+    const activeOrders = fetchedOrders.filter(o => {
+      const s = (o.status || '').toUpperCase();
+      return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
+    });
+
+    // Sort FIFO
+    activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+    // Update badge
+    if (badge) badge.textContent = `${activeOrders.length} Active`;
+
+    // Update dashboard counters too
+    const activeBadge = document.getElementById('dash-active-count-badge');
+    if (activeBadge) activeBadge.textContent = activeOrders.length;
+    const counterOrders = document.getElementById('counter-orders');
+    if (counterOrders) counterOrders.textContent = activeOrders.length;
+
+    if (activeOrders.length === 0) {
+      container.innerHTML = `
+        <div class="empty-active-orders">
+          <div class="empty-icon">☕</div>
+          <h3>All caught up!</h3>
+          <p>No active orders right now. New student orders will appear here automatically.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Reuse renderActiveOrderCard from orders.js if available
+    if (typeof window.renderActiveOrderCard === 'function') {
+      container.innerHTML = activeOrders.map((o, idx) => {
+        try {
+          return window.renderActiveOrderCard(o, idx, activeOrders);
+        } catch (e) {
+          return '';
+        }
+      }).join('');
+    } else {
+      // Fallback compact card rendering
+      container.innerHTML = activeOrders.map(o => {
+        const statusColors = {
+          'PLACED': '#F59E0B',
+          'ACCEPTED': '#3B82F6',
+          'PREPARING': '#8B5CF6',
+          'READY': '#10B981'
+        };
+        const s = (o.status || '').toUpperCase();
+        const color = statusColors[s] || '#64748B';
+        const displayNum = o.order_number_display || (o.order_number ? `#ORD-${String(o.order_number).slice(-2)}` : `#${String(o.id).slice(-4)}`);
+        const customer = o.user_name || o.customer_name || 'Student';
+        const total = o.store_subtotal || o.total || o.total_amount || 0;
+        const items = o.items || [];
+        const itemsSummary = items.length > 0
+          ? items.map(i => `${i.quantity || 1}x ${escapeHtml(i.name || i.product_name || 'Item')}`).join(', ')
+          : `${items.length || '?'} item(s)`;
+        const elapsed = formatMerchantOrderTime(o.created_at);
+
+        const nextActions = {
+          'PLACED': { label: '✅ Accept Order', nextStatus: 'ACCEPTED' },
+          'ACCEPTED': { label: '👨‍🍳 Start Preparing', nextStatus: 'PREPARING' },
+          'PREPARING': { label: '✅ Mark Ready', nextStatus: 'READY' },
+          'READY': { label: '📦 Complete / Picked Up', nextStatus: 'COMPLETED' }
+        };
+        const action = nextActions[s];
+        const actionBtn = action
+          ? `<button type="button" class="btn-action primary" onclick="window.merchantDashAdvanceOrder('${o.id}', '${action.nextStatus}')" style="font-size:12px; padding:6px 12px; margin-top:8px; width:100%;">${action.label}</button>`
+          : '';
+
+        return `
+          <div class="order-card-compact" style="background:var(--surface-alt); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px; border-left:4px solid ${color};">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="font-size:14px; color:var(--text-main);">${displayNum}</strong>
+              <span style="font-size:11px; padding:2px 8px; border-radius:4px; font-weight:700; color:#fff; background:${color};">${s}</span>
+            </div>
+            <div style="font-size:12.5px; color:var(--text-muted); margin-bottom:4px;">👤 ${escapeHtml(customer)} · ${elapsed}</div>
+            <div style="font-size:12.5px; color:var(--text-main); margin-bottom:4px;">${itemsSummary}</div>
+            <div style="font-size:14px; font-weight:700; color:var(--text-main);">₹${Math.round(total).toLocaleString('en-IN')}</div>
+            ${actionBtn}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state-sm" style="color: var(--danger);">Failed to load orders: ${err.message}</div>`;
+  }
+}
+
+function formatMerchantOrderTime(isoDate) {
+  if (!isoDate) return 'Just now';
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin === 1) return '1m ago';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr === 1) return '1h ago';
+  return `${diffHr}h ago`;
+}
+
+/**
+ * Merchant Dashboard: Advance order status (1-click from dashboard)
+ */
+window.merchantDashAdvanceOrder = async function(orderId, newStatus) {
+  try {
+    await apiRequest(`/admin/orders/${orderId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (typeof showToast === 'function') {
+      showToast(`Order updated to ${newStatus}`, 'success');
+    }
+    // Refresh merchant dashboard orders
+    const storeId = window.activeStoreId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null);
+    if (storeId) {
+      loadMerchantDashOrders(storeId);
+      loadDashboard(storeId);
+    }
+    // Also update the main orders view if open
+    window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated'));
+  } catch (err) {
+    if (typeof showToast === 'function') {
+      showToast(`Failed to update order: ${err.message}`, 'error');
+    }
+  }
+};
+
+window.refreshMerchantDashOrders = function() {
+  const storeId = window.activeStoreId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null);
+  if (storeId) {
+    loadMerchantDashOrders(storeId);
+    if (typeof showToast === 'function') {
+      showToast('↻ Refreshed live order queue');
+    }
+  }
+};
+
+window.loadDashboard = loadDashboard;

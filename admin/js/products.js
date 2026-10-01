@@ -1,24 +1,27 @@
 /**
- * UniMall Store Admin — Products Controller (admin/js/products.js)
+ * UniMall Store Admin — Merged Products & Stock Controller (admin/js/products.js)
+ * Single unified view combining product catalog + inventory management.
+ * All data sourced from Neon PostgreSQL via API endpoints.
  */
 
 'use strict';
 
 let currentProducts = [];
+let currentInventory = [];
 let productFilterState = 'all';
 let productSearchQuery = '';
 let availableCategories = [];
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'products') {
-    loadProducts(e.detail.storeId);
+    loadProductsAndStock(e.detail.storeId);
   }
 });
 
 window.addEventListener('unimall:storeChanged', (e) => {
   const currentActiveView = document.querySelector('.admin-view.active');
   if (currentActiveView && currentActiveView.id === 'view-products') {
-    loadProducts(e.detail.storeId);
+    loadProductsAndStock(e.detail.storeId);
   }
 });
 
@@ -32,8 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', (e) => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-        productSearchQuery = e.target.value.trim();
-        if (activeStoreId) loadProducts(activeStoreId);
+        productSearchQuery = e.target.value.trim().toLowerCase();
+        renderMergedTable();
       }, 250);
     });
   }
@@ -44,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.stock-filter-pills .pill-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       productFilterState = btn.getAttribute('data-filter');
-      if (activeStoreId) loadProducts(activeStoreId);
+      renderMergedTable();
     });
   });
 
@@ -77,40 +80,111 @@ async function loadCategories() {
   }
 }
 
-async function loadProducts(storeId) {
+/**
+ * Load both products and inventory data, merge them by product_id
+ */
+async function loadProductsAndStock(storeId) {
   if (!storeId) return;
 
   const tbody = document.getElementById('products-tbody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6">Loading catalog...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-6">Loading products & stock...</td></tr>';
   }
 
   try {
-    let url = `/admin/stores/${storeId}/products?status=${productFilterState}`;
-    if (productSearchQuery) {
-      url += `&search=${encodeURIComponent(productSearchQuery)}`;
-    }
+    // Fetch products and inventory in parallel
+    const [productsData, inventoryData] = await Promise.all([
+      apiRequest(`/admin/stores/${storeId}/products?status=all`).catch(() => ({ products: [] })),
+      apiRequest(`/admin/stores/${storeId}/inventory`).catch(() => ({ inventory: [] }))
+    ]);
 
-    const data = await apiRequest(url);
-    currentProducts = data.products || [];
-    renderProductsTable();
+    currentProducts = productsData.products || [];
+    currentInventory = inventoryData.inventory || [];
+
+    // Update stock health chips
+    updateStockHealthChips();
+
+    // Render merged table
+    renderMergedTable();
   } catch (err) {
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6" style="color: var(--danger);">Failed to load products: ${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6" style="color: var(--danger);">Failed to load products: ${err.message}</td></tr>`;
     }
   }
 }
 
-function renderProductsTable() {
+function updateStockHealthChips() {
+  // Calculate from merged data
+  let outCount = 0;
+  let lowCount = 0;
+
+  currentProducts.forEach(p => {
+    const inv = currentInventory.find(i => i.product_id === p.id);
+    const stock = inv ? inv.quantity : (p.stock || 0);
+    const threshold = inv ? inv.low_stock_threshold : (p.low_stock_threshold || 5);
+
+    if (stock === 0) outCount++;
+    else if (stock <= threshold) lowCount++;
+  });
+
+  const chipOut = document.getElementById('inv-chip-out');
+  const chipLow = document.getElementById('inv-chip-low');
+  if (chipOut) chipOut.textContent = `${outCount} Out of Stock`;
+  if (chipLow) chipLow.textContent = `${lowCount} Low Stock`;
+
+  // Also update sidebar counter
+  const navCounter = document.getElementById('counter-low-stock');
+  if (navCounter) {
+    navCounter.textContent = outCount + lowCount;
+  }
+}
+
+function renderMergedTable() {
   const tbody = document.getElementById('products-tbody');
   if (!tbody) return;
 
-  if (currentProducts.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6" style="color: var(--text-muted);">No products match your criteria.</td></tr>';
+  // Merge products with inventory data
+  let merged = currentProducts.map(p => {
+    const inv = currentInventory.find(i => i.product_id === p.id) || {};
+    const stock = inv.quantity !== undefined ? inv.quantity : (p.stock || 0);
+    const threshold = inv.low_stock_threshold || p.low_stock_threshold || 5;
+    const unit = inv.unit || p.unit || 'items';
+
+    let availability = 'in_stock';
+    if (p.is_active === 0) availability = 'inactive';
+    else if (stock === 0) availability = 'out_of_stock';
+    else if (stock <= threshold) availability = 'low_stock';
+
+    return {
+      ...p,
+      stock,
+      low_stock_threshold: threshold,
+      unit,
+      availability,
+      product_id: p.id
+    };
+  });
+
+  // Apply filter
+  if (productFilterState !== 'all') {
+    merged = merged.filter(p => p.availability === productFilterState);
+  }
+
+  // Apply search
+  if (productSearchQuery) {
+    merged = merged.filter(p =>
+      (p.name || '').toLowerCase().includes(productSearchQuery) ||
+      (p.sku || '').toLowerCase().includes(productSearchQuery) ||
+      (p.category_name || '').toLowerCase().includes(productSearchQuery)
+    );
+  }
+
+  if (merged.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-6" style="color: var(--text-muted);">No products match your criteria.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = currentProducts.map(p => {
+  tbody.innerHTML = merged.map(p => {
     const availLabel = {
       'in_stock': 'In Stock',
       'low_stock': 'Low Stock',
@@ -143,9 +217,28 @@ function renderProductsTable() {
           </button>
         </td>
         <td>
-          <span style="font-weight: 700; ${p.stock === 0 ? 'color: var(--danger);' : ''}">${p.stock}</span>
+          <strong id="qty-val-${p.id}" style="font-size: 15px; ${p.stock === 0 ? 'color: var(--danger);' : ''}">
+            ${p.stock}
+          </strong>
+          <span style="font-size: 12px; color: var(--text-muted);"> ${p.unit || 'items'}</span>
         </td>
-        <td><span class="pill-avail ${p.availability}">${availLabel}</span></td>
+        <td>
+          <div class="stepper-wrap">
+            <button type="button" class="btn-step" onclick="adjustStockStep('${p.id}', -1)" title="Decrease stock">-</button>
+            <span class="step-value" id="step-display-${p.id}">${p.stock}</span>
+            <button type="button" class="btn-step" onclick="adjustStockStep('${p.id}', 1)" title="Increase stock">+</button>
+          </div>
+          <button type="button" class="btn-action secondary" onclick="promptSetQuantity('${p.id}', '${escapeHtml(p.name)}', ${p.stock})"
+                  style="height: 28px; font-size: 11px; padding: 0 6px; margin-left: 6px;">
+            Set
+          </button>
+        </td>
+        <td>
+          <input type="number" min="1" value="${p.low_stock_threshold}"
+                 onchange="updateLowStockThreshold('${p.id}', this.value)"
+                 style="width: 60px; height: 28px; padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12.5px;" />
+        </td>
+        <td><span class="pill-avail ${p.availability}" id="avail-pill-${p.id}">${availLabel}</span></td>
         <td>
           <input type="checkbox" class="ios-switch" ${p.is_active === 1 ? 'checked' : ''}
                  onchange="toggleProductActive('${p.id}', this.checked)" title="Toggle Active/Inactive" />
@@ -194,8 +287,19 @@ function openProductModal(prod = null) {
 window.openProductModal = openProductModal;
 
 function openEditProductModal(productId) {
+  // Search in merged currentProducts which now has stock/threshold from inventory
   const prod = currentProducts.find(p => p.id === productId);
-  if (prod) openProductModal(prod);
+  if (prod) {
+    // Enrich with inventory data
+    const inv = currentInventory.find(i => i.product_id === productId) || {};
+    const enriched = {
+      ...prod,
+      stock: inv.quantity !== undefined ? inv.quantity : (prod.stock || 0),
+      low_stock_threshold: inv.low_stock_threshold || prod.low_stock_threshold || 5,
+      unit: inv.unit || prod.unit || 'item'
+    };
+    openProductModal(enriched);
+  }
 }
 window.openEditProductModal = openEditProductModal;
 
@@ -248,7 +352,7 @@ async function handleProductFormSubmit(e) {
     const modal = document.getElementById('modal-product-form');
     if (modal) modal.classList.add('hidden');
 
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
   } catch {
     // Handled
   } finally {
@@ -266,9 +370,9 @@ async function toggleProductActive(productId, isActive) {
       body: JSON.stringify({ is_active: isActive ? 1 : 0 })
     });
     showToast(isActive ? 'Product activated for students' : 'Product deactivated (hidden from students)', 'success');
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
   } catch {
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
   }
 }
 window.toggleProductActive = toggleProductActive;
@@ -288,9 +392,118 @@ async function quickEditPrice(productId, productName, currentPrice) {
       body: JSON.stringify({ price: newPrice })
     });
     showToast(`Price for "${productName}" updated to ₹${newPrice}`, 'success');
-    if (activeStoreId) loadProducts(activeStoreId);
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
   } catch (err) {
     showToast('Failed to update price.', 'error');
   }
 }
 window.quickEditPrice = quickEditPrice;
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * STOCK MANAGEMENT (Merged from inventory.js)
+ * ────────────────────────────────────────────────────────────────
+ */
+const debounceStockTimers = {};
+
+function adjustStockStep(productId, delta) {
+  // Find in both products and inventory
+  const prod = currentProducts.find(p => p.id === productId);
+  const inv = currentInventory.find(i => i.product_id === productId);
+  
+  const currentQty = inv ? inv.quantity : (prod ? prod.stock : 0);
+  const threshold = inv ? inv.low_stock_threshold : (prod ? prod.low_stock_threshold : 5);
+  const newQty = Math.max(0, currentQty + delta);
+
+  // Update in-memory
+  if (inv) inv.quantity = newQty;
+  if (prod) prod.stock = newQty;
+
+  // Immediate optimistic UI update
+  const displayVal = document.getElementById(`step-display-${productId}`);
+  const qtyVal = document.getElementById(`qty-val-${productId}`);
+  const pill = document.getElementById(`avail-pill-${productId}`);
+
+  if (displayVal) displayVal.textContent = newQty;
+  if (qtyVal) {
+    qtyVal.textContent = newQty;
+    qtyVal.style.color = newQty === 0 ? 'var(--danger)' : '';
+  }
+
+  if (pill) {
+    const isOut = newQty === 0;
+    const isLow = !isOut && newQty <= threshold;
+    pill.className = `pill-avail ${isOut ? 'out_of_stock' : (isLow ? 'low_stock' : 'in_stock')}`;
+    pill.textContent = isOut ? 'Out of Stock' : (isLow ? 'Low Stock' : 'In Stock');
+  }
+
+  // Update health chips
+  updateStockHealthChips();
+
+  // Debounced API mutation
+  clearTimeout(debounceStockTimers[productId]);
+  debounceStockTimers[productId] = setTimeout(async () => {
+    try {
+      await apiRequest(`/admin/inventory/${productId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ quantity: newQty })
+      });
+    } catch {
+      // Revert if failed
+      if (activeStoreId) loadProductsAndStock(activeStoreId);
+    }
+  }, 350);
+}
+window.adjustStockStep = adjustStockStep;
+
+async function promptSetQuantity(productId, name, currentQty) {
+  const input = prompt(`Enter new stock quantity for "${name}":`, currentQty);
+  if (input === null) return;
+
+  const newQty = parseInt(input, 10);
+  if (isNaN(newQty) || newQty < 0) {
+    showToast('Invalid quantity.', 'error');
+    return;
+  }
+
+  try {
+    const res = await apiRequest(`/admin/inventory/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ quantity: newQty })
+    });
+    showToast(res.message || `Stock set to ${newQty}.`, 'success');
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
+  } catch {
+    // Handled
+  }
+}
+window.promptSetQuantity = promptSetQuantity;
+
+function quickRestock(productId, name, currentQty) {
+  // Navigate to products view and prompt
+  window.switchView('products');
+  setTimeout(() => {
+    promptSetQuantity(productId, name, currentQty);
+  }, 150);
+}
+window.quickRestock = quickRestock;
+
+async function updateLowStockThreshold(productId, threshold) {
+  const t = parseInt(threshold, 10);
+  if (isNaN(t) || t < 1) return;
+
+  try {
+    await apiRequest(`/admin/inventory/${productId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ low_stock_threshold: t })
+    });
+    showToast('Threshold updated.', 'success');
+    if (activeStoreId) loadProductsAndStock(activeStoreId);
+  } catch {
+    // Handled
+  }
+}
+window.updateLowStockThreshold = updateLowStockThreshold;
+
+// Make loadProductsAndStock accessible globally (for inventory.js backward compat)
+window.loadProductsAndStock = loadProductsAndStock;
