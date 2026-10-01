@@ -171,9 +171,9 @@ window.UniMallDB = {
   async createOrder(orderPayload, items = []) {
     const orderId = orderPayload.id;
     const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-4)}`;
-    const userId = orderPayload.user_id || ('usr_guest_' + Date.now());
-    const userName = orderPayload.user_name || orderPayload.customer_name || 'Campus Student';
-    const userEmail = orderPayload.user_email || orderPayload.customer_email || `${userId}@campusconnect.edu`;
+    const numMatch = (userName || '').match(/\d+/);
+    const studentNum = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
+    const userEmail = orderPayload.user_email || orderPayload.customer_email || `student${studentNum}@campus.edu`;
     const storeId = orderPayload.store_id || 'campus-cafe';
     const status = (orderPayload.status || 'placed').toLowerCase();
     const fulfillmentType = 'pickup'; // Guaranteed Counter Pickup Only
@@ -508,8 +508,9 @@ window.UniMallDB = {
     if (!user) return false;
     try {
       const uid = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
-      const name = (user.name || 'Campus Student').trim();
-      const email = user.email || `${uid}@campusconnect.edu`;
+      const numMatch = (name || '').match(/\d+/);
+      const studentNum = numMatch ? numMatch[0] : (String(uid).replace(/\D/g, '') || '1');
+      const email = user.email || `student${studentNum}@campus.edu`;
       const phone = user.phone || '';
       await this.neonSql(`
         INSERT INTO users (id, name, email, phone, role)

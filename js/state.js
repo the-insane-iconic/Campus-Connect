@@ -191,10 +191,9 @@ function placeOrder(fulfillmentType, deliveryInfo) {
     activeUser = window.UserManager.ensureGuestProfile();
   }
   const user = activeUser || AppState.currentUser || {};
-  const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
-  const studentName = (user.name || (AppState.currentUser && AppState.currentUser.name) || 'Campus Student').trim();
-  const studentPhone = user.phone || (AppState.currentUser && AppState.currentUser.phone) || '';
-  const studentEmail = user.email || (AppState.currentUser && AppState.currentUser.email) || `${userId}@campusconnect.edu`;
+  const numMatch = (studentName || '').match(/\d+/);
+  const studentNum = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
+  const studentEmail = user.email || (AppState.currentUser && AppState.currentUser.email) || `student${studentNum}@campus.edu`;
 
   // Sync user profile to Neon PostgreSQL
   if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {

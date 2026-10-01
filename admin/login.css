@@ -59,6 +59,20 @@ a {
   color: inherit;
 }
 
+/* ── Global Utility: Hidden ─────────────────────────────────────── */
+.hidden {
+  display: none !important;
+}
+
+/* Allow scrolling on registration page */
+html:has(.register-container),
+body:has(.register-container),
+body.register-page {
+  height: auto !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+}
+
 /* ── DEFAULT / DESKTOP LAYOUT (>= 920px) ────────────────────────── */
 @media (min-width: 920px) {
   html, body {
@@ -1786,12 +1800,117 @@ a {
 
 .register-card {
   width: 100%;
-  max-width: 620px;
+  max-width: 660px;
   background: #FFFFFF;
-  border-radius: var(--radius-xl);
-  padding: 36px 32px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: var(--radius-card);
+  padding: 44px 38px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .register-container {
+    padding: 20px 12px;
+  }
+  .register-card {
+    padding: 28px 20px;
+    border-radius: var(--radius-lg);
+  }
+}
+
+.register-card .brand-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.register-card .brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D68FE;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  margin-bottom: 12px;
+}
+
+.register-card .brand-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.register-card .brand-title span {
+  color: #1D68FE;
+}
+
+.register-card .brand-subtitle {
+  font-size: 14px;
+  color: #64748B;
+  max-width: 440px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.register-card .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.register-card .form-group label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.register-card .form-group input,
+.register-card .form-group textarea {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14.5px;
+  font-family: inherit;
+  color: #0F172A;
+  background: #F8FAFC;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 12px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.register-card .form-group textarea {
+  height: auto;
+  min-height: 84px;
+  padding: 12px 16px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.register-card .form-group input:focus,
+.register-card .form-group textarea:focus {
+  outline: none;
+  background: #FFFFFF;
+  border-color: #1D68FE;
+  box-shadow: 0 0 0 3.5px rgba(29, 104, 254, 0.12);
+}
+
+.register-card .form-group input::placeholder,
+.register-card .form-group textarea::placeholder {
+  color: #94A3B8;
+  font-weight: 400;
 }
 
 .form-row-2 {
@@ -1803,6 +1922,7 @@ a {
 @media (max-width: 600px) {
   .form-row-2 {
     grid-template-columns: 1fr;
+    gap: 0;
   }
 }
 
@@ -1810,14 +1930,14 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .type-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 7px;
+  padding: 9px 15px;
   background: #F8FAFC;
   border: 1.5px solid #E2E8F0;
   border-radius: var(--radius-pill);
@@ -1825,7 +1945,7 @@ a {
   font-weight: 600;
   color: #475569;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
@@ -1834,61 +1954,102 @@ a {
 }
 
 .type-pill:hover {
-  border-color: #CBD5E1;
+  border-color: #94A3B8;
   background: #F1F5F9;
+  transform: translateY(-1px);
 }
 
 .type-pill.selected {
   background: #EFF6FF;
-  border-color: var(--primary);
-  color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: #1D68FE;
+  color: #1D68FE;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(29, 104, 254, 0.15), 0 0 0 2px rgba(29, 104, 254, 0.2);
+  transform: translateY(-1px);
+}
+
+.register-card .btn-primary {
+  width: 100%;
+  height: 50px;
+  background: linear-gradient(135deg, #1D68FE 0%, #1558E6 100%);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(29, 104, 254, 0.28);
+  transition: all 0.2s ease;
+}
+
+.register-card .btn-primary:hover {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  transform: translateY(-1.5px);
+  box-shadow: 0 10px 26px rgba(29, 104, 254, 0.35);
+}
+
+.register-card .btn-primary:active {
+  transform: translateY(0);
 }
 
 .register-success {
   text-align: center;
-  padding: 24px 16px;
+  padding: 32px 16px;
+  animation: fadeIn 0.3s ease;
 }
 
 .success-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 12px;
+  font-size: 54px;
+  display: inline-block;
+  margin-bottom: 16px;
+  animation: pulse 1.8s infinite ease-in-out;
 }
 
 .success-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: #0F172A;
   margin-bottom: 12px;
+  letter-spacing: -0.02em;
 }
 
 .success-message {
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.6;
-  color: #64748B;
-  margin-bottom: 8px;
+  color: #475569;
+  max-width: 480px;
+  margin: 0 auto 12px;
 }
 
 .success-id {
-  display: inline-block;
-  background: #F1F5F9;
-  color: #0F172A;
-  font-family: monospace;
-  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #1D4ED8;
+  font-family: 'DM Mono', monospace, sans-serif;
+  font-size: 14.5px;
   font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 8px;
-  margin-top: 12px;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  margin: 16px auto 24px;
 }
 
 .btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
+  padding: 12px 28px;
   background: #F1F5F9;
   color: #0F172A;
+  border: 1px solid #E2E8F0;
   border-radius: var(--radius-pill);
   font-size: 14px;
   font-weight: 700;
@@ -1898,6 +2059,7 @@ a {
 
 .btn-secondary:hover {
   background: #E2E8F0;
+  transform: translateY(-1px);
 }
 
 .back-link {
@@ -1914,5 +2076,5 @@ a {
 
 .login-footer {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 22px;
 }

@@ -56,7 +56,10 @@
             u.id = guestId;
             u.uid = guestId;
             u.guestId = guestId;
-            u.email = u.email || `${guestId}@campusconnect.edu`;
+            // Consistent student+number+@campus.edu format
+            if (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu') {
+              u.email = `student${num}@campus.edu`;
+            }
             this._persist(u);
             if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
               window.UniMallDB.syncUser(u).catch(() => {});
@@ -84,7 +87,7 @@
         uid:      guestId,
         guestId:  guestId,
         name:     'Student ' + n,
-        email:    `student${n}@campusconnect.edu`,
+        email:    `student${n}@campus.edu`,
         avatar:   '',
         phone:    '',
         hostel:   '',
@@ -115,7 +118,10 @@
             u.id = guestId;
             u.uid = guestId;
             u.guestId = guestId;
-            u.email = u.email || `${guestId}@campusconnect.edu`;
+            // Consistent student+number+@campus.edu format
+            if (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu') {
+              u.email = `student${num}@campus.edu`;
+            }
             this._persist(u);
             if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
               window.UniMallDB.syncUser(u).catch(() => {});
@@ -132,7 +138,7 @@
         uid:      guestId,
         guestId:  guestId,
         name:     'Student ' + n,
-        email:    `student${n}@campusconnect.edu`,
+        email:    `student${n}@campus.edu`,
         avatar:   '',
         phone:    '',
         hostel:   '',
@@ -241,12 +247,23 @@
     _persist(userData) {
       try {
         const uid = userData.id || userData.uid || userData.guestId;
+        let email = userData.email;
+        if (userData.isGuest) {
+          const numMatch = (userData.name || '').match(/\d+/);
+          const num = numMatch ? numMatch[0] : (String(uid).replace(/\D/g, '') || '1');
+          if (!email || email.includes('campusconnect.edu') || email.startsWith('usr_guest_') || email === 'student@campus.edu') {
+            email = `student${num}@campus.edu`;
+          }
+        } else if (!email) {
+          email = `${uid}@campus.edu`;
+        }
+
         const cleanUser = {
           id:       uid,
           uid:      uid,
           guestId:  uid,
           name:     userData.name,
-          email:    userData.email     || `${uid}@campusconnect.edu`,
+          email:    email,
           avatar:   userData.avatar    || '',
           phone:    userData.phone     || '',
           hostel:   userData.hostel    || '',
@@ -297,7 +314,11 @@
             u.id = guestId;
             u.uid = guestId;
             u.guestId = guestId;
-            u.email = u.email || `${guestId}@campusconnect.edu`;
+            if (u.isGuest && (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu')) {
+              u.email = `student${num}@campus.edu`;
+            } else if (!u.email) {
+              u.email = `student${num}@campus.edu`;
+            }
             this._persist(u);
 
             if (typeof AppState !== 'undefined') {
