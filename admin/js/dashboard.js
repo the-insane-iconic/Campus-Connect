@@ -46,8 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
  * ────────────────────────────────────────────────────────────────
  */
 async function loadDashboard(storeId) {
-  const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
-  const isPlatformUser = (currentAdminUser && currentAdminUser.role === 'platform_admin');
+  const user = (typeof window.getCurrentAdminUser === 'function' ? window.getCurrentAdminUser() : null) || (typeof currentAdminUser !== 'undefined' ? currentAdminUser : null);
+  const isPlatformUser = (user && user.role === 'platform_admin');
+  const effectiveStoreId = isPlatformUser ? 'all' : (storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all'));
   const isPlatformView = (effectiveStoreId === 'all') || isPlatformUser;
 
   // 1. Update Header Greeting

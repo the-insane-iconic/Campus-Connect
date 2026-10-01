@@ -37,6 +37,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     currentAdminUser = meData.user;
     currentAuthorizedStores = meData.stores || [];
+    window.currentAdminUser = currentAdminUser;
+    window.currentAuthorizedStores = currentAuthorizedStores;
+
+    window.getCurrentAdminUser = function() {
+      if (window.currentAdminUser) return window.currentAdminUser;
+      if (typeof currentAdminUser !== 'undefined' && currentAdminUser) return currentAdminUser;
+      try {
+        const raw = sessionStorage.getItem('unimall_admin_user');
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return null;
+    };
 
     setupUserProfile();
     setupStoreContext();

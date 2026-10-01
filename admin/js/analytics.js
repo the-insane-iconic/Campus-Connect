@@ -35,7 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadAnalytics(storeId) {
   const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
-  const isPlatformView = (effectiveStoreId === 'all') || (currentAdminUser && currentAdminUser.role === 'platform_admin' && effectiveStoreId === 'all');
+  const user = (typeof window.getCurrentAdminUser === 'function' ? window.getCurrentAdminUser() : null) || (typeof currentAdminUser !== 'undefined' ? currentAdminUser : null);
+  const isPlatformUser = (user && user.role === 'platform_admin');
+  const isPlatformView = (effectiveStoreId === 'all') || isPlatformUser;
 
   // Title update
   const titleEl = document.getElementById('analytics-page-title');
@@ -161,8 +163,11 @@ function renderHourlyRushChart(hourlyRows, totalOrders, totalRevenue) {
   setSlotStat('rush-evening-stat', ev);
   setSlotStat('rush-night-stat', nt);
 
-  // Focus view from 8:00 AM to 11:00 PM (16 hours) where campus is active
-  const hoursToShow = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+  // Dynamic hours to show: always include active hours, plus standard campus daytime hours
+  const activeHours = Object.keys(hourMap).map(Number).filter(h => hourMap[h]?.orders > 0);
+  const baseDayHours = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+  const hoursSet = new Set([...activeHours, ...baseDayHours]);
+  const hoursToShow = Array.from(hoursSet).sort((a, b) => a - b);
 
   const formatHourLabel = (h) => {
     if (h === 0) return '12 AM';
@@ -215,23 +220,25 @@ function renderStoreMatrixTable(storeMatrix, totalRevenue) {
     { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
   ];
 
-  const matrixMap = {};
-  (storeMatrix || []).forEach(r => {
-    matrixMap[r.store_id] = r;
-  });
-
-  const fullMatrix = CANONICAL_MATRIX.map(base => {
-    const row = matrixMap[base.store_id] || {};
-    return {
-      store_id: base.store_id,
-      store_name: row.store_name || base.store_name,
-      category: row.category || base.category,
-      revenue: parseFloat(row.revenue || 0),
-      orders_count: parseInt(row.orders_count || 0, 10),
-      customers_count: parseInt(row.customers_count || 0, 10),
-      aov: parseFloat(row.aov || 0)
-    };
-  });
+  const fullMatrix = (storeMatrix && storeMatrix.length > 0)
+    ? storeMatrix.map(r => ({
+        store_id: r.store_id,
+        store_name: r.store_name,
+        category: r.category,
+        revenue: parseFloat(r.revenue || 0),
+        orders_count: parseInt(r.orders_count || 0, 10),
+        customers_count: parseInt(r.customers_count || 0, 10),
+        aov: parseFloat(r.aov || 0)
+      }))
+    : CANONICAL_MATRIX.map(base => ({
+        store_id: base.store_id,
+        store_name: base.store_name,
+        category: base.category,
+        revenue: 0,
+        orders_count: 0,
+        customers_count: 0,
+        aov: 0
+      }));
 
   // Sort by revenue descending
   fullMatrix.sort((a, b) => b.revenue - a.revenue);

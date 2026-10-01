@@ -101,12 +101,43 @@ function switchRegShopsTab(tabName) {
 }
 window.switchRegShopsTab = switchRegShopsTab;
 
+let cachedStoresList = [];
+
 // ─── FOUNDER / REGISTERED SHOPS HUB INITIALIZER ─────────────────
 
 async function loadFounderHub() {
-  if (currentAdminUser?.role !== 'platform_admin') return;
+  const user = (typeof window.getCurrentAdminUser === 'function' ? window.getCurrentAdminUser() : null) || (typeof currentAdminUser !== 'undefined' ? currentAdminUser : null);
+  if (!user || user.role !== 'platform_admin') return;
 
   try {
+    // 0. Fetch authoritative stores list from Neon DB
+    if (window.UniMallDB && typeof window.UniMallDB.getStores === 'function') {
+      try {
+        const dbStores = await window.UniMallDB.getStores();
+        if (Array.isArray(dbStores) && dbStores.length > 0) {
+          cachedStoresList = dbStores.map(s => {
+            let icon = '🏪';
+            if (s.id === 'campus-cafe') icon = '☕';
+            else if (s.id === 'book-corner') icon = '📚';
+            else if (s.id === 'techstop') icon = '💻';
+            else if (s.id === 'campus-mart') icon = '🛒';
+            else if (s.id === 'campus-wear') icon = '👕';
+            else if (s.id === 'health-hub') icon = '💊';
+            else if (s.id.includes('juice') || (s.name && s.name.toLowerCase().includes('juice'))) icon = '🥤';
+            return {
+              id: s.id,
+              name: s.name,
+              category: s.category || 'General',
+              location: s.location || 'Campus Center',
+              icon
+            };
+          });
+        }
+      } catch (e) {
+        console.warn('Founder hub stores fetch note:', e);
+      }
+    }
+
     // 1. Fetch overview stats
     const [prodsData, ordersData] = await Promise.all([
       apiRequest('/admin/stores/all/products').catch(() => ({ products: [] })),
@@ -147,15 +178,7 @@ async function loadFounderHub() {
  * Return comprehensive list of all registered campus stores
  */
 function getCompleteStoresList() {
-  const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-  const approved = registeredStores.filter(r => r.status === 'approved').map(r => ({
-    id: r.storeId,
-    name: r.storeName,
-    category: r.storeType || 'General',
-    location: r.location || 'Campus Center',
-    icon: '🏪'
-  }));
-
+  const baseMap = new Map();
   const BASE_STORES = [
     { id: 'campus-cafe', name: 'Campus Café', category: 'Food & Drinks', location: 'Ground Floor, Student Center', icon: '☕' },
     { id: 'book-corner', name: 'Book Corner', category: 'Stationery & Books', location: 'First Floor, Block B', icon: '📚' },
@@ -164,15 +187,30 @@ function getCompleteStoresList() {
     { id: 'campus-wear', name: 'Campus Wear', category: 'Fashion & Apparel', location: 'First Floor, Unimall', icon: '👕' },
     { id: 'health-hub', name: 'Health Hub', category: 'Health & Care', location: 'Ground Floor, Medical Wing', icon: '💊' },
   ];
+  BASE_STORES.forEach(s => baseMap.set(s.id, s));
 
-  const allStores = [...BASE_STORES];
-  approved.forEach(appStore => {
-    if (!allStores.some(s => s.id === appStore.id)) {
-      allStores.push(appStore);
-    }
-  });
+  // Merge authoritative stores from Neon DB
+  if (Array.isArray(cachedStoresList) && cachedStoresList.length > 0) {
+    cachedStoresList.forEach(s => baseMap.set(s.id, { ...(baseMap.get(s.id) || {}), ...s }));
+  }
 
-  return allStores;
+  // Merge approved stores from local registration
+  try {
+    const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+    registeredStores.filter(r => r.status === 'approved').forEach(r => {
+      if (!baseMap.has(r.storeId)) {
+        baseMap.set(r.storeId, {
+          id: r.storeId,
+          name: r.storeName,
+          category: r.storeType || 'General',
+          location: r.location || 'Campus Center',
+          icon: '🏪'
+        });
+      }
+    });
+  } catch(e) {}
+
+  return Array.from(baseMap.values());
 }
 
 // ─── 1. ALL STORES DIRECTORY & LIVE CONTROLS ─────────────────────
@@ -281,6 +319,10 @@ function filterMasterInventory(storeFilter, searchQuery) {
   const q = (searchQuery || '').trim().toLowerCase();
   const sFilter = storeFilter || 'all';
 
+  const allStores = getCompleteStoresList();
+  const storeMap = new Map();
+  allStores.forEach(s => storeMap.set(s.id, s.name));
+
   const STORE_NAMES = {
     'campus-cafe': 'Campus Café',
     'book-corner': 'Book Corner',
@@ -302,7 +344,7 @@ function filterMasterInventory(storeFilter, searchQuery) {
   }
 
   tbody.innerHTML = filtered.map(p => {
-    const storeName = STORE_NAMES[p.store_id] || p.store_id || 'Campus Store';
+    const storeName = storeMap.get(p.store_id) || STORE_NAMES[p.store_id] || p.store_id || 'Campus Store';
     const isOut = p.stock === 0;
     const isLow = !isOut && p.stock <= (p.low_stock_threshold || 5);
     const badgeClass = isOut ? 'cancelled' : (isLow ? 'preparing' : 'completed');

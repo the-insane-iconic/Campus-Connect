@@ -181,7 +181,7 @@ window.UniMallDB = {
         WHERE is_active = true
       `;
       const params = [];
-      if (storeId) {
+      if (storeId && storeId !== 'all') {
         query += ` AND (store_id = $1 OR store_id = $2)`;
         params.push(storeId, storeId.replace('store-', ''));
       }
@@ -189,15 +189,15 @@ window.UniMallDB = {
 
       const rows = await this.neonSql(query, params);
       if (Array.isArray(rows)) {
-        // Authoritative query executed: return the rows directly for this store (even if empty)
-        if (storeId) return rows;
+        // Authoritative query executed: return the rows directly
+        if (storeId && storeId !== 'all') return rows;
         if (rows.length > 0) return rows;
       }
     } catch (e) {
       console.warn('[UniMallDB] Neon products fetch fallback:', e.message);
     }
 
-    if (storeId) {
+    if (storeId && storeId !== 'all') {
       const local = (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
       return local.filter(p => p.storeId === storeId || p.store_id === storeId);
     }
@@ -659,7 +659,23 @@ window.UniMallDB = {
     try {
       const isPlatform = !storeId || storeId === 'all';
 
-      // 1. Query Store-by-Store Sales & Customers Breakdown Today
+      // Check if calendar today (Asia/Kolkata) has orders
+      const checkToday = await this.neonSql(`
+        SELECT COUNT(id) AS cnt FROM unimall_orders WHERE created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+      `).catch(() => []);
+      const hasToday = checkToday && checkToday[0] && parseInt(checkToday[0].cnt || 0, 10) > 0;
+
+      // If today has orders, use calendar day. If not (e.g. past midnight / early morning shift before first orders placed),
+      // seamlessly use the rolling 24-hour cycle so the super admin platform always reflects real active business.
+      const dateCondition = hasToday 
+        ? `o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`
+        : `o.created_at >= (NOW() - INTERVAL '24 hours')`;
+
+      const totalDateCondition = hasToday
+        ? `created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`
+        : `created_at >= (NOW() - INTERVAL '24 hours')`;
+
+      // 1. Query Store-by-Store Sales & Customers Breakdown
       const storeBreakdownRows = await this.neonSql(`
         SELECT s.id AS store_id, s.name AS store_name, s.category,
                COUNT(o.id) AS today_orders_count,
@@ -668,12 +684,12 @@ window.UniMallDB = {
                COALESCE(SUM(CASE WHEN o.payment_method IN ('online', 'razorpay', 'Instant Pay (Verified)', 'Razorpay Instant (Paid)', 'Razorpay Instant') THEN o.total ELSE 0 END), 0) AS digital_sales,
                COALESCE(SUM(CASE WHEN o.payment_method IN ('cod', 'cash', 'Pay at Counter') THEN o.total ELSE 0 END), 0) AS cash_sales
         FROM unimall_stores s
-        LEFT JOIN unimall_orders o ON s.id = o.store_id AND o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        LEFT JOIN unimall_orders o ON s.id = o.store_id AND ${dateCondition}
         GROUP BY s.id, s.name, s.category
         ORDER BY today_gross_sales DESC, s.name ASC;
       `);
 
-      // 2. Query Today's Overall Totals & Active Orders
+      // 2. Query Operational Totals & Active Orders
       let totalQuery = `
         SELECT 
           COALESCE(SUM(total), 0) AS today_sales,
@@ -681,15 +697,15 @@ window.UniMallDB = {
           COUNT(DISTINCT user_id) AS today_customers,
           COUNT(CASE WHEN status IN ('placed', 'preparing', 'ready', 'out_for_delivery') THEN 1 END) AS active_orders
         FROM unimall_orders
-        WHERE created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        WHERE ${totalDateCondition}
       `;
       const totalParams = [];
       if (!isPlatform) {
         totalQuery += ` AND store_id = $1`;
         totalParams.push(storeId);
       }
-      const totalRows = await this.neonSql(totalQuery, totalParams);
-      const totals = totalRows && totalRows[0] ? totalRows[0] : {};
+      let totalRows = await this.neonSql(totalQuery, totalParams);
+      let totals = totalRows && totalRows[0] ? totalRows[0] : {};
 
       // 3. Query Lifetime / All-Time Summary
       let lifeQuery = `
@@ -707,24 +723,18 @@ window.UniMallDB = {
       const lifeRows = await this.neonSql(lifeQuery, lifeParams);
       const lifetime = lifeRows && lifeRows[0] ? lifeRows[0] : {};
 
-      // Canonical Campus Stores ensuring complete 6-store coverage
-      const CANONICAL_STORES = [
-        { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
-        { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
-        { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
-        { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
-        { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
-        { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
-      ];
+      // If even 24h totals are 0, fall back to lifetime totals so the platform overview is never completely empty
+      if ((!totals.today_sales || parseFloat(totals.today_sales) === 0) && isPlatform && parseFloat(lifetime.lifetime_sales || 0) > 0) {
+        totals = {
+          today_sales: lifetime.lifetime_sales,
+          today_orders: lifetime.lifetime_orders,
+          today_customers: lifetime.lifetime_customers,
+          active_orders: 0
+        };
+      }
 
-      const breakdownMap = {};
-      (storeBreakdownRows || []).forEach(r => {
-        breakdownMap[r.store_id] = r;
-      });
-
-      // Format Store Payout Ledger (5% Platform Commission, 95% Store Net Payout)
-      const storesLedger = CANONICAL_STORES.map(base => {
-        const row = breakdownMap[base.store_id] || {};
+      // Format Store Payout Ledger dynamically for ALL stores in unimall_stores
+      const storesLedger = (storeBreakdownRows || []).map(row => {
         const grossSales = parseFloat(row.today_gross_sales || 0);
         const digitalSales = parseFloat(row.digital_sales || 0);
         const cashSales = parseFloat(row.cash_sales || 0);
@@ -732,9 +742,9 @@ window.UniMallDB = {
         const netPayout = Math.max(0, grossSales - platformFee);
 
         return {
-          store_id: base.store_id,
-          store_name: row.store_name || base.store_name,
-          category: row.category || base.category,
+          store_id: row.store_id,
+          store_name: row.store_name,
+          category: row.category || 'general',
           today_orders_count: parseInt(row.today_orders_count || 0, 10),
           today_customers_count: parseInt(row.today_customers_count || 0, 10),
           today_gross_sales: grossSales,
@@ -746,31 +756,7 @@ window.UniMallDB = {
         };
       });
 
-      // Append any newly registered stores not in canonical list
-      (storeBreakdownRows || []).forEach(row => {
-        if (!CANONICAL_STORES.some(c => c.store_id === row.store_id)) {
-          const grossSales = parseFloat(row.today_gross_sales || 0);
-          const digitalSales = parseFloat(row.digital_sales || 0);
-          const cashSales = parseFloat(row.cash_sales || 0);
-          const platformFee = Math.round(grossSales * 0.05);
-          const netPayout = Math.max(0, grossSales - platformFee);
-          storesLedger.push({
-            store_id: row.store_id,
-            store_name: row.store_name,
-            category: row.category || 'general',
-            today_orders_count: parseInt(row.today_orders_count || 0, 10),
-            today_customers_count: parseInt(row.today_customers_count || 0, 10),
-            today_gross_sales: grossSales,
-            digital_sales: digitalSales,
-            cash_sales: cashSales,
-            platform_fee: platformFee,
-            net_payout: netPayout,
-            settlement_status: grossSales > 0 ? 'Due for Distribution' : 'No Sales Today'
-          });
-        }
-      });
-
-      // Sort by today's sales descending
+      // Sort by sales descending
       storesLedger.sort((a, b) => b.today_gross_sales - a.today_gross_sales);
 
       const todayGrossSales = parseFloat(totals.today_sales || 0);
@@ -833,7 +819,15 @@ window.UniMallDB = {
       const isPlatform = !storeId || storeId === 'all';
       let dateFilter = '';
       if (period === 'today') {
-        dateFilter = ` AND o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`;
+        const checkToday = await this.neonSql(`
+          SELECT COUNT(id) AS cnt FROM unimall_orders WHERE created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
+        `).catch(() => []);
+        const hasToday = checkToday && checkToday[0] && parseInt(checkToday[0].cnt || 0, 10) > 0;
+        if (hasToday) {
+          dateFilter = ` AND o.created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`;
+        } else {
+          dateFilter = ` AND o.created_at >= (NOW() - INTERVAL '24 hours')`;
+        }
       } else if (period === 'week') {
         dateFilter = ` AND o.created_at >= (NOW() - INTERVAL '7 days')`;
       } else if (period === 'month') {
@@ -948,11 +942,13 @@ window.UniMallDB = {
         store_matrix: storeMatrixRows || [],
         top_products: (topProductsRows || []).map(p => ({
           name: p.product_name,
+          product_name: p.product_name,
           emoji: p.emoji || '📦',
           units_sold: parseInt(p.units_sold || 0, 10),
           sold_count: parseInt(p.units_sold || 0, 10),
           gross_sales: parseFloat(p.gross_sales || 0),
           total_sales: parseFloat(p.gross_sales || 0),
+          revenue: parseFloat(p.gross_sales || 0),
           store_name: p.store_name || 'Campus Store'
         })),
         payment_splits: paymentRows || [],
