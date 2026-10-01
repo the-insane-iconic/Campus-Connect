@@ -123,11 +123,12 @@ function setupUserProfile() {
     if (dashLabel) dashLabel.textContent = 'Store Dashboard';
     if (founderNav) founderNav.classList.add('hidden');
 
-    // Dedicated Live Orders section is integrated into Store Dashboard: hide separate nav buttons
+    const ordersLabel = document.getElementById('nav-orders-label');
+    if (ordersLabel) ordersLabel.textContent = 'Live Orders';
     const navOrders = document.getElementById('nav-orders');
-    if (navOrders) navOrders.style.display = 'none';
+    if (navOrders) navOrders.style.display = '';
     const mobNavOrders = document.getElementById('mob-nav-orders');
-    if (mobNavOrders) mobNavOrders.style.display = 'none';
+    if (mobNavOrders) mobNavOrders.style.display = '';
 
     document.querySelectorAll('.store-only-nav').forEach(el => el.classList.remove('hidden'));
 
@@ -303,11 +304,6 @@ function switchView(viewName) {
     if (typeof showToast === 'function') {
       showToast('Access restricted: Platform Superadmin credentials required.', 'error');
     }
-    viewName = 'dashboard';
-  }
-
-  // Redirect orders view to dashboard for merchant (since live orders are integrated in Store Dashboard)
-  if (viewName === 'orders' && !isPlatformUser) {
     viewName = 'dashboard';
   }
 

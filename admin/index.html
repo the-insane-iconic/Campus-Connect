@@ -77,9 +77,9 @@
           <span id="nav-dash-label">Platform Overview</span>
         </button>
 
-        <button type="button" class="nav-item platform-admin-only" data-view="orders" id="nav-orders">
+        <button type="button" class="nav-item" data-view="orders" id="nav-orders">
           <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span id="nav-orders-label">All Orders</span>
+          <span id="nav-orders-label">All Campus Orders</span>
           <span class="nav-counter alert" id="counter-orders">0</span>
         </button>
 
@@ -198,24 +198,10 @@
               <button type="button" class="btn-action secondary platform-admin-only" id="dash-btn-print-settlement" onclick="window.printDailySettlementSheet && window.printDailySettlementSheet()">
                 🖨️ Print Settlement Slip
               </button>
-              <button type="button" class="btn-action primary platform-admin-only" id="dash-btn-goto-orders" onclick="window.switchView('orders')">
-                ⚡ Live Orders Queue →
+              <button type="button" class="btn-action secondary" onclick="window.refreshDashboardMetrics && window.refreshDashboardMetrics()">
+                ↻ Refresh
               </button>
             </div>
-          </div>
-
-          <!-- LIVE ORDERS FAST JUMP BANNER (Platform Admin: Shows shortcut; Merchant: hidden since queue is embedded) -->
-          <div class="order-queue-shortcut-card platform-admin-only" id="dash-orders-shortcut-banner">
-            <div class="shortcut-info">
-              <span class="shortcut-pulse-dot"></span>
-              <div>
-                <strong>Active Campus Orders Live Queue</strong>
-                <p>All order processing, kitchen prep, and 1-click delivery status live in the authoritative Orders Section.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-banner primary" onclick="window.switchView('orders')">
-              Open Orders Queue (<span id="dash-active-count-badge">0</span> Active) →
-            </button>
           </div>
 
           <!-- TODAYS OPERATIONAL METRIC RIBBON (Neon PostgreSQL Single Source of Truth) -->
@@ -320,8 +306,65 @@
             </div>
           </div>
 
-          <!-- ════ LIVE ORDER QUEUE & FULFILLMENT BOARD (Integrated in Store Dashboard) ════ -->
-          <!-- ════ 1. ACTIVE ORDERS LIVE QUEUE (Real-Time Preparation & Dispatch) ════ -->
+          <!-- ════ MERCHANT ONLY: STORE OPERATIONAL STATUS & QUICK ACTIONS ════ -->
+          <div class="card-panel mt-6 merchant-only" id="merchant-quick-actions-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🏪</span>
+                  <span>Store Operations & Live Orders Hub</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                  Real-time incoming student orders, preparation workflow, and inventory management.
+                </p>
+              </div>
+            </div>
+            <div class="panel-body" style="padding: 24px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                <div class="merchant-hub-card" onclick="window.switchView('orders')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">⚡</span>
+                    <span class="badge-status accepted">Live Queue</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Incoming Orders & Queue</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Process orders, start preparation timers, and notify students when items are ready for pickup.</p>
+                </div>
+                <div class="merchant-hub-card" onclick="window.switchView('products')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">📦</span>
+                    <span class="badge-status completed">Catalog & Stock</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Products & Inventory</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Edit pricing, manage stock availability, toggle low-stock alerts, and add new campus items.</p>
+                </div>
+                <div class="merchant-hub-card" onclick="window.switchView('store')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">⚙️</span>
+                    <span class="badge-status ready">Configuration</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Store Hours & Profile</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Configure operating hours, pickup instructions, contact details, and banner branding.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. ALL CAMPUS ORDERS & FULFILLMENT VIEW -->
+        <section class="admin-view" id="view-orders">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title" id="orders-view-title">All Campus Orders</h1>
+              <p class="view-subtitle" id="orders-view-subtitle">Live order processing, preparation timers, status advancement, and complete order history</p>
+            </div>
+            <div class="view-actions" style="display:flex; align-items:center; gap:10px;">
+              <button type="button" class="btn-action secondary" id="btn-refresh-orders" onclick="window.loadOrders && window.loadOrders(window.activeStoreId)">
+                ↻ Refresh Orders
+              </button>
+            </div>
+          </div>
+
+          <!-- 1. ACTIVE ORDERS LIVE QUEUE (Real-Time Preparation & Dispatch) -->
           <div class="card-panel mt-6" id="dashboard-active-orders-section">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div>
@@ -333,11 +376,6 @@
                 <p style="font-size:12.5px; color:var(--text-muted); margin-top:3px;">
                   Real-time incoming student orders requiring preparation, ready notification, or counter pickup.
                 </p>
-              </div>
-              <div style="display:flex; align-items:center; gap:10px;">
-                <button type="button" class="btn-action secondary" id="btn-refresh-orders" onclick="window.loadOrders && window.loadOrders(window.activeStoreId)" style="font-size:12px; padding:6px 14px;">
-                  ↻ Refresh Orders
-                </button>
               </div>
             </div>
 
@@ -362,7 +400,7 @@
             </div>
           </div>
 
-          <!-- ════ 2. ALL ORDERS HISTORY & FULFILLMENT LOG (Directly Below Active Orders) ════ -->
+          <!-- 2. ALL ORDERS HISTORY & FULFILLMENT LOG (Directly Below Active Orders) -->
           <div class="card-panel mt-6" id="dashboard-all-orders-section">
             <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div>
@@ -431,9 +469,6 @@
             </div>
           </div>
         </section>
-
-        <!-- 2. DEDICATED ORDERS VIEW (Merged directly into Store Dashboard) -->
-        <section class="admin-view" id="view-orders" style="display:none;"></section>
 
         <!-- 3. MERGED PRODUCTS & STOCK VIEW -->
         <section class="admin-view" id="view-products">
@@ -1060,7 +1095,7 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
       <span>Dashboard</span>
     </button>
-    <button type="button" class="mobile-nav-item platform-admin-only" data-view="orders" id="mob-nav-orders">
+    <button type="button" class="mobile-nav-item" data-view="orders" id="mob-nav-orders">
       <div class="mob-icon-wrap">
         <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         <span class="mob-badge alert hidden" id="mob-badge-orders">0</span>

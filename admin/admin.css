@@ -3131,14 +3131,53 @@ body.role-platform_admin .platform-admin-only {
   }
 }
 
-/* Small mobile devices (< 480px) */
-@media (max-width: 480px) {
-  .metric-card {
-    padding: 12px 14px;
-  }
+/* Merchant Operations Hub Cards */
+.merchant-hub-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
 
-  .panel-title {
-    font-size: 13.5px;
-  }
+.merchant-hub-card:hover {
+  transform: translateY(-2px);
+  border-color: #CBD5E1;
+  background: #FFFFFF;
+  box-shadow: 0 10px 24px -4px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+}
+
+/* Dashboard Clean Header & Metric Spacing */
+#view-dashboard .view-header {
+  padding-bottom: 4px;
+}
+
+#payouts-ledger-section {
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+#store-payout-ledger-table th {
+  background: #F8FAFC;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  padding: 13px 16px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+#store-payout-ledger-table td {
+  padding: 13px 16px;
+  vertical-align: middle;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+}
+
+#store-payout-ledger-table tr:last-child td {
+  border-bottom: none;
 }
 

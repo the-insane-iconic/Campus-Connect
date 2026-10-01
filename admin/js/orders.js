@@ -549,6 +549,18 @@ async function loadOrders(storeId, silent = false) {
 
     currentOrdersList = fetchedOrders;
 
+    const isPlatformUser = (typeof currentAdminUser !== 'undefined' && currentAdminUser && currentAdminUser.role === 'platform_admin');
+    const viewTitle = document.getElementById('orders-view-title');
+    const viewSubtitle = document.getElementById('orders-view-subtitle');
+    if (viewTitle) {
+      viewTitle.textContent = isPlatformUser ? 'All Campus Orders' : 'Store Live Orders & Queue';
+    }
+    if (viewSubtitle) {
+      viewSubtitle.textContent = isPlatformUser
+        ? 'Real-time campus-wide active queue, kitchen preparation, and order fulfillment history'
+        : 'Live incoming orders queue, preparation timers, and complete store order history';
+    }
+
     // Direct rendering: render active cards and full table simultaneously
     renderActiveOrdersBoard();
     renderOrdersTable();
