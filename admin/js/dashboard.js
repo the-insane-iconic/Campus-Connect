@@ -143,18 +143,9 @@ async function loadDashboard(storeId) {
       renderStorePayoutLedger(metrics.stores_ledger, metrics);
     }
 
-    // 6. Merchant View: Load live orders embedded in dashboard
+    // 6. Merchant View: Load live orders embedded in dashboard (in place of low stock area)
     if (!isPlatformView) {
       loadMerchantDashOrders(effectiveStoreId);
-    }
-
-    // 7. Single Store view: Show extra stock & product cards if viewing specific store
-    const singleStorePanels = document.getElementById('single-store-extra-panels');
-    if (singleStorePanels) {
-      singleStorePanels.classList.toggle('hidden', isPlatformView);
-      if (!isPlatformView) {
-        loadSingleStoreExtras(effectiveStoreId);
-      }
     }
 
   } catch (err) {
@@ -466,44 +457,6 @@ window.refreshDashboardMetrics = function() {
   }
 };
 
-/**
- * Single store extras: loads low stock and top products for single store owner view
- */
-async function loadSingleStoreExtras(storeId) {
-  try {
-    const invRes = await apiRequest(`/admin/stores/${storeId}/inventory`).catch(() => ({ products: [] }));
-    const lowStock = (invRes.products || []).filter(p => (p.stock || 0) <= (p.low_stock_threshold || 5));
-    const lowStockContainer = document.getElementById('dash-low-stock-list');
-    if (lowStockContainer) {
-      if (lowStock.length === 0) {
-        lowStockContainer.innerHTML = '<div class="empty-state-sm">✅ All items healthy and in stock.</div>';
-      } else {
-        lowStockContainer.innerHTML = lowStock.slice(0, 5).map(p => `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
-            <span>${escapeHtml(p.name)}</span>
-            <span class="badge-status cancelled" style="font-size:11px;">${p.stock} left</span>
-          </div>
-        `).join('');
-      }
-    }
-
-    const topRes = await apiRequest(`/admin/stores/${storeId}/analytics?period=today`).catch(() => ({ top_products: [] }));
-    const topContainer = document.getElementById('dash-top-products-list');
-    if (topContainer) {
-      const prods = topRes.top_products || [];
-      if (prods.length === 0) {
-        topContainer.innerHTML = '<div class="empty-state-sm">No sales yet today.</div>';
-      } else {
-        topContainer.innerHTML = prods.slice(0, 5).map(p => `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);">
-            <span>${escapeHtml(p.name)}</span>
-            <strong style="color:var(--primary);">₹${Math.round(p.total_sales || 0)}</strong>
-          </div>
-        `).join('');
-      }
-    }
-  } catch (e) {}
-}
 
 function escapeHtml(str) {
   if (!str) return '';

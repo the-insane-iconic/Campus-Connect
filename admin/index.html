@@ -320,7 +320,7 @@
             </div>
           </div>
 
-          <!-- ════ MERCHANT ONLY: LIVE ORDER QUEUE (Embedded in Dashboard) ════ -->
+          <!-- ════ MERCHANT ONLY: LIVE ORDER QUEUE (In place of old low stock area) ════ -->
           <div class="merchant-only" id="merchant-dash-orders-section">
             <div class="card-panel mt-6">
               <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
@@ -345,31 +345,6 @@
               </div>
               <div class="active-orders-grid" id="merchant-dash-orders-container" style="padding: 16px;">
                 <div class="empty-state-sm">Loading live orders...</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- SINGLE STORE OPERATIONAL DETAILS (Shown only when viewing single store) -->
-          <div id="single-store-extra-panels" class="dashboard-two-col mt-6 hidden">
-            <!-- LOW STOCK ALERTS FOR CURRENT STORE -->
-            <div class="card-panel">
-              <div class="panel-header">
-                <div class="panel-title" id="dash-inventory-panel-title">Low Stock Alerts</div>
-                <button type="button" class="panel-link" onclick="window.switchView('products')">Manage Stock →</button>
-              </div>
-              <div class="panel-body" id="dash-low-stock-list">
-                <div class="empty-state-sm">Checking stock levels...</div>
-              </div>
-            </div>
-
-            <!-- TOP PRODUCTS FOR CURRENT STORE -->
-            <div class="card-panel">
-              <div class="panel-header">
-                <div class="panel-title">Top Products Today</div>
-                <button type="button" class="panel-link" onclick="window.switchView('analytics')">Analytics →</button>
-              </div>
-              <div class="panel-body" id="dash-top-products-list">
-                <div class="empty-state-sm">Loading top items...</div>
               </div>
             </div>
           </div>
@@ -484,6 +459,37 @@
             <div class="view-actions">
               <button type="button" class="btn-action secondary" id="btn-open-quick-add">⚡ Quick Add</button>
               <button type="button" class="btn-action primary" id="btn-open-add-product">+ Add Product</button>
+            </div>
+          </div>
+
+          <!-- LOW STOCK ALERTS & TOP PRODUCTS TODAY (Product & Stock Insights) -->
+          <div class="dashboard-two-col mb-6" id="products-insights-panels">
+            <!-- LOW STOCK ALERTS -->
+            <div class="card-panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>⚠️</span>
+                  <span>Low Stock Alerts</span>
+                </div>
+                <span class="badge-status cancelled" id="products-low-stock-badge" style="font-size:11px;">0 items</span>
+              </div>
+              <div class="panel-body" id="products-low-stock-list" style="padding:12px 16px; max-height:220px; overflow-y:auto;">
+                <div class="empty-state-sm">Checking stock levels...</div>
+              </div>
+            </div>
+
+            <!-- TOP PRODUCTS TODAY -->
+            <div class="card-panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🔥</span>
+                  <span>Top Products Today</span>
+                </div>
+                <span class="badge-status accepted" id="products-top-items-badge" style="font-size:11px;">Live Sales</span>
+              </div>
+              <div class="panel-body" id="products-top-products-list" style="padding:12px 16px; max-height:220px; overflow-y:auto;">
+                <div class="empty-state-sm">Loading top items...</div>
+              </div>
             </div>
           </div>
 

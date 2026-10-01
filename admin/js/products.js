@@ -104,6 +104,10 @@ async function loadProductsAndStock(storeId) {
     // Update stock health chips
     updateStockHealthChips();
 
+    // Render low stock alerts and top products today panels (moved from dashboard)
+    renderLowStockAlerts();
+    renderTopProductsToday(storeId);
+
     // Render merged table
     renderMergedTable();
   } catch (err) {
@@ -120,8 +124,8 @@ function updateStockHealthChips() {
 
   currentProducts.forEach(p => {
     const inv = currentInventory.find(i => i.product_id === p.id);
-    const stock = inv ? inv.quantity : (p.stock || 0);
-    const threshold = inv ? inv.low_stock_threshold : (p.low_stock_threshold || 5);
+    const stock = inv ? (inv.quantity !== undefined ? inv.quantity : (p.stock || 0)) : (p.stock || 0);
+    const threshold = inv ? (inv.low_stock_threshold || p.low_stock_threshold || 5) : (p.low_stock_threshold || 5);
 
     if (stock === 0) outCount++;
     else if (stock <= threshold) lowCount++;
@@ -137,6 +141,131 @@ function updateStockHealthChips() {
   if (navCounter) {
     navCounter.textContent = outCount + lowCount;
   }
+
+  // Keep low stock panel in sync
+  renderLowStockAlerts();
+}
+
+/**
+ * Render Low Stock Alerts panel in Products & Stock view
+ */
+function renderLowStockAlerts() {
+  const container = document.getElementById('products-low-stock-list');
+  const badge = document.getElementById('products-low-stock-badge');
+  if (!container) return;
+
+  const lowStockItems = [];
+  currentProducts.forEach(p => {
+    const inv = currentInventory.find(i => i.product_id === p.id);
+    const stock = inv ? (inv.quantity !== undefined ? inv.quantity : (p.stock || 0)) : (p.stock || 0);
+    const threshold = inv ? (inv.low_stock_threshold || p.low_stock_threshold || 5) : (p.low_stock_threshold || 5);
+    const unit = inv ? (inv.unit || p.unit || 'items') : (p.unit || 'items');
+
+    if (stock <= threshold) {
+      lowStockItems.push({
+        id: p.id,
+        name: p.name,
+        stock,
+        threshold,
+        unit,
+        price: p.price
+      });
+    }
+  });
+
+  // Sort lowest stock first
+  lowStockItems.sort((a, b) => a.stock - b.stock);
+
+  if (badge) {
+    badge.textContent = `${lowStockItems.length} items`;
+    badge.className = lowStockItems.length > 0 ? 'badge-status cancelled' : 'badge-status completed';
+  }
+
+  if (lowStockItems.length === 0) {
+    container.innerHTML = '<div class="empty-state-sm" style="color:var(--success); padding:16px 0;">✅ All inventory items are healthy and in stock!</div>';
+    return;
+  }
+
+  container.innerHTML = lowStockItems.slice(0, 6).map(item => {
+    const isOut = item.stock === 0;
+    const stockBadge = isOut
+      ? `<span class="badge-status cancelled" style="font-size:11px; font-weight:700;">Out of Stock (0)</span>`
+      : `<span class="badge-status cancelled" style="font-size:11px; font-weight:700;">${item.stock} left (≤ ${item.threshold})</span>`;
+
+    const escapedName = safeEscapeHtml(item.name);
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); gap:10px;">
+        <div style="min-width:0; flex:1;">
+          <div style="font-weight:600; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${escapedName}
+          </div>
+          <div style="margin-top:2px;">${stockBadge}</div>
+        </div>
+        <button type="button" class="btn-action secondary" onclick="window.promptSetQuantity('${item.id}', '${escapedName.replace(/'/g, "\\'")}', ${item.stock})" style="font-size:11.5px; padding:3px 9px; white-space:nowrap;">
+          + Restock
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Render Top Products Today panel in Products & Stock view
+ */
+async function renderTopProductsToday(storeId) {
+  const container = document.getElementById('products-top-products-list');
+  const badge = document.getElementById('products-top-items-badge');
+  if (!container) return;
+
+  try {
+    const res = await apiRequest(`/admin/stores/${storeId}/analytics?period=today`).catch(() => ({ top_products: [] }));
+    const prods = res.top_products || [];
+
+    if (badge) {
+      badge.textContent = prods.length > 0 ? `${prods.length} Sold Today` : 'Live Sales';
+    }
+
+    if (prods.length === 0) {
+      container.innerHTML = '<div class="empty-state-sm" style="padding:16px 0;">No sales recorded yet today. Live orders will populate top sellers here.</div>';
+      return;
+    }
+
+    container.innerHTML = prods.slice(0, 6).map((p, idx) => {
+      const rank = idx + 1;
+      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      const qtySold = p.units_sold || p.total_units || p.quantity_sold || p.orders_count || 1;
+      const sales = Math.round(p.total_sales || p.revenue || 0);
+
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); gap:10px;">
+          <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+            <span style="font-size:13px; font-weight:700; min-width:18px;">${medal}</span>
+            <div style="min-width:0; flex:1;">
+              <div style="font-weight:600; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${safeEscapeHtml(p.name)}
+              </div>
+              <div style="font-size:11px; color:var(--text-muted);">${qtySold} unit(s) sold today</div>
+            </div>
+          </div>
+          <strong style="color:var(--primary); font-size:13.5px; white-space:nowrap;">₹${sales.toLocaleString('en-IN')}</strong>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    if (container) {
+      container.innerHTML = `<div class="empty-state-sm" style="padding:16px 0;">Could not load top products.</div>`;
+    }
+  }
+}
+
+function safeEscapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function renderMergedTable() {
