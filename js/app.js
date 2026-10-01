@@ -11,6 +11,15 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  /* 0. Boot UserManager — ensures correct Guest/Google profile is active */
+  if (typeof window.UserManager !== 'undefined') {
+    const activeUser = window.UserManager.boot();
+    // If no user yet (brand new visit), assign a guest profile
+    if (!activeUser) {
+      window.UserManager.ensureGuestProfile();
+    }
+  }
+
   /* 1. Restore persisted state */
   hydrateState();
 
@@ -60,11 +69,15 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHome();
   });
 
-  /* 7. Sync notification dot */
+  /* 7. Sync notification dot — show red dot if any unread notifications */
   const dot = document.querySelector('.notif-dot');
   if (dot) dot.style.display = getUnreadCount() > 0 ? '' : 'none';
 
-  /* 8. Handle query param (e.g. from stores.html) or hash */
+  /* 8. Re-render sidebar & profile button with correct user after boot */
+  renderSidebar();
+  initProfileBtn();
+
+  /* 9. Handle query param (e.g. from stores.html) or hash */
   try {
     const params = new URLSearchParams(window.location.search);
     const storeParam = params.get('store');
@@ -81,6 +94,14 @@ document.addEventListener('DOMContentLoaded', () => {
       navigate(hash);
     }
   } catch (e) {}
+
+  /* 10. Listen for profile changes and refresh nav */
+  window.addEventListener('unimall:auth_state_changed', () => {
+    hydrateState();
+    renderSidebar();
+    setHeaderGreeting();
+    initProfileBtn();
+  });
 });
 
 /* ─── CAMPUS INFO (kept in app.js — standalone render) ─────*/

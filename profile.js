@@ -49,18 +49,33 @@ const ProfileState = {
 /* ─── LOAD DATA ──────────────────────────────────────────── */
 function loadProfileData() {
   try {
-    const authRaw = localStorage.getItem(AUTH_KEY);
-    if (authRaw) {
-      const authUser = JSON.parse(authRaw);
-      ProfileState.user = { ...ProfileState.user, ...authUser };
+    // Prefer UserManager for canonical profile (handles Google vs Guest correctly)
+    if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.getActiveUser === 'function') {
+      const activeUser = window.UserManager.getActiveUser();
+      if (activeUser) {
+        ProfileState.user = { ...ProfileState.user, ...activeUser };
+      }
+    } else {
+      // Fallback: read from storage keys directly
+      const authRaw = localStorage.getItem(AUTH_KEY);
+      if (authRaw) {
+        const authUser = JSON.parse(authRaw);
+        ProfileState.user = { ...ProfileState.user, ...authUser };
+      }
+
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.currentUser) {
+          ProfileState.user = { ...ProfileState.user, ...parsed.currentUser };
+        }
+      }
     }
 
+    // Always load orders & requests from storage
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.currentUser) {
-        ProfileState.user = { ...ProfileState.user, ...parsed.currentUser };
-      }
       if (Array.isArray(parsed.orders)) {
         ProfileState.orders = parsed.orders;
       }
@@ -180,6 +195,8 @@ function hideLogoutModal() {
 
 async function handleLogout() {
   hideLogoutModal();
+
+  // Use Neon Auth signOut (handles UserManager cleanup internally)
   if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
     try {
       await window.UniMallAuth.signOut();
@@ -188,21 +205,26 @@ async function handleLogout() {
       console.warn('[Profile] Neon Auth signOut error:', e);
     }
   }
-  if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
-    try {
-      await firebaseAuth.signOut();
-    } catch (e) { }
-  }
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem('userMode');
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      delete parsed.currentUser;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+
+  // Fallback: use UserManager directly
+  if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
+    window.UserManager.clearSession();
+  } else {
+    if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
+      try { await firebaseAuth.signOut(); } catch (e) {}
     }
-  } catch (e) {}
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('userMode');
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        delete parsed.currentUser;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+    } catch (e) {}
+  }
+
   showToast('Logged out successfully');
   setTimeout(() => {
     window.location.href = 'admin/login.html';

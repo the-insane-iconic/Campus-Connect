@@ -397,30 +397,42 @@ function initLoginPortal() {
   // ── GUEST STUDENT LOGIN ───────────────────────────────────────
   if (guestBtn) {
     guestBtn.addEventListener('click', () => {
-      const guestUser = {
-        uid: 'guest_' + Date.now(),
-        name: 'Guest Student',
-        email: '',
-        avatar: '',
-        hostel: '',
-        room: '',
-        phone: '',
-        provider: 'guest',
-        isGuest: true
-      };
-
       try {
-        localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const appData = raw ? JSON.parse(raw) : {};
-        appData.currentUser = { ...guestUser };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        let guestUser;
+
+        // Use UserManager for canonical "Student N" guest profile
+        if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.ensureGuestProfile === 'function') {
+          guestUser = window.UserManager.ensureGuestProfile();
+        } else {
+          // Fallback: sequential guest numbering
+          const counterKey = 'cc_guest_counter';
+          const n = (parseInt(localStorage.getItem(counterKey) || '0', 10) || 0) + 1;
+          localStorage.setItem(counterKey, String(n));
+          guestUser = {
+            uid:      'guest_' + n + '_' + Date.now(),
+            name:     'Student ' + n,
+            email:    '',
+            avatar:   '',
+            hostel:   '',
+            room:     '',
+            phone:    '',
+            provider: 'guest',
+            isGuest:  true,
+            guestId:  'guest_' + n
+          };
+          localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const appData = raw ? JSON.parse(raw) : {};
+          appData.currentUser = { ...guestUser };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
+
         localStorage.setItem('userMode', 'guest');
+        showToast('Continuing as ' + (guestUser.name || 'Student') + '…');
       } catch (e) {
         console.error('[Login] Guest session error:', e);
+        showToast('Continuing as guest…');
       }
-
-      showToast('Continuing as guest…');
       setTimeout(() => { window.location.href = '../index.html'; }, 500);
     });
   }

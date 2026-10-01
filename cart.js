@@ -548,14 +548,14 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       requestAnimationFrame(() => modal.classList.add('show'));
     } else {
       setTimeout(() => {
-        window.location.href = `orders.html#${orderId}`;
+        window.location.href = 'index.html';
       }, 1200);
     }
 
-    // Auto redirect after 4s
+    // Auto redirect to home after 5s so user can track order from banner
     setTimeout(() => {
-      window.location.href = `orders.html#${orderId}`;
-    }, 4000);
+      window.location.href = 'index.html';
+    }, 5000);
   } catch (e) {
     console.error('Order placement error:', e);
     if (placeBtn) {
@@ -966,6 +966,16 @@ function initEvents() {
 
   // Place Order
   document.getElementById('placeOrderBtn')?.addEventListener('click', handlePlaceOrder);
+
+  // Order success modal backdrop click → go to home to track from banner
+  const successModal = document.getElementById('orderSuccessModal');
+  if (successModal) {
+    successModal.addEventListener('click', (e) => {
+      if (e.target === successModal) {
+        window.location.href = 'index.html';
+      }
+    });
+  }
 }
 
 /* ─── INITIALIZATION ─────────────────────────────────────── */

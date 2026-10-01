@@ -26,72 +26,65 @@
   }
 
   /**
-   * Saves authenticated user session into UniMall local storage & AppState
+   * Saves authenticated user session using UserManager (canonical profile store).
+   * Falls back to manual persistence if UserManager is not available.
    */
   function persistUserSession(user, session) {
     if (!user) return;
-    const name = user.name || (user.email ? user.email.split('@')[0] : 'Campus Student');
-    const email = user.email || 'student@university.edu';
-    const avatar = (user.image && user.image.trim()) 
-      ? user.image.trim() 
-      : (typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(name) : '');
 
-    // Preserve any previously saved user details like hostel/room/phone
+    const googleUserPayload = {
+      uid:      user.id || ('neon_' + Date.now()),
+      name:     user.name || (user.email ? user.email.split('@')[0] : 'Campus Student'),
+      email:    user.email || '',
+      avatar:   (user.image && user.image.trim()) ? user.image.trim() : '',
+      hostel:   user.hostel || '',
+      room:     user.room || '',
+      phone:    user.phone || '',
+      token:    session ? (session.token || session.id) : null,
+      isGuest:  false,
+      provider: 'google'
+    };
+
+    // Prefer UserManager for canonical profile management
+    if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.setGoogleProfile === 'function') {
+      const saved = window.UserManager.setGoogleProfile(googleUserPayload);
+      console.log('[NeonAuth] Session synced via UserManager for:', saved.name);
+      return saved;
+    }
+
+    // Fallback: manual persist
+    const userData = Object.assign({}, googleUserPayload);
     let existingUser = {};
     try {
       const prevAuth = localStorage.getItem(AUTH_KEY);
       if (prevAuth) existingUser = JSON.parse(prevAuth);
     } catch(e) {}
 
-    const userData = {
-      uid: user.id || ('neon_user_' + Date.now()),
-      name: name,
-      email: email,
-      avatar: avatar,
-      hostel: user.hostel || existingUser.hostel || '',
-      room: user.room || existingUser.room || '',
-      phone: user.phone || existingUser.phone || '',
-      provider: 'google',
-      isGuest: false,
-      token: session ? (session.token || session.id) : null
-    };
+    userData.hostel = userData.hostel || existingUser.hostel || '';
+    userData.room   = userData.room   || existingUser.room   || '';
+    userData.phone  = userData.phone  || existingUser.phone  || '';
+    if (!userData.avatar && typeof window.getStickerAvatar === 'function') {
+      userData.avatar = window.getStickerAvatar(userData.name);
+    }
 
-    // 1. Save auth flag
-    try {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(userData));
-    } catch (e) {}
+    try { localStorage.setItem(AUTH_KEY, JSON.stringify(userData)); } catch (e) {}
 
-    // 2. Sync to unimall_v1
     try {
       let appData = {};
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) appData = JSON.parse(raw);
       appData.currentUser = {
-        name: userData.name,
-        email: userData.email,
-        avatar: userData.avatar,
-        hostel: userData.hostel,
-        room: userData.room,
-        phone: userData.phone,
-        provider: userData.provider,
-        isGuest: userData.isGuest
+        name: userData.name, email: userData.email, avatar: userData.avatar,
+        hostel: userData.hostel, room: userData.room, phone: userData.phone,
+        provider: 'google', isGuest: false
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
     } catch (e) {}
 
-    // 3. Sync to in-memory AppState
     if (typeof AppState !== 'undefined') {
-      AppState.currentUser = {
-        name: userData.name,
-        email: userData.email,
-        avatar: userData.avatar,
-        hostel: userData.hostel,
-        room: userData.room,
-        phone: userData.phone
-      };
+      AppState.currentUser = Object.assign({}, AppState.currentUser, userData);
     }
 
-    // 4. Dispatch event for live UI update
     window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: userData }));
     console.log('[NeonAuth] Session synced for:', userData.name);
     return userData;
@@ -214,9 +207,7 @@
       console.log('[NeonAuth] Signing out user...');
       const client = getClient();
       if (client && typeof client.signOut === 'function') {
-        try {
-          await client.signOut();
-        } catch (e) {}
+        try { await client.signOut(); } catch (e) {}
       }
 
       try {
@@ -227,16 +218,21 @@
         }).catch(() => {});
       } catch (e) {}
 
-      localStorage.removeItem(AUTH_KEY);
-      localStorage.removeItem('userMode');
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          delete parsed.currentUser;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-        }
-      } catch (e) {}
+      // Use UserManager.clearSession if available for canonical cleanup
+      if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
+        window.UserManager.clearSession();
+      } else {
+        localStorage.removeItem(AUTH_KEY);
+        localStorage.removeItem('userMode');
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            delete parsed.currentUser;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          }
+        } catch (e) {}
+      }
 
       window.location.href = window.location.pathname.includes('/admin/') ? 'login.html' : 'admin/login.html';
     },

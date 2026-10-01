@@ -239,13 +239,22 @@ function hydrateState() {
   if (saved.cart)          AppState.cart          = saved.cart;
   if (saved.currentUser)   AppState.currentUser   = { ...DEFAULT_USER, ...saved.currentUser };
 
-  try {
-    const authRaw = localStorage.getItem('unimall_auth');
-    if (authRaw) {
-      const authUser = JSON.parse(authRaw);
-      AppState.currentUser = { ...AppState.currentUser, ...authUser };
+  // Prefer UserManager for canonical user profile resolution
+  if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.getActiveUser === 'function') {
+    const activeUser = window.UserManager.getActiveUser();
+    if (activeUser) {
+      AppState.currentUser = { ...AppState.currentUser, ...activeUser };
     }
-  } catch (e) {}
+  } else {
+    // Fallback: check unimall_auth for Google session
+    try {
+      const authRaw = localStorage.getItem('unimall_auth');
+      if (authRaw) {
+        const authUser = JSON.parse(authRaw);
+        AppState.currentUser = { ...AppState.currentUser, ...authUser };
+      }
+    } catch (e) {}
+  }
 
   if (saved.orders && Array.isArray(saved.orders)) {
     AppState.orders = saved.orders;
@@ -256,4 +265,3 @@ function hydrateState() {
   if (saved.itemRequests)  AppState.itemRequests  = saved.itemRequests;
   if (saved.notifications) AppState.notifications = saved.notifications;
 }
-
