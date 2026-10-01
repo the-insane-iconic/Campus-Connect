@@ -36,7 +36,7 @@
         return ['placed', 'accepted', 'preparing', 'ready'].includes(s);
       }).map(o => ({ order: o, isDelivered: false }));
 
-      // 2. Recent delivered orders (< 24h)
+      // 2. Recent delivered orders (< 24h) — show at most the latest 1 delivered order in carousel
       const recentDelivered = appData.orders.filter(o => {
         const s = (o.status || '').toLowerCase();
         if (s !== 'delivered' && s !== 'completed') return false;
@@ -47,9 +47,11 @@
           return diffMs >= -60000 && diffMs < TWENTY_FOUR_HOURS_MS;
         }
         return false;
-      }).map(o => ({ order: o, isDelivered: true }));
+      }).sort((a, b) => new Date(b.deliveredAt || b.createdAt || 0) - new Date(a.deliveredAt || a.createdAt || 0))
+        .slice(0, 1)
+        .map(o => ({ order: o, isDelivered: true }));
 
-      // Combine: active orders first, then recently delivered orders
+      // Combine: active orders first, then recent delivered order
       return [...active, ...recentDelivered];
     } catch (e) {
       console.warn('[ActiveOrderBanner] Failed to read active orders:', e);

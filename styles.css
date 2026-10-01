@@ -344,7 +344,7 @@ button:active:not(:disabled) {
 /* ─── 6. HERO BANNERS AREA & SLIDER ──────────────────────── */
 .hero-banners-area {
   position: relative;
-  margin: 0 0 18px;
+  margin: 0 0 16px;
 }
 
 .hero-banners-slider {
@@ -355,6 +355,7 @@ button:active:not(:disabled) {
   scrollbar-width: none;
   gap: 12px;
   padding: 0 var(--px);
+  scroll-padding: 0 var(--px);
 }
 
 .hero-banners-slider::-webkit-scrollbar {
@@ -391,8 +392,9 @@ button:active:not(:disabled) {
   max-width: 100%;
   width: 100%;
   scroll-snap-align: start;
+  scroll-snap-stop: always;
   box-sizing: border-box;
-  min-height: 124px;
+  min-height: 142px;
 }
 
 #active-order-banner-root {
@@ -1373,7 +1375,7 @@ button:active:not(:disabled) {
   margin: 0 var(--px) 18px;
   background: linear-gradient(135deg, #F0F5FF 0%, #F5F3FF 100%);
   border-radius: var(--radius-xl);
-  padding: 20px 18px;
+  padding: 18px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1382,12 +1384,15 @@ button:active:not(:disabled) {
   overflow: hidden;
   position: relative;
   box-shadow: var(--shadow-sm);
+  min-height: 142px;
 }
 
 .utility-module-text, .class-to-cart-content {
   position: relative;
   z-index: 2;
-  max-width: 62%;
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 145px);
 }
 
 .utility-eyebrow, .eyebrow, .section-eyebrow {
@@ -1432,16 +1437,19 @@ button:active:not(:disabled) {
 
 .utility-illustration, .class-to-cart-illustration {
   flex-shrink: 0;
-  width: 92px;
-  height: 82px;
+  width: 140px;
+  height: 108px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .utility-illustration svg, .class-to-cart-illustration svg {
-  width: 90px;
-  height: 80px;
+  width: 100%;
+  height: 100%;
+  max-width: 152px;
+  max-height: 110px;
+  display: block;
 }
 
 /* ─── 7. CATEGORIES STRIP ────────────────────────────────── */
