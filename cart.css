@@ -68,7 +68,7 @@ button {
   min-height: 100vh;
   margin: 0 auto;
   background: var(--background);
-  padding-bottom: 120px;
+  padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 0px) + 140px);
   position: relative;
   box-sizing: border-box;
 }
@@ -764,7 +764,7 @@ button {
 
 .checkout-footer-bar {
   position: sticky;
-  bottom: 74px;
+  bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 0px) + 12px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -773,7 +773,7 @@ button {
   align-items: center;
   justify-content: space-between;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-  z-index: 25;
+  z-index: 105;
 }
 
 .checkout-price-preview {

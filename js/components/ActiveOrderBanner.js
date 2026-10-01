@@ -167,9 +167,19 @@
       rippleActive ? 'has-ripple' : ''
     ].filter(Boolean).join(' ');
 
-    const handleBannerClick = () => {
-      if (typeof window.openOrderPassModal === 'function') {
+    const handleBannerClick = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (typeof window.openOrderBottomSheet === 'function') {
+        window.openOrderBottomSheet(order);
+      } else if (typeof window.openOrderPassModal === 'function') {
         window.openOrderPassModal(order);
+      } else if (typeof window.navigate === 'function') {
+        window.navigate('orders');
+      } else {
+        window.location.href = 'orders.html';
       }
     };
 
@@ -273,7 +283,8 @@
         h('button', {
           key: 'action-btn',
           type: 'button',
-          className: 'active-order-action-btn'
+          className: 'active-order-action-btn',
+          onClick: handleBannerClick
         }, [
           h('svg', {
             key: 'svg',

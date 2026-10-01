@@ -41,12 +41,12 @@ function loadCartFromStorage() {
             const rawP = line.product || line;
             product = {
               id: line.productId,
-              name: rawP.name || 'Campus Item',
-              price: Number(rawP.price) || 50,
-              image: rawP.image || '',
-              emoji: rawP.emoji || '🛍️',
-              bg: rawP.bg || '#EFF6FF',
-              storeId: rawP.storeId || 'campus-cafe'
+              name: rawP.name || line.name || 'Campus Item',
+              price: Number(rawP.price !== undefined ? rawP.price : line.price) || 50,
+              image: rawP.image || line.image || '',
+              emoji: rawP.emoji || line.emoji || '🛍️',
+              bg: rawP.bg || line.bg || '#EFF6FF',
+              storeId: rawP.storeId || line.storeId || 'campus-cafe'
             };
           }
 
@@ -55,12 +55,12 @@ function loadCartFromStorage() {
             qty: line.qty || 1,
             product: product || {
               id: line.productId,
-              name: 'Campus Item',
-              price: 50,
-              image: '',
-              emoji: '📦',
+              name: line.name || 'Campus Item',
+              price: Number(line.price) || 50,
+              image: line.image || '',
+              emoji: line.emoji || '📦',
               bg: '#EFF6FF',
-              storeId: 'campus-mart'
+              storeId: line.storeId || 'campus-cafe'
             }
           };
         }).filter(item => item.product !== null);
@@ -90,7 +90,15 @@ function saveCartToStorage() {
       price: i.product.price,
       image: i.product.image || '',
       emoji: i.product.emoji || '🛍️',
-      storeId: i.product.storeId || 'campus-cafe'
+      storeId: i.product.storeId || 'campus-cafe',
+      product: {
+        id: i.productId,
+        name: i.product.name,
+        price: i.product.price,
+        image: i.product.image || '',
+        emoji: i.product.emoji || '🛍️',
+        storeId: i.product.storeId || 'campus-cafe'
+      }
     }));
     if (CartState.deliveryInfo.hostel && appData.currentUser) {
       appData.currentUser.hostel = CartState.deliveryInfo.hostel;
@@ -436,7 +444,19 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       const storeObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === sId) : null;
       const sName = storeObj ? storeObj.name : 'Campus Store';
       const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
-      const displayOrderNum = '#ORD-' + String(orderId).slice(-4);
+      let displayOrderNum = '#ORD-01';
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getNextStoreOrderNumber === 'function') {
+        displayOrderNum = await window.UniMallDB.getNextStoreOrderNumber(sId);
+      } else {
+        const localStoreOrders = (appData.orders || []).filter(o => o.storeId === sId || o.store_id === sId);
+        displayOrderNum = `#ORD-${String(localStoreOrders.length + 1).padStart(2, '0')}`;
+      }
+      const alreadyInBatch = createdOrders.filter(o => o.storeId === sId).length;
+      if (alreadyInBatch > 0) {
+        const m = displayOrderNum.match(/#?ORD-(\d+)/i);
+        const curVal = m ? parseInt(m[1], 10) : 1;
+        displayOrderNum = `#ORD-${String(curVal + alreadyInBatch).padStart(2, '0')}`;
+      }
       const otp = String(Math.floor(1000 + Math.random() * 9000));
 
       const newOrder = {

@@ -204,16 +204,83 @@ window.UniMallDB = {
     return (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
   },
 
+  /* ── Sequential Store Order Number Helper (#ORD-01, #ORD-02, ...) ── */
+  async getNextStoreOrderNumber(storeId) {
+    try {
+      let maxNum = 0;
+      // 1. Check Neon PostgreSQL unimall_orders
+      if (this.neonSql) {
+        try {
+          const rows = await this.neonSql(
+            `SELECT order_number FROM unimall_orders WHERE store_id = $1`,
+            [storeId]
+          );
+          if (rows && rows.length > 0) {
+            rows.forEach(r => {
+              const m = String(r.order_number || '').match(/#?ORD-(\d+)/i);
+              if (m && m[1].length < 4) {
+                const val = parseInt(m[1], 10);
+                if (!isNaN(val) && val < 200 && val > maxNum) {
+                  maxNum = val;
+                }
+              }
+            });
+            if (maxNum === 0 && rows.length > 0) {
+              maxNum = rows.length;
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[UniMallDB] Error getting store order numbers from DB:', dbErr);
+        }
+      }
+
+      // 2. Check localStorage unimall_v1
+      try {
+        const raw = localStorage.getItem('unimall_v1');
+        if (raw) {
+          const appData = JSON.parse(raw);
+          if (Array.isArray(appData.orders)) {
+            const storeOrders = appData.orders.filter(o => (o.storeId === storeId || o.store_id === storeId));
+            storeOrders.forEach(o => {
+              const numStr = o.order_number || o.order_number_display || o.id;
+              const m = String(numStr).match(/#?ORD-(\d+)/i);
+              if (m && m[1].length < 4) {
+                const val = parseInt(m[1], 10);
+                if (!isNaN(val) && val < 200 && val > maxNum) {
+                  maxNum = val;
+                }
+              }
+            });
+            if (maxNum === 0 && storeOrders.length > 0) {
+              maxNum = storeOrders.length;
+            }
+          }
+        }
+      } catch (locErr) {}
+
+      const nextNum = maxNum + 1;
+      return `#ORD-${String(nextNum).padStart(2, '0')}`;
+    } catch (e) {
+      return '#ORD-01';
+    }
+  },
+
   /* ── Atomic Order Creation ── */
   async createOrder(orderPayload, items = []) {
     const orderId = orderPayload.id;
-    const orderNumber = orderPayload.order_number || orderPayload.order_number_display || `#ORD-${String(orderId).slice(-4)}`;
+    const storeId = orderPayload.store_id || orderPayload.storeId || 'campus-cafe';
+    let orderNumber = orderPayload.order_number || orderPayload.order_number_display;
+    if (!orderNumber || /^#?ORD-\d{4,}$/.test(orderNumber) || orderNumber.length > 10) {
+      orderNumber = await this.getNextStoreOrderNumber(storeId);
+    }
+    if (!orderNumber.startsWith('#')) {
+      orderNumber = '#' + orderNumber;
+    }
     const userId = orderPayload.user_id || orderPayload.userId || 'guest';
     const userName = orderPayload.user_name || orderPayload.userName || orderPayload.customerName || 'Campus Student';
     const numMatch = (userName || '').match(/\d+/);
     const studentNum = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
     const userEmail = orderPayload.user_email || orderPayload.customer_email || `student${studentNum}@campus.edu`;
-    const storeId = orderPayload.store_id || orderPayload.storeId || 'campus-cafe';
     const status = (orderPayload.status || 'placed').toLowerCase();
     const fulfillmentType = orderPayload.fulfillment_type || orderPayload.fulfillmentType || 'pickup'; // Guaranteed Counter Pickup
     const subtotal = Number(orderPayload.subtotal || 0);

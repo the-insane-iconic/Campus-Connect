@@ -58,7 +58,7 @@ button {
   min-height: 100vh;
   margin: 0 auto;
   background: var(--background);
-  padding-bottom: 92px;
+  padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 16px) + 36px);
   box-sizing: border-box;
 }
 

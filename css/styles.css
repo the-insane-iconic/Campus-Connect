@@ -153,7 +153,7 @@ button:active:not(:disabled) {
 }
 
 .page-scroll {
-  padding-bottom: calc(var(--nav-h) + 16px);
+  padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 0px) + 36px);
   padding-top: env(safe-area-inset-top, 0px);
 }
 
@@ -2350,8 +2350,8 @@ button:active:not(:disabled) {
   -webkit-overflow-scrolling: touch;
 }
 
-#screen-overlay.active, #screen-overlay.is-open,
-.screen-overlay.active, .screen-overlay.is-open {
+#screen-overlay.active, #screen-overlay.is-open, #screen-overlay.open,
+.screen-overlay.active, .screen-overlay.is-open, .screen-overlay.open {
   display: block;
 }
 
@@ -2396,7 +2396,7 @@ button:active:not(:disabled) {
 }
 
 .overlay-body {
-  padding-bottom: 36px;
+  padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 0px) + 36px);
 }
 
 /* ─── 16. VIEW SPECIFIC OVERLAY STYLES ───────────────────── */

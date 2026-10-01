@@ -400,22 +400,58 @@ function handleReorder(orderId) {
       appData.cart = [];
     }
 
-    // Merge items into cart
+    const targetStoreId = order.storeId || order.store_id || 'campus-cafe';
+
+    // Merge items into cart with full product preservation
     order.items.forEach(item => {
-      const existing = appData.cart.find(l => l.productId === item.productId);
+      const pId = item.productId || item.id;
+      const existing = appData.cart.find(l => (l.productId === pId || l.id === pId));
       if (existing) {
-        existing.qty += (item.qty || 1);
+        existing.qty = (existing.qty || 1) + (item.qty || 1);
+        if (!existing.name && item.name) existing.name = item.name;
+        if (!existing.price && item.price) existing.price = item.price;
+        if (!existing.storeId) existing.storeId = item.storeId || targetStoreId;
+        if (!existing.image && item.image) existing.image = item.image;
+        if (!existing.emoji && item.emoji) existing.emoji = item.emoji;
+        if (!existing.product) {
+          existing.product = {
+            id: pId,
+            name: existing.name || item.name || 'Campus Item',
+            price: existing.price || item.price || 50,
+            image: existing.image || item.image || '',
+            emoji: existing.emoji || item.emoji || '🛍️',
+            storeId: existing.storeId || targetStoreId
+          };
+        }
       } else {
-        appData.cart.push({
-          productId: item.productId,
-          qty: item.qty || 1
-        });
+        const itemObj = {
+          productId: pId,
+          qty: item.qty || 1,
+          name: item.name || 'Campus Item',
+          price: Number(item.price) || 50,
+          image: item.image || '',
+          emoji: item.emoji || '📦',
+          storeId: item.storeId || targetStoreId,
+          product: {
+            id: pId,
+            name: item.name || 'Campus Item',
+            price: Number(item.price) || 50,
+            image: item.image || '',
+            emoji: item.emoji || '🛍️',
+            storeId: item.storeId || targetStoreId
+          }
+        };
+        appData.cart.push(itemObj);
       }
     });
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
     syncCartBadge();
-    showToast(`Added ${order.items.length} item${order.items.length > 1 ? 's' : ''} from #${order.id} to cart!`);
+    const orderNumText = order.order_number_display || order.order_number || `#${order.id}`;
+    showToast(`Added ${order.items.length} item${order.items.length > 1 ? 's' : ''} from ${orderNumText} to cart! Opening cart...`);
+    setTimeout(() => {
+      window.location.href = 'cart.html';
+    }, 700);
   } catch (e) {
     console.error('Reorder error:', e);
   }
@@ -740,22 +776,30 @@ async function syncOrdersWithSupabase() {
       'health-hub': 'Health Hub'
     };
 
-    const formattedOrders = (dbOrders || []).map(remote => {
+    const formattedOrders = (dbOrders || []).map((remote, idx) => {
       const cleanStoreName = storeNamesMap[remote.store_id] || remote.store_name || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
       const rawItems = remote.items || remote.unimall_order_items || [];
+      let dispNum = remote.order_number;
+      if (!dispNum) {
+        dispNum = `#ORD-${String(idx + 1).padStart(2, '0')}`;
+      } else if (!dispNum.startsWith('#')) {
+        dispNum = '#' + dispNum;
+      }
       return {
         id: remote.id,
         user_id: remote.user_id,
-        order_number_display: remote.order_number || (`#ORD-${String(remote.id).slice(-4)}`),
+        order_number_display: dispNum,
         storeId: remote.store_id,
         storeName: cleanStoreName,
         storeIcon: '🛍️',
         items: rawItems.map(it => ({
           productId: it.product_id || it.productId || it.id,
-          name: it.product_name || it.name,
+          name: it.product_name || it.name || 'Campus Item',
           price: Number(it.price || 0),
           qty: it.qty || it.quantity || 1,
-          emoji: it.emoji || '📦'
+          emoji: it.emoji || '📦',
+          image: it.image || it.image_url || '',
+          storeId: remote.store_id || 'campus-cafe'
         })),
         subtotal: Number(remote.subtotal || remote.total || 0),
         deliveryFee: Number(remote.delivery_fee || 0),

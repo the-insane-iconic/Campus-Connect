@@ -48,17 +48,19 @@ function showOverlay(html, title, onBack) {
     </div>
   `;
 
-  overlay.classList.add('open');
+  overlay.classList.add('open', 'active', 'is-open');
+  overlay.style.display = 'block';
   document.body.classList.add('overlay-open');
 
-  document.getElementById('overlay-back-btn').addEventListener('click', closeOverlay);
+  document.getElementById('overlay-back-btn')?.addEventListener('click', closeOverlay);
 }
 
 function closeOverlay() {
   const overlay = _ensureOverlay();
   if (!overlay) return;
 
-  overlay.classList.remove('open');
+  overlay.classList.remove('open', 'active', 'is-open');
+  overlay.style.display = 'none';
   document.body.classList.remove('overlay-open');
 
   if (_overlayBackCallback) {

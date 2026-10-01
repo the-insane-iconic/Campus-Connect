@@ -1027,6 +1027,34 @@ function _openProfile() {
    ═══════════════════════════════════════════════════════════ */
 
 function _openNotifications() {
+  if (!Array.isArray(AppState.notifications)) {
+    AppState.notifications = [];
+  }
+
+  // If no notifications, populate from recent orders
+  if (AppState.notifications.length === 0) {
+    const raw = localStorage.getItem('unimall_v1');
+    let localOrders = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.orders)) localOrders = parsed.orders;
+      } catch(e) {}
+    }
+    if (localOrders.length > 0) {
+      localOrders.slice(0, 3).forEach(o => {
+        const disp = o.order_number_display || o.order_number || `#${o.id}`;
+        AppState.notifications.push({
+          type: 'order',
+          title: `Order ${disp} · ${o.storeName || 'Campus Store'}`,
+          body: `Order status is "${o.status || 'placed'}". Pickup at counter with OTP: ${o.otp || 'Ready'}`,
+          time: o.createdAt ? new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
+          read: true
+        });
+      });
+    }
+  }
+
   // Mark all as read
   AppState.notifications.forEach(n => { n.read = true; });
   setState({});
@@ -1035,18 +1063,19 @@ function _openNotifications() {
   const iconMap = { order: '📦', stock: '🛒', request: '🔍' };
 
   const html = AppState.notifications.length === 0
-    ? `<div class="empty-screen">
-        <div class="empty-screen-emoji">🔔</div>
-        <div class="empty-screen-title">No notifications</div>
+    ? `<div class="empty-screen" style="padding: 60px 20px; text-align: center;">
+        <div class="empty-screen-emoji" style="font-size: 48px; margin-bottom: 12px;">🔔</div>
+        <div class="empty-screen-title" style="font-size: 18px; font-weight: 700; color: var(--text);">No notifications yet</div>
+        <div style="font-size: 13.5px; color: var(--text-secondary); margin-top: 6px;">You will receive instant alerts for order updates, readiness, and counter pickup tokens here.</div>
        </div>`
-    : `<div class="notif-list">
+    : `<div class="notif-list" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 12px;">
         ${AppState.notifications.map(n => `
-          <div class="notif-item ${n.read ? '' : 'unread'}">
-            <div class="notif-icon">${iconMap[n.type] || '🔔'}</div>
-            <div class="notif-content">
-              <div class="notif-title">${n.title}</div>
-              <div class="notif-body">${n.body}</div>
-              <div class="notif-time">${n.time}</div>
+          <div class="notif-item ${n.read ? '' : 'unread'}" style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; box-shadow: var(--shadow-sm);">
+            <div class="notif-icon" style="font-size: 22px; line-height: 1;">${iconMap[n.type] || '🔔'}</div>
+            <div class="notif-content" style="flex: 1;">
+              <div class="notif-title" style="font-weight: 700; font-size: 14px; color: var(--text);">${n.title}</div>
+              <div class="notif-body" style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">${n.body}</div>
+              <div class="notif-time" style="font-size: 11px; color: var(--text-tertiary); margin-top: 6px;">${n.time}</div>
             </div>
           </div>
         `).join('')}
@@ -1689,6 +1718,7 @@ function initOrderBottomSheetEvents() {
 
 // Make open & close methods available globally
 window.openOrderBottomSheet = openOrderBottomSheet;
+window.openOrderPassModal = openOrderBottomSheet;
 window.closeOrderBottomSheet = closeOrderBottomSheet;
 
 /**
@@ -1959,3 +1989,5 @@ window.resetActiveOrderForTesting = function() {
     console.log(`%c[UniMall] Order #${appData.orders[0].id} reset to READY FOR PICKUP`, 'color: #2563eb; font-weight: bold;');
   }
 };
+
+window.navigate = navigate;
