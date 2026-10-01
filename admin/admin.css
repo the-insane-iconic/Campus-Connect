@@ -2980,9 +2980,21 @@ tr.row-settled {
    Toggled via JS in auth.js — default states before JS runs
    ═══════════════════════════════════════════════════════════ */
 
-/* Merchant-only sections: hidden by default (shown by JS for merchant role) */
+/* Merchant-only sections: hidden by default, forced active by role */
 .merchant-only {
   display: none;
+}
+body.role-merchant .merchant-only {
+  display: block !important;
+}
+body.role-merchant .platform-admin-only {
+  display: none !important;
+}
+body.role-platform_admin .merchant-only {
+  display: none !important;
+}
+body.role-platform_admin .platform-admin-only {
+  display: block;
 }
 
 /* Merchant Dashboard: Embedded Live Order Queue Grid */

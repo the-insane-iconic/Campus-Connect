@@ -77,7 +77,7 @@
           <span id="nav-dash-label">Platform Overview</span>
         </button>
 
-        <button type="button" class="nav-item" data-view="orders" id="nav-orders">
+        <button type="button" class="nav-item platform-admin-only" data-view="orders" id="nav-orders">
           <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           <span id="nav-orders-label">All Orders</span>
           <span class="nav-counter alert" id="counter-orders">0</span>
@@ -198,7 +198,7 @@
               <button type="button" class="btn-action secondary platform-admin-only" id="dash-btn-print-settlement" onclick="window.printDailySettlementSheet && window.printDailySettlementSheet()">
                 🖨️ Print Settlement Slip
               </button>
-              <button type="button" class="btn-action primary" id="dash-btn-goto-orders" onclick="window.switchView('orders')">
+              <button type="button" class="btn-action primary platform-admin-only" id="dash-btn-goto-orders" onclick="window.switchView('orders')">
                 ⚡ Live Orders Queue →
               </button>
             </div>
@@ -320,134 +320,115 @@
             </div>
           </div>
 
-          <!-- ════ MERCHANT ONLY: LIVE ORDER QUEUE (In place of old low stock area) ════ -->
-          <div class="merchant-only" id="merchant-dash-orders-section">
-            <div class="card-panel mt-6">
-              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                <div>
-                  <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
-                    <span class="shortcut-pulse-dot"></span>
-                    <span>📋 Live Order Queue</span>
-                  </div>
-                  <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
-                    Active orders requiring preparation, counter pickup, or delivery — updated in real-time.
-                  </p>
+          <!-- ════ LIVE ORDER QUEUE & FULFILLMENT BOARD (Integrated in Store Dashboard) ════ -->
+          <div class="card-panel mt-6" id="dashboard-orders-section">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span class="shortcut-pulse-dot"></span>
+                  <span>📋 Live Order Queue & Fulfillment</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <span class="badge-status accepted" style="font-size:11px; padding:3px 10px;" id="merchant-dash-active-badge">0 Active</span>
-                  <button type="button" class="btn-action secondary" onclick="window.refreshMerchantDashOrders && window.refreshMerchantDashOrders()" style="font-size:12px; padding:4px 10px;">
-                    ↻ Refresh
-                  </button>
-                  <button type="button" class="btn-action primary" onclick="window.switchView('orders')" style="font-size:12px; padding:4px 12px;">
-                    Full Orders View →
-                  </button>
-                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                  Live incoming student orders, preparation timers & 1-click status progression — updated automatically.
+                </p>
               </div>
-              <div class="active-orders-grid" id="merchant-dash-orders-container" style="padding: 16px;">
-                <div class="empty-state-sm">Loading live orders...</div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" class="btn-action secondary" id="btn-refresh-orders" onclick="window.loadOrders && window.loadOrders(window.activeStoreId)" style="font-size:12px; padding:6px 14px;">
+                  ↻ Refresh Orders
+                </button>
+              </div>
+            </div>
+
+            <!-- MOBILE BACKGROUND ALERT PERMISSION BANNER -->
+            <div id="mobile-notif-banner" class="mobile-notif-banner hidden">
+              <div class="notif-banner-icon">🔔</div>
+              <div class="notif-banner-content">
+                <strong>Order Chime & Mobile Alerts</strong>
+                <p>Hear pleasant audio chimes & receive lock screen alerts even when your phone is on WhatsApp or another app.</p>
+              </div>
+              <div class="notif-banner-actions">
+                <button type="button" id="btn-enable-push" class="btn-banner primary">Enable Alerts</button>
+                <button type="button" id="btn-dismiss-push" class="btn-banner">Dismiss</button>
+              </div>
+            </div>
+
+            <!-- VIEW MODE TABS: ACTIVE CARDS vs ALL TABLE & FAST STORE / SEARCH FILTER -->
+            <div class="orders-mode-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:16px;">
+              <div class="orders-mode-tabs">
+                <button type="button" class="order-mode-btn active" id="tab-mode-active" onclick="switchOrdersViewMode('active')">
+                  ⚡ Active Orders (<span id="active-orders-counter">0</span>)
+                </button>
+                <button type="button" class="order-mode-btn" id="tab-mode-table" onclick="switchOrdersViewMode('table')">
+                  📋 All Orders Table
+                </button>
+              </div>
+              <div class="orders-quick-filters" style="display:flex; align-items:center; gap:10px;">
+                <div class="platform-admin-only" style="display:flex; align-items:center; gap:6px;">
+                  <label for="orders-store-filter" style="font-size:12.5px; font-weight:700; color:var(--text-main); display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
+                    <span>🏬 Store:</span>
+                  </label>
+                  <select id="orders-store-filter" style="height:36px; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; background:var(--surface-alt); color:var(--text-main); cursor:pointer;">
+                    <option value="all">🏢 All Campus Stores</option>
+                    <option value="campus-cafe">☕ Campus Café</option>
+                    <option value="book-corner">📚 Book Corner</option>
+                    <option value="techstop">💻 TechStop</option>
+                    <option value="campus-mart">🛒 Campus Mart</option>
+                    <option value="campus-wear">👕 Campus Wear</option>
+                    <option value="health-hub">💊 Health Hub</option>
+                  </select>
+                </div>
+                <input type="text" id="orders-search-input" placeholder="Search order #, student, room..." style="height:36px; font-size:12.5px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; width:230px; background:var(--surface); color:var(--text-main);" />
+              </div>
+            </div>
+
+            <!-- 1. ACTIVE ORDERS LIVE CARDS BOARD (DEFAULT & RECOMMENDED) -->
+            <div id="active-orders-board" class="active-orders-board" style="margin-top:12px;">
+              <div class="active-orders-grid" id="active-orders-cards-container">
+                <div class="empty-state-sm">Loading active orders...</div>
+              </div>
+            </div>
+
+            <!-- 2. ALL ORDERS TABLE (FOR AUDIT & SEARCH) -->
+            <div id="all-orders-table-wrapper" class="hidden" style="margin-top:12px;">
+              <!-- STATUS FILTER TABS -->
+              <div class="filter-tabs-bar">
+                <button type="button" class="tab-btn active" data-status="ALL">All Orders</button>
+                <button type="button" class="tab-btn" data-status="PLACED">Placed</button>
+                <button type="button" class="tab-btn" data-status="ACCEPTED">Accepted</button>
+                <button type="button" class="tab-btn" data-status="PREPARING">Preparing</button>
+                <button type="button" class="tab-btn" data-status="READY">Ready</button>
+                <button type="button" class="tab-btn" data-status="COMPLETED">Completed</button>
+                <button type="button" class="tab-btn" data-status="CANCELLED">Cancelled</button>
+              </div>
+
+              <!-- ORDERS LIST TABLE -->
+              <div class="card-panel" style="box-shadow:none; border:none; padding:0;">
+                <div class="table-responsive">
+                  <table class="data-table" id="orders-table">
+                    <thead>
+                      <tr>
+                        <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Fulfillment</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Placed</th>
+                        <th>Status</th>
+                        <th>Next Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                      <tr><td colspan="8" class="text-center py-6">Loading orders...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- 2. ORDERS VIEW (1-WINDOW ACTIVE ORDERS & CARD PROGRESSION) -->
-        <section class="admin-view" id="view-orders">
-          <div class="view-header">
-            <div>
-              <h1 class="view-title">Active Orders & Fulfillment</h1>
-              <p class="view-subtitle">Manage customer orders in one window — 1-click status progression</p>
-            </div>
-            <div class="view-actions">
-              <button type="button" class="btn-action secondary" id="btn-refresh-orders">↻ Refresh</button>
-            </div>
-          </div>
-
-          <!-- MOBILE BACKGROUND ALERT PERMISSION BANNER -->
-          <div id="mobile-notif-banner" class="mobile-notif-banner hidden">
-            <div class="notif-banner-icon">🔔</div>
-            <div class="notif-banner-content">
-              <strong>Order Chime & Mobile Alerts</strong>
-              <p>Hear pleasant audio chimes & receive lock screen alerts even when your phone is on WhatsApp or another app.</p>
-            </div>
-            <div class="notif-banner-actions">
-              <button type="button" id="btn-enable-push" class="btn-banner primary">Enable Alerts</button>
-              <button type="button" id="btn-dismiss-push" class="btn-banner">Dismiss</button>
-            </div>
-          </div>
-
-          <!-- VIEW MODE TABS: ACTIVE CARDS vs ALL TABLE & FAST STORE / SEARCH FILTER -->
-          <div class="orders-mode-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div class="orders-mode-tabs">
-              <button type="button" class="order-mode-btn active" id="tab-mode-active" onclick="switchOrdersViewMode('active')">
-                ⚡ Active Orders (<span id="active-orders-counter">0</span>)
-              </button>
-              <button type="button" class="order-mode-btn" id="tab-mode-table" onclick="switchOrdersViewMode('table')">
-                📋 All Orders Table
-              </button>
-            </div>
-            <div class="orders-quick-filters" style="display:flex; align-items:center; gap:10px;">
-              <div style="display:flex; align-items:center; gap:6px;">
-                <label for="orders-store-filter" style="font-size:12.5px; font-weight:700; color:var(--text-main); display:inline-flex; align-items:center; gap:5px; white-space:nowrap;">
-                  <span>🏬 Store:</span>
-                </label>
-                <select id="orders-store-filter" style="height:36px; font-size:12.5px; font-weight:600; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; background:var(--surface-alt); color:var(--text-main); cursor:pointer;">
-                  <option value="all">🏢 All Campus Stores</option>
-                  <option value="campus-cafe">☕ Campus Café</option>
-                  <option value="book-corner">📚 Book Corner</option>
-                  <option value="techstop">💻 TechStop</option>
-                  <option value="campus-mart">🛒 Campus Mart</option>
-                  <option value="campus-wear">👕 Campus Wear</option>
-                  <option value="health-hub">💊 Health Hub</option>
-                </select>
-              </div>
-              <input type="text" id="orders-search-input" placeholder="Search order #, student, room..." style="height:36px; font-size:12.5px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:0 12px; width:220px; background:var(--surface); color:var(--text-main);" />
-            </div>
-          </div>
-
-          <!-- 1. ACTIVE ORDERS LIVE CARDS BOARD (DEFAULT & RECOMMENDED) -->
-          <div id="active-orders-board" class="active-orders-board">
-            <div class="active-orders-grid" id="active-orders-cards-container">
-              <div class="empty-state-sm">Loading active orders...</div>
-            </div>
-          </div>
-
-          <!-- 2. ALL ORDERS TABLE (FOR AUDIT & SEARCH) -->
-          <div id="all-orders-table-wrapper" class="hidden">
-            <!-- STATUS FILTER TABS -->
-            <div class="filter-tabs-bar">
-              <button type="button" class="tab-btn active" data-status="ALL">All Orders</button>
-              <button type="button" class="tab-btn" data-status="PLACED">Placed</button>
-              <button type="button" class="tab-btn" data-status="ACCEPTED">Accepted</button>
-              <button type="button" class="tab-btn" data-status="PREPARING">Preparing</button>
-              <button type="button" class="tab-btn" data-status="READY">Ready</button>
-              <button type="button" class="tab-btn" data-status="COMPLETED">Completed</button>
-              <button type="button" class="tab-btn" data-status="CANCELLED">Cancelled</button>
-            </div>
-
-            <!-- ORDERS LIST TABLE -->
-            <div class="card-panel">
-              <div class="table-responsive">
-                <table class="data-table" id="orders-table">
-                  <thead>
-                    <tr>
-                      <th>Order #</th>
-                      <th>Customer</th>
-                      <th>Fulfillment</th>
-                      <th>Items</th>
-                      <th>Total</th>
-                      <th>Placed</th>
-                      <th>Status</th>
-                      <th>Next Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="orders-tbody">
-                    <tr><td colspan="8" class="text-center py-6">Loading orders...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
+        <!-- 2. DEDICATED ORDERS VIEW (Merged directly into Store Dashboard) -->
+        <section class="admin-view" id="view-orders" style="display:none;"></section>
 
         <!-- 3. MERGED PRODUCTS & STOCK VIEW -->
         <section class="admin-view" id="view-products">
@@ -1074,7 +1055,7 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
       <span>Dashboard</span>
     </button>
-    <button type="button" class="mobile-nav-item" data-view="orders" id="mob-nav-orders">
+    <button type="button" class="mobile-nav-item platform-admin-only" data-view="orders" id="mob-nav-orders">
       <div class="mob-icon-wrap">
         <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         <span class="mob-badge alert hidden" id="mob-badge-orders">0</span>

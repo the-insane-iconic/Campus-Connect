@@ -247,7 +247,7 @@ async function sendOrderPushNotification(orderInfo) {
 window.sendOrderPushNotification = sendOrderPushNotification;
 
 window.addEventListener('unimall:viewChanged', (e) => {
-  if (e.detail.viewName === 'orders') {
+  if (e.detail.viewName === 'orders' || e.detail.viewName === 'dashboard') {
     if (currentOrdersList && currentOrdersList.length > 0) {
       if (currentOrdersViewMode === 'active') {
         renderActiveOrdersBoard();
@@ -262,7 +262,7 @@ window.addEventListener('unimall:viewChanged', (e) => {
 
 window.addEventListener('unimall:storeChanged', (e) => {
   const currentActiveView = document.querySelector('.admin-view.active');
-  if (currentActiveView && currentActiveView.id === 'view-orders') {
+  if (currentActiveView && (currentActiveView.id === 'view-orders' || currentActiveView.id === 'view-dashboard')) {
     loadOrders(e.detail.storeId);
   }
 });
@@ -453,17 +453,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRefresh = document.getElementById('btn-refresh-orders');
   if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
-      if (activeStoreId) loadOrders(activeStoreId);
+      const storeId = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+        || window.activeStoreId
+        || (typeof activeStoreId !== 'undefined' ? activeStoreId : null);
+      if (storeId) loadOrders(storeId);
     });
   }
 
   // 5. Start persistent polling right away
+  const initialStore = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+    || window.activeStoreId
+    || sessionStorage.getItem('unimall_admin_active_store')
+    || 'all';
+  if (initialStore) {
+    loadOrders(initialStore, true);
+  }
   startOrdersPolling();
 });
 
 function startOrdersPolling() {
-  // Automatic live reload disabled — store admin reloads manually
   stopOrdersPolling();
+  ordersPollInterval = setInterval(() => {
+    const storeId = (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : null)
+      || window.activeStoreId
+      || (typeof activeStoreId !== 'undefined' ? activeStoreId : null)
+      || sessionStorage.getItem('unimall_admin_active_store');
+    if (storeId) {
+      loadOrders(storeId, true);
+    }
+  }, 8000);
 }
 
 function stopOrdersPolling() {
@@ -1365,3 +1383,5 @@ async function executeOrderTransition(orderId, newStatus) {
   }
 }
 window.executeOrderTransition = executeOrderTransition;
+window.loadOrders = loadOrders;
+window.startOrdersPolling = startOrdersPolling;

@@ -143,9 +143,12 @@ async function loadDashboard(storeId) {
       renderStorePayoutLedger(metrics.stores_ledger, metrics);
     }
 
-    // 6. Merchant View: Load live orders embedded in dashboard (in place of low stock area)
-    if (!isPlatformView) {
-      loadMerchantDashOrders(effectiveStoreId);
+    // 6. Load live orders queue integrated directly in dashboard
+    if (typeof window.loadOrders === 'function') {
+      window.loadOrders(effectiveStoreId);
+      if (typeof window.startOrdersPolling === 'function') {
+        window.startOrdersPolling();
+      }
     }
 
   } catch (err) {

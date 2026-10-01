@@ -106,16 +106,28 @@ function setupUserProfile() {
     if (brandLabel) brandLabel.textContent = 'Platform Admin';
 
     // Role-based visibility: show platform-admin sections, hide merchant sections
-    document.querySelectorAll('.platform-admin-only').forEach(el => el.classList.remove('hidden'));
+    document.body.classList.remove('role-merchant');
+    document.body.classList.add('role-platform_admin');
+    document.querySelectorAll('.platform-admin-only').forEach(el => {
+      el.style.display = '';
+      el.classList.remove('hidden');
+    });
     document.querySelectorAll('.merchant-only').forEach(el => {
       el.style.display = 'none';
     });
   } else {
     // ── Merchant / Single Store Owner Experience ──
+    document.body.classList.remove('role-platform_admin');
+    document.body.classList.add('role-merchant');
     if (opsLabel) opsLabel.textContent = 'MY STORE';
     if (dashLabel) dashLabel.textContent = 'Store Dashboard';
-    if (ordersLabel) ordersLabel.textContent = 'Live Orders';
     if (founderNav) founderNav.classList.add('hidden');
+
+    // Dedicated Live Orders section is integrated into Store Dashboard: hide separate nav buttons
+    const navOrders = document.getElementById('nav-orders');
+    if (navOrders) navOrders.style.display = 'none';
+    const mobNavOrders = document.getElementById('mob-nav-orders');
+    if (mobNavOrders) mobNavOrders.style.display = 'none';
 
     document.querySelectorAll('.store-only-nav').forEach(el => el.classList.remove('hidden'));
 
@@ -135,7 +147,7 @@ function setupUserProfile() {
       el.style.display = 'none';
     });
     document.querySelectorAll('.merchant-only').forEach(el => {
-      el.style.display = '';
+      el.style.display = 'block';
     });
 
     // Update merchant-specific metric labels
@@ -291,6 +303,11 @@ function switchView(viewName) {
     if (typeof showToast === 'function') {
       showToast('Access restricted: Platform Superadmin credentials required.', 'error');
     }
+    viewName = 'dashboard';
+  }
+
+  // Redirect orders view to dashboard for merchant (since live orders are integrated in Store Dashboard)
+  if (viewName === 'orders' && !isPlatformUser) {
     viewName = 'dashboard';
   }
 
