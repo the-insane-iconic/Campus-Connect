@@ -32,6 +32,10 @@
   ],
   "routes": [
     {
+      "src": "^/login(\\.html)?$",
+      "dest": "/admin/login.html"
+    },
+    {
       "src": "/admin",
       "dest": "/admin/index.html"
     },

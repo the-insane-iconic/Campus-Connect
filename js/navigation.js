@@ -233,17 +233,16 @@ function initNotifBtn() {
 
 function initProfileBtn() {
   const btn = document.getElementById('profile-btn');
-  const user = AppState.currentUser;
-  if (btn && user) {
-    const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'A';
-    btn.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
-    btn.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
-    btn.style.display = 'flex';
-    btn.style.alignItems = 'center';
-    btn.style.justifyContent = 'center';
-    btn.style.borderRadius = '50%';
-    btn.addEventListener('click', () => navigate('profile'));
-  }
+  if (!btn) return;
+  const user = AppState.currentUser || {};
+  const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : (user.isGuest ? 'G' : 'C');
+  btn.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
+  btn.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+  btn.style.display = 'flex';
+  btn.style.alignItems = 'center';
+  btn.style.justifyContent = 'center';
+  btn.style.borderRadius = '50%';
+  btn.addEventListener('click', () => navigate('profile'));
 }
 
 /* ─── FOOTER / CANTFIND LINKS ────────────────────────────── */

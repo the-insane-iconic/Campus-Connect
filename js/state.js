@@ -239,6 +239,14 @@ function hydrateState() {
   if (saved.cart)          AppState.cart          = saved.cart;
   if (saved.currentUser)   AppState.currentUser   = { ...DEFAULT_USER, ...saved.currentUser };
 
+  try {
+    const authRaw = localStorage.getItem('unimall_auth');
+    if (authRaw) {
+      const authUser = JSON.parse(authRaw);
+      AppState.currentUser = { ...AppState.currentUser, ...authUser };
+    }
+  } catch (e) {}
+
   if (saved.orders && Array.isArray(saved.orders)) {
     AppState.orders = saved.orders;
   } else {

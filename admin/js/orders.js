@@ -200,8 +200,8 @@ async function sendOrderPushNotification(orderInfo) {
   const title = `🔔 New Order ${displayNum}! (₹${amount})`;
   const options = {
     body: `👤 ${customer} · ${itemsCount} item(s) · Counter Self-Pickup. Tap to prepare.`,
-    icon: '/faviicon.png',
-    badge: '/faviicon.png',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
     tag: `unimall-order-${orderInfo.orderId || Date.now()}`,
     renotify: true,
     vibrate: [300, 100, 300, 100, 450],

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="100%" height="100%">
+  <defs>
+    <radialGradient id="scooterGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FDE047" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#FACC15" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="scooterBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="40%" stop-color="#FACC15"/>
+      <stop offset="100%" stop-color="#EAB308"/>
+    </linearGradient>
+    <linearGradient id="scooterDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="boxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1F5F9"/>
+    </linearGradient>
+    <filter id="scooterShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Shadow under wheels -->
+  <ellipse cx="120" cy="195" rx="75" ry="12" fill="rgba(0,0,0,0.2)"/>
+
+  <!-- Rear Wheel -->
+  <g filter="url(#scooterShadow)">
+    <circle cx="65" cy="172" r="25" fill="#334155"/>
+    <circle cx="65" cy="172" r="17" fill="#94A3B8"/>
+    <circle cx="65" cy="172" r="8" fill="#F8FAFC"/>
+    <circle cx="65" cy="172" r="4" fill="#334155"/>
+  </g>
+
+  <!-- Front Wheel -->
+  <g filter="url(#scooterShadow)">
+    <circle cx="178" cy="172" r="25" fill="#334155"/>
+    <circle cx="178" cy="172" r="17" fill="#94A3B8"/>
+    <circle cx="178" cy="172" r="8" fill="#F8FAFC"/>
+    <circle cx="178" cy="172" r="4" fill="#334155"/>
+  </g>
+
+  <!-- Scooter Body & Mudguards -->
+  <!-- Rear Fender -->
+  <path d="M42 165 C42 145 55 135 78 135 L95 155 L70 175 Z" fill="#EAB308"/>
+  <path d="M44 165 C44 148 56 138 78 138 C90 138 98 145 105 155 L90 168 L60 170 Z" fill="url(#scooterBody)"/>
+
+  <!-- Base Board -->
+  <path d="M75 165 L150 165 C154 165 156 162 155 158 L148 140 L100 140 L75 165 Z" fill="url(#scooterDark)"/>
+
+  <!-- Front Apron / Steering Column -->
+  <path d="M142 155 L165 105 C167 100 172 98 177 100 L182 102 C186 104 187 110 184 114 L162 162 C158 170 148 170 142 155 Z" fill="url(#scooterBody)"/>
+  <!-- Front Wheel Fork & Fender -->
+  <path d="M158 152 L178 148 C185 148 194 153 196 162 L164 168 Z" fill="#CA8A04"/>
+
+  <!-- Seat (Brown/Tan Vintage Leather) -->
+  <path d="M72 135 C72 130 76 126 84 125 L125 125 C132 125 135 129 133 135 L128 142 L76 142 Z" fill="#9A3412"/>
+  <path d="M74 133 C74 129 78 126 86 125 L123 125 C129 125 132 128 131 133 L126 138 L78 138 Z" fill="#C2410C"/>
+
+  <!-- Delivery Box on Back -->
+  <g filter="url(#scooterShadow)">
+    <rect x="52" y="85" width="48" height="42" rx="7" fill="url(#boxGrad)"/>
+    <rect x="50" y="82" width="52" height="10" rx="4" fill="#3B82F6"/>
+    <!-- Lock / Handle -->
+    <rect x="72" y="96" width="8" height="6" rx="2" fill="#94A3B8"/>
+    <!-- Logo on box -->
+    <circle cx="76" cy="112" r="7" fill="#1D68FE"/>
+    <path d="M74 112 L76 114 L79 110" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+
+  <!-- Handlebars & Headlight -->
+  <path d="M174 98 L180 82 C181 80 183 78 186 78 L190 78" stroke="#64748B" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+  <!-- Handle Grips -->
+  <rect x="186" y="75" width="10" height="6" rx="2" fill="#1E293B"/>
+
+  <!-- Retro Round Headlight -->
+  <g filter="url(#scooterShadow)">
+    <circle cx="184" cy="94" r="11" fill="#E2E8F0"/>
+    <circle cx="184" cy="94" r="9" fill="#FEF08A"/>
+    <circle cx="182" cy="92" r="4" fill="#FFFFFF" opacity="0.8"/>
+  </g>
+
+  <!-- Rear Mirror -->
+  <path d="M178 82 L172 70" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <circle cx="171" cy="69" r="4.5" fill="#E2E8F0"/>
+  <circle cx="171" cy="69" r="3" fill="#38BDF8"/>
+</svg>

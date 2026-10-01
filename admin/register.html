@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>UniMall — Register Your Store</title>
-  <link rel="icon" type="image/png" href="../faviicon.png" />
-  <link rel="apple-touch-icon" href="../faviicon.png" />
+  <link rel="icon" type="image/png" href="../favicon.png" />
+  <link rel="apple-touch-icon" href="../favicon.png" />
   <meta name="theme-color" content="#0F172A" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -145,6 +145,7 @@
     </div>
   </div>
 
+  <script src="../js/config.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('store-register-form');
@@ -165,7 +166,7 @@
       });
 
       // ── FORM SUBMISSION ──
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         if (!selectedType) {
@@ -185,7 +186,7 @@
         const description = document.getElementById('reg-description').value.trim();
 
         // Generate store ID from name
-        const storeId = storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const storeId = storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || ('store-' + Date.now().toString().slice(-4));
 
         const registration = {
           id: 'REG-' + String(Date.now()).slice(-6),
@@ -204,7 +205,24 @@
           reviewedAt: null
         };
 
-        // Save to localStorage (admin will pick this up)
+        // 1. Persist to authoritative online database (Neon Lakebase PostgreSQL)
+        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.neonSql === 'function') {
+          await window.UniMallDB.neonSql(`
+            INSERT INTO unimall_stores (id, name, slug, description, category, location, phone, is_open, delivery_available, pickup_available)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true, true, true)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              description = EXCLUDED.description,
+              category = EXCLUDED.category,
+              location = EXCLUDED.location,
+              phone = EXCLUDED.phone,
+              updated_at = NOW();
+          `, [storeId, storeName, storeId, description || `${selectedType} Store`, selectedType, location, phone]).catch(err => {
+            console.warn('[Register] Neon DB insert notice:', err.message);
+          });
+        }
+
+        // 2. Save to localStorage (admin will pick this up)
         const existing = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
         existing.push(registration);
         localStorage.setItem('unimall_registered_stores', JSON.stringify(existing));

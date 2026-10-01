@@ -149,10 +149,12 @@
           }
         } else {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.message || `Neon Auth status ${res.status}`);
+          const errorObj = new Error(err.message || (res.status === 403 ? 'Google OAuth provider not configured in Neon Console' : `Neon Auth status ${res.status}`));
+          errorObj.status = res.status;
+          throw errorObj;
         }
       } catch (err) {
-        console.error('[NeonAuth] Direct Google sign-in request failed:', err);
+        console.warn('[NeonAuth] Google social sign-in note:', err.message || err);
         throw err;
       }
     },
@@ -226,6 +228,7 @@
       } catch (e) {}
 
       localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem('userMode');
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -235,7 +238,7 @@
         }
       } catch (e) {}
 
-      window.location.href = 'login.html';
+      window.location.href = window.location.pathname.includes('/admin/') ? 'login.html' : 'admin/login.html';
     },
 
     /**
@@ -263,7 +266,7 @@
             
             // If on login.html, navigate to index.html
             if (window.location.pathname.endsWith('login.html')) {
-              window.location.href = 'index.html';
+              window.location.href = window.location.pathname.includes('/admin/') ? '../index.html' : 'index.html';
             }
           }
         } catch (err) {

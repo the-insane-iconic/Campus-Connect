@@ -431,9 +431,128 @@ window.UniMallDB = {
     return { id: orderId, status: normStatus };
   },
 
+  /* ── Update Store Open/Closed Status (Neon PostgreSQL) ── */
+  async updateStoreStatus(storeId, isOpen) {
+    try {
+      await this.neonSql(`
+        UPDATE unimall_stores
+        SET is_open = $1, updated_at = NOW()
+        WHERE id = $2 OR slug = $2
+      `, [!!isOpen, storeId]);
+      await this.neonSql(`
+        UPDATE stores
+        SET is_open = $1, updated_at = NOW()
+        WHERE id = $2 OR slug = $2
+      `, [isOpen ? 1 : 0, storeId]).catch(() => {});
+      console.log(`[UniMallDB] Store ${storeId} status updated in Neon DB: ${isOpen ? 'OPEN' : 'CLOSED'}`);
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] updateStoreStatus Neon warning:', e.message);
+      return false;
+    }
+  },
+
+  /* ── Upsert Product into Neon PostgreSQL ── */
+  async upsertProduct(prod) {
+    try {
+      const id = prod.id || ('p-' + Date.now().toString().slice(-6));
+      const storeId = prod.store_id || prod.storeId || 'campus-cafe';
+      const categoryId = prod.category_id || prod.categoryId || 'food';
+      const name = prod.name;
+      const desc = prod.description || '';
+      const price = parseFloat(prod.price || 0);
+      const stock = parseInt(prod.stock || 20, 10);
+      const emoji = prod.emoji || '📦';
+      const image = prod.image_url || prod.image || '';
+      const avail = stock === 0 ? 'out-of-stock' : (stock <= 5 ? 'low-stock' : 'in-stock');
+
+      await this.neonSql(`
+        INSERT INTO unimall_products (
+          id, store_id, category_id, name, description, price, emoji, image, stock, availability, is_active, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, NOW()
+        ) ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          price = EXCLUDED.price,
+          stock = EXCLUDED.stock,
+          availability = EXCLUDED.availability,
+          image = EXCLUDED.image,
+          updated_at = NOW();
+      `, [id, storeId, categoryId, name, desc, price, emoji, image, stock, avail]);
+      return { id, ...prod };
+    } catch (e) {
+      console.warn('[UniMallDB] upsertProduct Neon warning:', e.message);
+      return prod;
+    }
+  },
+
+  /* ── Delete Product from Neon PostgreSQL ── */
+  async deleteProduct(prodId) {
+    try {
+      await this.neonSql(`
+        UPDATE unimall_products SET is_active = false, updated_at = NOW() WHERE id = $1
+      `, [prodId]);
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] deleteProduct warning:', e.message);
+      return false;
+    }
+  },
+
+  /* ── Sync Student User to Neon PostgreSQL ── */
+  async syncUser(user) {
+    try {
+      const uid = user.uid || user.id || ('usr_' + Date.now());
+      const name = user.name || 'Campus Student';
+      const email = user.email || 'student@campusconnect.edu';
+      const phone = user.phone || '';
+      await this.neonSql(`
+        INSERT INTO users (id, name, email, phone, role)
+        VALUES ($1, $2, $3, $4, 'student')
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          phone = EXCLUDED.phone,
+          updated_at = NOW();
+      `, [uid, name, email, phone]);
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] syncUser Neon warning:', e.message);
+      return false;
+    }
+  },
+
+  /* ── Authenticate Merchant / Admin via Neon PostgreSQL ── */
+  async authenticateAdmin(userOrEmail) {
+    try {
+      const cleanUser = String(userOrEmail || '').trim().toLowerCase();
+      const prefix = cleanUser.split('@')[0];
+      const rows = await this.neonSql(`
+        SELECT a.id, a.email, a.name, a.role, a.store_id, a.password_hash,
+               COALESCE(s.name, 'Campus Store') AS store_name,
+               COALESCE(s.slug, a.store_id) AS store_slug
+        FROM unimall_admins a
+        LEFT JOIN unimall_stores s ON a.store_id = s.id
+        WHERE LOWER(a.email) = $1
+           OR LOWER(a.email) LIKE $2
+           OR LOWER(a.id) = $1
+           OR LOWER(a.store_id) = $1
+           OR ($1 = 'admin' AND a.role = 'platform_admin')
+        LIMIT 1;
+      `, [cleanUser, `${prefix}@%`]);
+
+      if (rows && rows.length > 0) {
+        return rows[0];
+      }
+    } catch (e) {
+      console.warn('[UniMallDB] authenticateAdmin error:', e.message);
+    }
+    return null;
+  },
+
   /* ── Order Status Check (One-shot) ── */
   subscribeToOrder(orderId, onUpdate) {
-    // One-shot check on call; continuous polling removed per user request
     if (orderId && onUpdate) {
       this.getOrderById(orderId).then(order => {
         if (order) onUpdate(order);

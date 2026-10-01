@@ -279,6 +279,11 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     storeStatuses[storeId] = newState;
     localStorage.setItem('unimall_store_statuses', JSON.stringify(storeStatuses));
 
+    // Persist to authoritative online database (Neon PostgreSQL)
+    if (window.UniMallDB && typeof window.UniMallDB.updateStoreStatus === 'function') {
+      await window.UniMallDB.updateStoreStatus(storeId, newState).catch(() => {});
+    }
+
     // Broadcast event
     window.dispatchEvent(new CustomEvent('unimall:storeStatusChanged', { detail: { storeId, isOpen: newState } }));
     try {
@@ -549,11 +554,38 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     const storeId = prodsMatch[1];
 
     if (method === 'GET') {
-      // 1. Get products from localStorage custom modifications or base catalog
+      // 1. Authoritative Online Database Query (Neon PostgreSQL)
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
+        try {
+          const dbProds = await window.UniMallDB.getProducts(storeId === 'all' ? null : storeId);
+          if (dbProds && dbProds.length > 0) {
+            return {
+              products: dbProds.map(p => ({
+                id: p.id,
+                name: p.name,
+                description: p.description || '',
+                price: parseFloat(p.price || 0),
+                stock: p.stock ?? 20,
+                low_stock_threshold: p.low_stock_threshold ?? 5,
+                is_active: p.is_active !== undefined ? (p.is_active ? 1 : 0) : 1,
+                category_id: p.category_id || p.categoryId || 'food',
+                category_name: p.category_name || p.category_id || 'Food & Drinks',
+                image_url: p.image || p.image_url || '',
+                sku: p.sku || 'SKU-' + p.id,
+                unit: p.unit || 'item',
+                availability: (p.stock === 0 ? 'out_of_stock' : (p.stock <= (p.low_stock_threshold || 5) ? 'low_stock' : 'in_stock'))
+              }))
+            };
+          }
+        } catch (e) {
+          console.warn('[api.js] Neon products query fallback:', e.message);
+        }
+      }
+
+      // 2. Local fallback
       let catalog = getStoredCatalog();
       let storeProds = storeId === 'all' ? catalog : catalog.filter(p => p.store_id === storeId || p.storeId === storeId);
 
-      // If store is empty, fallback to default products
       if (storeProds.length === 0 && storeId !== 'all') {
         storeProds = DEFAULT_PRODUCTS.filter(p => p.store_id === storeId);
         if (storeProds.length > 0) {
@@ -597,6 +629,11 @@ async function handleClientAdminRequest(endpoint, options = {}) {
         availability: 'in_stock'
       };
 
+      // Persist to Neon PostgreSQL online database
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
+        await window.UniMallDB.upsertProduct(newProd).catch(() => {});
+      }
+
       const catalog = getStoredCatalog();
       catalog.push(newProd);
       saveStoredCatalog(catalog);
@@ -623,6 +660,12 @@ async function handleClientAdminRequest(endpoint, options = {}) {
           catalog[idx].stock = parseInt(body.stock, 10);
           catalog[idx].availability = catalog[idx].stock === 0 ? 'out_of_stock' : (catalog[idx].stock <= (catalog[idx].low_stock_threshold || 5) ? 'low_stock' : 'in_stock');
         }
+
+        // Persist to Neon PostgreSQL online database
+        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
+          await window.UniMallDB.upsertProduct(catalog[idx]).catch(() => {});
+        }
+
         saveStoredCatalog(catalog);
         notifyCatalogUpdated();
         return { success: true, product: catalog[idx] };
@@ -631,6 +674,10 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     }
 
     if (method === 'DELETE') {
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.deleteProduct === 'function') {
+        await window.UniMallDB.deleteProduct(prodId).catch(() => {});
+      }
+
       if (idx !== -1) {
         catalog.splice(idx, 1);
         saveStoredCatalog(catalog);

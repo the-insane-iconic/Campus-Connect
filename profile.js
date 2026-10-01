@@ -194,9 +194,18 @@ async function handleLogout() {
     } catch (e) { }
   }
   localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('userMode');
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      delete parsed.currentUser;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
+  } catch (e) {}
   showToast('Logged out successfully');
   setTimeout(() => {
-    window.location.href = 'login.html';
+    window.location.href = 'admin/login.html';
   }, 400);
 }
 

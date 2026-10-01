@@ -10,7 +10,6 @@ const ASSETS_TO_CACHE = [
   '/admin/admin.css',
   '/admin/js/orders.js',
   '/admin/js/dashboard.js',
-  '/faviicon.png',
   '/favicon.png'
 ];
 
@@ -52,8 +51,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || '🔔 New Order Received!';
   const options = {
     body: data.body || 'A student placed an order for counter pickup. Tap to view and prepare.',
-    icon: '/faviicon.png',
-    badge: '/faviicon.png',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
     tag: data.tag || `unimall-order-${Date.now()}`,
     renotify: true,
     vibrate: [300, 100, 300, 100, 450],
