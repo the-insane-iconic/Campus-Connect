@@ -27,17 +27,31 @@
         return [];
       }
 
+      // Determine active user ID for strict isolation
+      let curUid = null;
+      if (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser) {
+        const u = window.UserManager.getActiveUser();
+        curUid = u?.uid || u?.id || u?.guestId;
+      }
+      if (!curUid && appData.currentUser) {
+        curUid = appData.currentUser.uid || appData.currentUser.id || appData.currentUser.guestId;
+      }
+      if (!curUid) return [];
+
+      const userOrders = appData.orders.filter(o => o.user_id === curUid);
+      if (userOrders.length === 0) return [];
+
       const now = Date.now();
       const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
       // 1. Active orders (placed, accepted, preparing, ready)
-      const active = appData.orders.filter(o => {
+      const active = userOrders.filter(o => {
         const s = (o.status || '').toLowerCase();
         return ['placed', 'accepted', 'preparing', 'ready'].includes(s);
       }).map(o => ({ order: o, isDelivered: false }));
 
       // 2. Recent delivered orders (< 24h) — show at most the latest 1 delivered order in carousel
-      const recentDelivered = appData.orders.filter(o => {
+      const recentDelivered = userOrders.filter(o => {
         const s = (o.status || '').toLowerCase();
         if (s !== 'delivered' && s !== 'completed') return false;
         const timeVal = o.deliveredAt || o.updatedAt || o.createdAt;
@@ -334,8 +348,13 @@
       refreshOrders();
 
       // Async sync from Neon PostgreSQL
-      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getUserOrders === 'function') {
-        window.UniMallDB.getUserOrders().then(dbOrders => {
+      let curUid = null;
+      if (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser) {
+        const u = window.UserManager.getActiveUser();
+        curUid = u?.uid || u?.id || u?.guestId;
+      }
+      if (curUid && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getUserOrders === 'function') {
+        window.UniMallDB.getUserOrders(curUid).then(dbOrders => {
           if (Array.isArray(dbOrders) && dbOrders.length > 0) {
             try {
               const raw = localStorage.getItem('unimall_v1');
@@ -345,11 +364,27 @@
                   let changed = false;
                   dbOrders.forEach(rem => {
                     const loc = appData.orders.find(o => o.id === rem.id);
-                    if (loc && loc.status !== (rem.status || '').toLowerCase()) {
-                      loc.status = (rem.status || '').toLowerCase();
-                      if (loc.status === 'delivered' || loc.status === 'completed') {
-                        loc.deliveredAt = loc.deliveredAt || new Date().toISOString();
+                    if (loc) {
+                      if (loc.status !== (rem.status || '').toLowerCase()) {
+                        loc.status = (rem.status || '').toLowerCase();
+                        if (loc.status === 'delivered' || loc.status === 'completed') {
+                          loc.deliveredAt = loc.deliveredAt || new Date().toISOString();
+                        }
+                        changed = true;
                       }
+                    } else if (rem.user_id === curUid) {
+                      appData.orders.unshift({
+                        id: rem.id,
+                        order_number_display: rem.order_number || (`#ORD-${String(rem.id).slice(-4)}`),
+                        user_id: rem.user_id,
+                        customerName: rem.user_name || 'Campus Student',
+                        storeId: rem.store_id,
+                        storeName: (typeof STORES !== 'undefined' && STORES.find(s => s.id === rem.store_id)?.name) || 'Campus Store',
+                        items: rem.items || [],
+                        total: Number(rem.total || 0),
+                        status: (rem.status || 'placed').toLowerCase(),
+                        createdAt: rem.created_at || new Date().toISOString()
+                      });
                       changed = true;
                     }
                   });

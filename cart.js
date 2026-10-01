@@ -527,6 +527,12 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         itemsCount: newOrder.items.length,
         timestamp: Date.now()
       });
+      bc.close();
+    } catch(e) {}
+
+    // Dispatch local custom event for reactive banner & views
+    try {
+      window.dispatchEvent(new CustomEvent('unimall:orderPlaced', { detail: newOrder }));
     } catch(e) {}
 
     // 5. Celebration: Subtle chime + confetti + exciting pop-up

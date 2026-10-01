@@ -762,7 +762,19 @@ async function syncOrdersWithSupabase() {
       };
     });
 
-    OrdersState.orders = formattedOrders;
+    // Merge DB orders with any locally placed orders for this user
+    const dbMap = new Map(formattedOrders.map(o => [o.id, o]));
+    const merged = [...formattedOrders];
+
+    // Retain any local order for this user that hasn't synced yet
+    OrdersState.orders.forEach(loc => {
+      if (loc.user_id === userId && !dbMap.has(loc.id)) {
+        merged.push(loc);
+      }
+    });
+    merged.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    OrdersState.orders = merged;
     saveOrdersToStorage();
     updateTabCounts();
     renderLiveTracker();

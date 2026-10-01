@@ -791,30 +791,55 @@ function _openOrderConfirmation(orderId) {
   if (!order) return;
 
   const html = `
-    <div class="confirm-screen">
-      <div class="confirm-icon">✅</div>
-      <div class="confirm-order-id">${order.order_number_display || '#' + order.id}</div>
-      <div class="confirm-title">Order placed successfully!</div>
-      <div class="confirm-sub">
-        ${order.fulfillmentType === 'delivery'
-      ? `Your order is being prepared and will be delivered to <strong>${order.deliveryInfo?.hostel}, ${order.deliveryInfo?.room}</strong>.`
-      : `Your order is being prepared. Pick it up from the Ground floor, near main entrance.`}
-      </div>
-      <div class="confirm-total">Total paid: ₹${fmtPrice(order.total)}</div>
-      <div class="confirm-actions">
-        <button class="confirm-btn-primary" id="conf-view-order">View Order</button>
-        <button class="confirm-btn-secondary" id="conf-home">Back to Home</button>
+    <div class="confirm-screen-wrap" id="confirm-screen-wrap" style="position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
+      <div class="confirm-screen-card" style="background:#ffffff;border-radius:24px;max-width:440px;width:100%;padding:32px 24px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);position:relative;animation:modalScaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        <button id="conf-close-x" style="position:absolute;top:16px;right:16px;background:#f1f5f9;border:none;font-size:16px;color:#64748b;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;" aria-label="Close">✕</button>
+        <div class="confirm-icon" style="font-size:52px;margin-bottom:12px;">✅</div>
+        <div class="confirm-order-id" style="font-size:13px;font-weight:800;color:#2563eb;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;">${order.order_number_display || '#' + order.id}</div>
+        <div class="confirm-title" style="font-size:20px;font-weight:800;color:#0f172a;margin-bottom:8px;">Order Placed Successfully!</div>
+        <div class="confirm-sub" style="font-size:13.5px;color:#64748b;line-height:1.5;margin-bottom:20px;">
+          ${order.fulfillmentType === 'delivery'
+        ? `Your order is being prepared and will be delivered to <strong>${order.deliveryInfo?.hostel || 'Hostel'}, ${order.deliveryInfo?.room || 'Room'}</strong>.`
+        : `Your order is being prepared. Collect it from the <strong>${order.storeName || 'Store'}</strong> counter.`}
+        </div>
+        <div class="confirm-total" style="font-size:15px;font-weight:700;color:#0f172a;background:#f8fafc;padding:12px 16px;border-radius:14px;border:1px solid #e2e8f0;margin-bottom:20px;">Total Paid: ₹${fmtPrice(order.total)}</div>
+        <div class="confirm-actions" style="display:flex;gap:10px;justify-content:center;">
+          <button class="confirm-btn-primary" id="conf-view-order" style="flex:1;padding:12px 18px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;">View Order</button>
+          <button class="confirm-btn-secondary" id="conf-home" style="flex:1;padding:12px 18px;background:#f1f5f9;color:#334155;border:none;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;">Back to Home</button>
+        </div>
       </div>
     </div>
   `;
 
-  showOverlay(html, 'Order Placed');
+  showOverlay(html, 'Order Placed', () => navigate('home'));
   updateCartBadges();
   if (typeof window.playOrderPlacedChime === 'function') window.playOrderPlacedChime();
   if (typeof window.UniMallConfetti === 'function') window.UniMallConfetti();
 
-  document.getElementById('conf-view-order')?.addEventListener('click', () => navigate('order-detail', { selectedOrderId: orderId }));
-  document.getElementById('conf-home')?.addEventListener('click', () => navigate('home'));
+  const wrap = document.getElementById('confirm-screen-wrap');
+  if (wrap) {
+    wrap.addEventListener('click', (e) => {
+      if (e.target === wrap) {
+        closeOverlay();
+        navigate('home');
+      }
+    });
+  }
+
+  document.getElementById('conf-close-x')?.addEventListener('click', () => {
+    closeOverlay();
+    navigate('home');
+  });
+
+  document.getElementById('conf-view-order')?.addEventListener('click', () => {
+    closeOverlay();
+    navigate('order-detail', { selectedOrderId: orderId });
+  });
+
+  document.getElementById('conf-home')?.addEventListener('click', () => {
+    closeOverlay();
+    navigate('home');
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════
