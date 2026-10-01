@@ -14,7 +14,7 @@ window.currentAuthorizedStores = [];
 document.addEventListener('DOMContentLoaded', async () => {
   const token = sessionStorage.getItem('unimall_admin_token');
   if (!token) {
-    window.location.href = 'login.html';
+    window.location.href = '/admin/login.html';
     return;
   }
 
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     console.error('Session initialization failed:', err);
     sessionStorage.removeItem('unimall_admin_token');
-    window.location.href = 'login.html';
+    window.location.href = '/admin/login.html';
   }
 });
 
@@ -381,7 +381,7 @@ function setupLogout() {
         sessionStorage.removeItem('unimall_admin_user');
         sessionStorage.removeItem('unimall_admin_stores');
         sessionStorage.removeItem('unimall_admin_active_store');
-        window.location.href = 'login.html';
+        window.location.href = '/admin/login.html';
       }
     });
   }

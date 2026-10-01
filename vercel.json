@@ -12,7 +12,7 @@
         },
         {
           "key": "X-Frame-Options",
-          "value": "DENY"
+          "value": "SAMEORIGIN"
         },
         {
           "key": "X-XSS-Protection",
@@ -21,7 +21,16 @@
       ]
     },
     {
-      "source": "/(assets|css|js)/(.*)",
+      "source": "/(assets|css|js|vendor)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/admin/(.*)\\.(css|js|png|jpg|jpeg|svg|webp|ico)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -36,11 +45,19 @@
       "dest": "/admin/login.html"
     },
     {
-      "src": "/admin",
+      "src": "^/admin$",
       "dest": "/admin/index.html"
     },
     {
-      "src": "/admin/(.*)",
+      "src": "^/admin/$",
+      "dest": "/admin/index.html"
+    },
+    {
+      "src": "^/(admin\\.css|login\\.css|login\\.js|girl\\.png)$",
+      "dest": "/admin/$1"
+    },
+    {
+      "src": "^/admin/(.*)$",
       "dest": "/admin/$1"
     },
     {

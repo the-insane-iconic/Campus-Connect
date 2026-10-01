@@ -161,7 +161,7 @@ function initLoginPortal() {
           if (apiData && apiData.token) {
             saveAdminSession(apiData);
             showToast(`Welcome back, ${apiData.user?.name || 'Merchant'}!`);
-            setTimeout(() => { window.location.href = 'index.html'; }, 500);
+            setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
             return;
           }
         }
@@ -222,7 +222,7 @@ function initLoginPortal() {
               };
               saveAdminSession(sessionData);
               showToast(`Welcome back, ${dbAdmin.name || 'Merchant'}! Opening dashboard…`);
-              setTimeout(() => { window.location.href = 'index.html'; }, 500);
+              setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
               return;
             }
           }
@@ -260,7 +260,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast('Welcome, Administrator! Opening dashboard…');
-        setTimeout(() => { window.location.href = 'index.html'; }, 500);
+        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
         return;
       }
 
@@ -291,7 +291,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast(`Signed in to ${storeAccount.storeName}!`);
-        setTimeout(() => { window.location.href = 'index.html'; }, 500);
+        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
         return;
       }
 
@@ -320,7 +320,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast(`Signed in to ${regStore.storeName}!`);
-        setTimeout(() => { window.location.href = 'index.html'; }, 500);
+        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
         return;
       }
 
@@ -388,7 +388,7 @@ function initLoginPortal() {
         localStorage.setItem('userMode', 'student');
 
         showToast('Signed in as Campus Student!');
-        setTimeout(() => { window.location.href = '../index.html'; }, 500);
+        setTimeout(() => { window.location.href = '/index.html'; }, 500);
       } catch (err) {
         showToast(err.message || 'Google login failed.', true);
         googleBtn.disabled = false;
@@ -436,7 +436,7 @@ function initLoginPortal() {
         console.error('[Login] Guest session error:', e);
         showToast('Continuing as guest…');
       }
-      setTimeout(() => { window.location.href = '../index.html'; }, 500);
+      setTimeout(() => { window.location.href = '/index.html'; }, 500);
     });
   }
 
@@ -445,9 +445,9 @@ function initLoginPortal() {
     const navigateToStore = () => {
       const storeId = card.getAttribute('data-store');
       if (storeId === 'hostel-delivery') {
-        window.location.href = '../stores.html';
+        window.location.href = '/stores.html';
       } else {
-        window.location.href = `../store.html?store=${encodeURIComponent(storeId)}`;
+        window.location.href = `/store.html?store=${encodeURIComponent(storeId)}`;
       }
     };
 
@@ -463,7 +463,7 @@ function initLoginPortal() {
   if (viewAllStoresBtn) {
     viewAllStoresBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      window.location.href = '../stores.html';
+      window.location.href = '/stores.html';
     });
   }
 
@@ -521,12 +521,12 @@ function initLoginPortal() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        window.location.href = 'index.html';
+        window.location.href = '/admin/index.html';
       }
     } catch {
       const user = sessionStorage.getItem('unimall_admin_user');
       if (user) {
-        window.location.href = 'index.html';
+        window.location.href = '/admin/index.html';
       }
     }
   }
