@@ -11,6 +11,53 @@ let currentInventory = [];
 let productFilterState = 'all';
 let productSearchQuery = '';
 let availableCategories = [];
+let activeProdImgCat = 'all';
+
+const PRODUCT_IMAGE_PRESETS = [
+  // Juice & Drinks
+  { id: 'pip-j-mango', category: 'juice', name: 'Fresh Mango Shake', url: 'https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-orange', category: 'juice', name: 'Fresh Orange Juice', url: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-lime', category: 'juice', name: 'Sweet Lime / Mosambi', url: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-icedtea', category: 'juice', name: 'Lemon Iced Tea', url: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-coldbrew', category: 'juice', name: 'Cold Brew Coffee', url: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-melon', category: 'juice', name: 'Watermelon Juice', url: 'https://images.unsplash.com/photo-1589733955941-5eeaf752f6dd?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-berry', category: 'juice', name: 'Berry Smoothie', url: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-j-coconut', category: 'juice', name: 'Coconut Water', url: 'https://images.unsplash.com/photo-1525385133512-2f3bdd039054?w=400&auto=format&fit=crop&q=80' },
+
+  // Food & Meals
+  { id: 'pip-f-samosa', category: 'food', name: 'Crispy Samosa (2)', url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-sand', category: 'food', name: 'Grilled Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-maggi', category: 'food', name: 'Masala Maggi', url: 'https://images.unsplash.com/photo-1612927601601-6638404737ce?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-burger', category: 'food', name: 'Veggie Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-fries', category: 'food', name: 'Peri Peri Fries', url: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-chai', category: 'food', name: 'Hot Masala Chai', url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-roll', category: 'food', name: 'Paneer Kathi Roll', url: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-f-chole', category: 'food', name: 'Chole Bhature Thali', url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400&auto=format&fit=crop&q=80' },
+
+  // Bakery & Sweets
+  { id: 'pip-b-croiss', category: 'bakery', name: 'Butter Croissant', url: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-b-muffin', category: 'bakery', name: 'Chocolate Muffin', url: 'https://images.unsplash.com/photo-1607958996333-41aef7caef4b?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-b-brownie', category: 'bakery', name: 'Fudge Brownie', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-b-pastry', category: 'bakery', name: 'Forest Pastry', url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&auto=format&fit=crop&q=80' },
+
+  // Stationery & Books
+  { id: 'pip-s-notebook', category: 'stationery', name: 'Spiral Ruled Notebook', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-s-pens', category: 'stationery', name: 'Gel Pens Pack', url: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-s-calc', category: 'stationery', name: 'Scientific Calculator', url: 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-s-highl', category: 'stationery', name: 'Highlighters Set', url: 'https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=400&auto=format&fit=crop&q=80' },
+
+  // Electronics & Gadgets
+  { id: 'pip-e-cable', category: 'electronics', name: 'USB-C Fast Cable', url: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-e-earbuds', category: 'electronics', name: 'Wireless Earbuds', url: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-e-power', category: 'electronics', name: '10000mAh Power Bank', url: 'https://images.unsplash.com/photo-1609592807664-8390b411d331?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-e-adapter', category: 'electronics', name: 'Dual Fast Charger', url: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?w=400&auto=format&fit=crop&q=80' },
+
+  // Essentials & Packaged
+  { id: 'pip-x-water', category: 'essentials', name: 'Mineral Water (1L)', url: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-x-chips', category: 'essentials', name: 'Potato Chips Pack', url: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-x-bar', category: 'essentials', name: 'Protein Energy Bar', url: 'https://images.unsplash.com/photo-1622484214149-68d7168d810a?w=400&auto=format&fit=crop&q=80' },
+  { id: 'pip-x-ramen', category: 'essentials', name: 'Instant Cup Noodles', url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&auto=format&fit=crop&q=80' }
+];
 
 window.addEventListener('unimall:viewChanged', (e) => {
   if (e.detail.viewName === 'products') {
@@ -27,6 +74,8 @@ window.addEventListener('unimall:storeChanged', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadCategories();
+  initProductImagePicker();
+  initUnitPills();
 
   // Search input
   const searchInput = document.getElementById('product-search-input');
@@ -382,6 +431,241 @@ function renderMergedTable() {
   }).join('');
 }
 
+/* ─────────────────────────────────────────────────────────
+   PRODUCT IMAGE PICKER & GALLERY CONTROLLER
+   ───────────────────────────────────────────────────────── */
+function initProductImagePicker() {
+  renderProductImagePresets();
+
+  // Tab switching (gallery, upload, url)
+  const tabGallery = document.getElementById('tab-prod-gallery');
+  const tabUpload = document.getElementById('tab-prod-upload');
+  const tabUrl = document.getElementById('tab-prod-url');
+
+  const panelGallery = document.getElementById('prod-picker-gallery-panel');
+  const panelUpload = document.getElementById('prod-picker-upload-panel');
+  const panelUrl = document.getElementById('prod-picker-url-panel');
+
+  const switchTab = (tabName) => {
+    [tabGallery, tabUpload, tabUrl].forEach(t => t?.classList.remove('active'));
+    if (tabName === 'gallery') tabGallery?.classList.add('active');
+    if (tabName === 'upload') tabUpload?.classList.add('active');
+    if (tabName === 'url') tabUrl?.classList.add('active');
+
+    if (panelGallery) panelGallery.classList.toggle('hidden', tabName !== 'gallery');
+    if (panelUpload) panelUpload.classList.toggle('hidden', tabName !== 'upload');
+    if (panelUrl) panelUrl.classList.toggle('hidden', tabName !== 'url');
+  };
+
+  tabGallery?.addEventListener('click', () => switchTab('gallery'));
+  tabUpload?.addEventListener('click', () => switchTab('upload'));
+  tabUrl?.addEventListener('click', () => switchTab('url'));
+
+  document.getElementById('btn-change-prod-img')?.addEventListener('click', () => {
+    switchTab('gallery');
+    document.getElementById('prod-preset-grid')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  // Category filter chips
+  const catChips = document.querySelectorAll('#prod-cat-filters .cover-filter-chip');
+  catChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      catChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeProdImgCat = chip.dataset.prodCat || 'all';
+      renderProductImagePresets();
+    });
+  });
+
+  // File upload via phone/device
+  const fileInput = document.getElementById('prod-file-input');
+  const btnBrowse = document.getElementById('btn-browse-prod-file');
+  const dropZone = document.getElementById('prod-picker-upload-panel');
+
+  if (btnBrowse && fileInput) {
+    btnBrowse.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+  }
+
+  if (dropZone && fileInput) {
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleProductFile(e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleProductFile(e.target.files[0]);
+      }
+    });
+  }
+
+  // Manual image URL input
+  const manualInput = document.getElementById('pm-manual-image-url');
+  if (manualInput) {
+    manualInput.addEventListener('input', (e) => {
+      const url = e.target.value.trim();
+      setProductActiveImage(url, 'Custom Image Link', 'External Link');
+    });
+  }
+}
+
+function handleProductFile(file) {
+  if (!file.type.startsWith('image/')) {
+    showToast('Please select a valid photo.', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const rawData = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxDim = 480;
+      let w = img.width;
+      let h = img.height;
+
+      if (w > maxDim || h > maxDim) {
+        if (w > h) {
+          h = Math.round(h * (maxDim / w));
+          w = maxDim;
+        } else {
+          w = Math.round(w * (maxDim / h));
+          h = maxDim;
+        }
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressedData = canvas.toDataURL('image/jpeg', 0.85);
+
+      setProductActiveImage(compressedData, file.name.slice(0, 24) || 'Uploaded Photo', 'Device Photo');
+      showToast('Photo uploaded & attached to product!', 'success');
+    };
+    img.src = rawData;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderProductImagePresets() {
+  const grid = document.getElementById('prod-preset-grid');
+  if (!grid) return;
+
+  const currentVal = (document.getElementById('pm-image')?.value || '').trim();
+
+  const filtered = PRODUCT_IMAGE_PRESETS.filter(p => {
+    if (activeProdImgCat === 'all') return true;
+    return p.category === activeProdImgCat;
+  });
+
+  grid.innerHTML = filtered.map(preset => {
+    const isSelected = (preset.url === currentVal);
+    return `
+      <div class="prod-img-item ${isSelected ? 'selected' : ''}"
+           data-id="${preset.id}"
+           data-url="${preset.url}"
+           data-name="${safeEscapeHtml(preset.name)}"
+           title="Click to select ${safeEscapeHtml(preset.name)}">
+        <img src="${preset.url}" alt="${safeEscapeHtml(preset.name)}" loading="lazy" />
+        <div class="prod-img-name-chip">${safeEscapeHtml(preset.name)}</div>
+        <div class="prod-img-check">✓</div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.prod-img-item').forEach(item => {
+    item.addEventListener('click', () => {
+      grid.querySelectorAll('.prod-img-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+
+      const url = item.dataset.url;
+      const name = item.dataset.name;
+      setProductActiveImage(url, name, 'Preset Photo');
+    });
+  });
+}
+
+function setProductActiveImage(url, name = 'Selected Product Photo', tag = 'Preset Photo') {
+  const hiddenInput = document.getElementById('pm-image');
+  const previewImg = document.getElementById('pm-active-img-preview');
+  const nameLabel = document.getElementById('pm-active-img-name');
+  const tagLabel = document.getElementById('pm-selected-source-tag');
+  const manualInput = document.getElementById('pm-manual-image-url');
+
+  if (hiddenInput) hiddenInput.value = url;
+  if (previewImg) {
+    previewImg.src = url || 'https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80';
+    previewImg.onerror = () => {
+      previewImg.src = 'https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80';
+    };
+  }
+  if (nameLabel) nameLabel.textContent = name;
+  if (tagLabel) tagLabel.textContent = tag;
+
+  if (manualInput && url && !url.startsWith('data:')) {
+    manualInput.value = url;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   QUICK UNIT PILLS
+   ───────────────────────────────────────────────────────── */
+function initUnitPills() {
+  const input = document.getElementById('pm-unit');
+  const pills = document.querySelectorAll('#unit-pill-group .unit-pill');
+
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      if (input) input.value = pill.dataset.unit;
+    });
+  });
+
+  if (input) {
+    input.addEventListener('input', (e) => {
+      const val = e.target.value.trim().toLowerCase();
+      pills.forEach(p => p.classList.toggle('active', p.dataset.unit === val));
+    });
+  }
+}
+
+function selectUnitPill(unitVal) {
+  const input = document.getElementById('pm-unit');
+  const pills = document.querySelectorAll('#unit-pill-group .unit-pill');
+  const val = (unitVal || 'item').toLowerCase().trim();
+
+  if (input) input.value = val;
+  pills.forEach(p => p.classList.toggle('active', p.dataset.unit === val));
+}
+
+/* ─────────────────────────────────────────────────────────
+   OPEN MODAL (ADD / EDIT PRODUCT)
+   ───────────────────────────────────────────────────────── */
 function openProductModal(prod = null) {
   const modal = document.getElementById('modal-product-form');
   const title = document.getElementById('product-modal-title');
@@ -390,6 +674,14 @@ function openProductModal(prod = null) {
   if (!modal || !form) return;
 
   form.reset();
+
+  // Determine intelligent category & image presets based on store profile
+  const activeStore = currentAuthorizedStores.find(s => s.store_id === activeStoreId);
+  const storeNameLower = (activeStore ? activeStore.store_name : '').toLowerCase();
+  const isJuiceStore = storeNameLower.includes('juice') || storeNameLower.includes('shake') || storeNameLower.includes('beverage');
+  const isBakeryStore = storeNameLower.includes('bakery') || storeNameLower.includes('cafe');
+  const isStationeryStore = storeNameLower.includes('book') || storeNameLower.includes('stationery');
+  const isTechStore = storeNameLower.includes('tech') || storeNameLower.includes('electronic');
 
   if (prod) {
     title.textContent = 'Edit Product';
@@ -400,26 +692,67 @@ function openProductModal(prod = null) {
     document.getElementById('pm-category').value = prod.category_id || 'food';
     document.getElementById('pm-threshold').value = prod.low_stock_threshold || 5;
     document.getElementById('pm-sku').value = prod.sku || '';
-    document.getElementById('pm-unit').value = prod.unit || 'item';
-    document.getElementById('pm-image').value = prod.image_url || '';
     document.getElementById('pm-desc').value = prod.description || '';
+
+    selectUnitPill(prod.unit || 'item');
+
+    const prodImg = prod.image_url || prod.image || '';
+    const preset = PRODUCT_IMAGE_PRESETS.find(p => p.url === prodImg);
+    if (preset) {
+      setProductActiveImage(preset.url, preset.name, 'Preset Photo');
+    } else if (prodImg) {
+      setProductActiveImage(prodImg, prod.name, prodImg.startsWith('data:') ? 'Uploaded Photo' : 'Custom Image');
+    } else {
+      setProductActiveImage(PRODUCT_IMAGE_PRESETS[0].url, PRODUCT_IMAGE_PRESETS[0].name, 'Preset Photo');
+    }
   } else {
     title.textContent = 'Add New Product';
     document.getElementById('pm-product-id').value = '';
-    document.getElementById('pm-stock').value = '20';
+    document.getElementById('pm-stock').value = '30';
     document.getElementById('pm-threshold').value = '5';
-    document.getElementById('pm-unit').value = 'item';
+
+    // Auto-generate clean SKU
+    const prefix = isJuiceStore ? 'JUC' : isBakeryStore ? 'BAK' : isStationeryStore ? 'STN' : isTechStore ? 'TCH' : 'PRD';
+    document.getElementById('pm-sku').value = `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Set default category & unit
+    if (isStationeryStore) {
+      document.getElementById('pm-category').value = 'stationery';
+      selectUnitPill('piece');
+    } else if (isTechStore) {
+      document.getElementById('pm-category').value = 'electronics';
+      selectUnitPill('piece');
+    } else if (isJuiceStore) {
+      document.getElementById('pm-category').value = 'food';
+      selectUnitPill('glass');
+    } else {
+      document.getElementById('pm-category').value = 'food';
+      selectUnitPill('item');
+    }
+
+    // Set intelligent default photo
+    let defPreset = PRODUCT_IMAGE_PRESETS[0];
+    if (isJuiceStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-j-mango') || PRODUCT_IMAGE_PRESETS[0];
+    else if (isBakeryStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-b-croiss') || PRODUCT_IMAGE_PRESETS[0];
+    else if (isStationeryStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-s-notebook') || PRODUCT_IMAGE_PRESETS[0];
+    else if (isTechStore) defPreset = PRODUCT_IMAGE_PRESETS.find(p => p.id === 'pip-e-cable') || PRODUCT_IMAGE_PRESETS[0];
+
+    setProductActiveImage(defPreset.url, defPreset.name, 'Preset Photo');
   }
 
+  renderProductImagePresets();
   modal.classList.remove('hidden');
+
+  // Focus product name
+  setTimeout(() => {
+    document.getElementById('pm-name')?.focus();
+  }, 100);
 }
 window.openProductModal = openProductModal;
 
 function openEditProductModal(productId) {
-  // Search in merged currentProducts which now has stock/threshold from inventory
   const prod = currentProducts.find(p => p.id === productId);
   if (prod) {
-    // Enrich with inventory data
     const inv = currentInventory.find(i => i.product_id === productId) || {};
     const enriched = {
       ...prod,
@@ -432,27 +765,48 @@ function openEditProductModal(productId) {
 }
 window.openEditProductModal = openEditProductModal;
 
+/* ─────────────────────────────────────────────────────────
+   HANDLE PRODUCT FORM SUBMIT (PERMANENT DB PERSISTENCE)
+   ───────────────────────────────────────────────────────── */
 async function handleProductFormSubmit(e) {
   e.preventDefault();
   const prodId = document.getElementById('pm-product-id').value;
   const isEditing = Boolean(prodId);
 
+  const nameVal = document.getElementById('pm-name').value.trim();
+  const priceVal = parseFloat(document.getElementById('pm-price').value);
+
+  if (!nameVal) {
+    showToast('Please enter a product name.', 'error');
+    document.getElementById('pm-name')?.focus();
+    return;
+  }
+
+  if (isNaN(priceVal) || priceVal <= 0) {
+    showToast('Please enter a valid selling price greater than ₹0.', 'error');
+    document.getElementById('pm-price')?.focus();
+    return;
+  }
+
+  const imageVal = (document.getElementById('pm-image')?.value || '').trim() || PRODUCT_IMAGE_PRESETS[0].url;
+
   const payload = {
-    name: document.getElementById('pm-name').value.trim(),
-    price: parseFloat(document.getElementById('pm-price').value),
-    stock: parseInt(document.getElementById('pm-stock').value, 10),
-    category_id: document.getElementById('pm-category').value,
-    low_stock_threshold: parseInt(document.getElementById('pm-threshold').value, 10),
-    sku: document.getElementById('pm-sku').value.trim(),
+    name: nameVal,
+    price: priceVal,
+    stock: parseInt(document.getElementById('pm-stock').value, 10) || 0,
+    category_id: document.getElementById('pm-category').value || 'food',
+    low_stock_threshold: parseInt(document.getElementById('pm-threshold').value, 10) || 5,
+    sku: document.getElementById('pm-sku').value.trim() || `PRD-${Date.now().toString().slice(-4)}`,
     unit: document.getElementById('pm-unit').value.trim() || 'item',
-    image_url: document.getElementById('pm-image').value.trim(),
+    image_url: imageVal,
+    image: imageVal,
     description: document.getElementById('pm-desc').value.trim()
   };
 
   const btnSave = document.getElementById('btn-save-product');
   if (btnSave) {
     btnSave.disabled = true;
-    btnSave.textContent = 'Saving...';
+    btnSave.textContent = 'Saving to Database...';
   }
 
   try {
@@ -469,21 +823,21 @@ async function handleProductFormSubmit(e) {
           low_stock_threshold: payload.low_stock_threshold
         })
       });
-      showToast(`Product "${payload.name}" updated.`, 'success');
+      showToast(`Product "${payload.name}" updated permanently in database!`, 'success');
     } else {
       await apiRequest(`/admin/stores/${activeStoreId}/products`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      showToast(`Product "${payload.name}" created.`, 'success');
+      showToast(`Product "${payload.name}" created and saved to database!`, 'success');
     }
 
     const modal = document.getElementById('modal-product-form');
     if (modal) modal.classList.add('hidden');
 
     if (activeStoreId) loadProductsAndStock(activeStoreId);
-  } catch {
-    // Handled
+  } catch (err) {
+    showToast(`Error saving product: ${err.message}`, 'error');
   } finally {
     if (btnSave) {
       btnSave.disabled = false;

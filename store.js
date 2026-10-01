@@ -396,26 +396,160 @@ function thumbsSvg() {
   return `<svg viewBox="0 0 24 24"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>`;
 }
 
+function getCategoryEmoji(cat) {
+  const map = {
+    food: '🥐',
+    electronics: '⚡',
+    stationery: '📚',
+    fashion: '👕',
+    essentials: '🧴',
+    health: '💊',
+    services: '✂️',
+    other: '📦'
+  };
+  return map[(cat || '').toLowerCase()] || '🏪';
+}
+
+function renderStoreNotFound(storeId) {
+  document.title = 'Store Not Found — UniMall';
+  const root = document.getElementById('store-page-root');
+  if (root) {
+    root.innerHTML = `
+      <div style="min-height: 65vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px;">
+        <div style="font-size: 54px; margin-bottom: 16px;">🏬</div>
+        <h2 style="font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 8px;">Store Not Found</h2>
+        <p style="font-size: 14.5px; color: var(--text-secondary); max-width: 380px; margin: 0 auto 24px; line-height: 1.5;">
+          The store "${storeId || 'unknown'}" does not exist or has not been approved yet.
+        </p>
+        <a href="stores.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; background: #2563EB; color: #fff; border-radius: 999px; font-weight: 700; text-decoration: none; font-size: 14.5px; box-shadow: 0 4px 14px rgba(37,99,235,0.3);">
+          ← Browse Campus Stores
+        </a>
+      </div>
+    `;
+  }
+}
+
 /* ─────────────────────────────────────────────────────────
    INIT
    ───────────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
-  const storeId = params.get('id') || '';
+  const storeId = params.get('id') || params.get('store') || '';
 
-  SSD.store = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId) || STORE_CATALOG[0];
-  SSD.products = STORE_PRODUCTS[SSD.store.id] || STORE_PRODUCTS[SSD.store.dataId] || [];
-  if (SSD.products.length === 0 && typeof PRODUCTS !== 'undefined') {
-    SSD.products = PRODUCTS.filter(p => p.storeId === SSD.store.id || p.storeId === SSD.store.dataId).map(p => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      image: p.image,
-      availability: p.availability,
-      stock: p.stock,
-      subcat: p.categoryId
-    }));
+  let store = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId);
+
+  // 1. Check dynamically registered stores in localStorage
+  if (!store) {
+    const regRaw = localStorage.getItem('unimall_registered_stores');
+    if (regRaw) {
+      try {
+        const regList = JSON.parse(regRaw);
+        const r = regList.find(s => s.storeId === storeId || s.storeName?.toLowerCase() === storeId?.toLowerCase());
+        if (r && r.status === 'approved') {
+          store = {
+            id: r.storeId,
+            dataId: r.storeId,
+            name: r.storeName,
+            emoji: getCategoryEmoji(r.storeType),
+            logo: null,
+            coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
+            gallery: ['https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80'],
+            description: r.description || `Welcome to ${r.storeName}. Campus store providing quality items.`,
+            categoryLabel: r.storeType ? (r.storeType.charAt(0).toUpperCase() + r.storeType.slice(1)) : 'Campus Store',
+            productCategories: ['All'],
+            status: 'open',
+            openingTime: r.operatingHours ? (r.operatingHours.split('–')[0]?.trim() || '9:00 AM') : '9:00 AM',
+            closingTime: r.operatingHours ? (r.operatingHours.split('–')[1]?.trim() || '9:00 PM') : '9:00 PM',
+            walkingTime: 2,
+            floor: r.location || 'Campus Center',
+            location: r.location || 'Campus Center, Ground Floor',
+            phone: r.phone || '+91 98765 00000',
+            paymentMethods: 'Razorpay UPI, Cash',
+            rating: 4.8,
+            ratingBreakdown: [85, 10, 5, 0, 0],
+            reviewCount: 0,
+            isCustomStore: true
+          };
+        }
+      } catch (e) {}
+    }
   }
+
+  // 2. Query authoritative Neon PostgreSQL database for store
+  if (!store && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStore === 'function') {
+    try {
+      const dbStore = await window.UniMallDB.getStore(storeId);
+      if (dbStore) {
+        store = {
+          id: dbStore.id,
+          dataId: dbStore.id,
+          name: dbStore.name,
+          emoji: getCategoryEmoji(dbStore.category),
+          logo: null,
+          coverImage: dbStore.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
+          gallery: [dbStore.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80'],
+          description: dbStore.description || `Welcome to ${dbStore.name}. Campus store providing quality products.`,
+          categoryLabel: dbStore.category ? (dbStore.category.charAt(0).toUpperCase() + dbStore.category.slice(1)) : 'Campus Store',
+          productCategories: ['All'],
+          status: dbStore.is_open ? 'open' : 'closed',
+          openingTime: dbStore.opening_time || '9:00 AM',
+          closingTime: dbStore.closing_time || '9:00 PM',
+          walkingTime: 2,
+          floor: dbStore.floor || dbStore.location || 'Campus Center',
+          location: dbStore.location || 'Campus Center',
+          phone: dbStore.phone || '+91 98765 00000',
+          paymentMethods: 'Razorpay UPI, Cash',
+          rating: Number(dbStore.rating) || 4.8,
+          ratingBreakdown: [85, 10, 5, 0, 0],
+          reviewCount: 0,
+          isCustomStore: true
+        };
+      }
+    } catch (e) {
+      console.warn('[store.js] Neon getStore error:', e);
+    }
+  }
+
+  // If store was not found anywhere, DO NOT fake-redirect to Campus Bakery!
+  if (!store) {
+    renderStoreNotFound(storeId);
+    return;
+  }
+
+  SSD.store = store;
+
+  // 3. Resolve products for this store strictly isolated
+  let prods = [];
+  if (!store.isCustomStore && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
+    prods = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
+  }
+
+  // Query authoritative database products for this store
+  if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
+    try {
+      const dbProds = await window.UniMallDB.getProducts(store.id);
+      if (Array.isArray(dbProds)) {
+        if (dbProds.length > 0) {
+          prods = dbProds.map(p => ({
+            id: p.id,
+            name: p.name,
+            price: parseFloat(p.price || 0),
+            image: p.image || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+            availability: (p.stock === 0 ? 'out-of-stock' : (p.stock <= (p.low_stock_threshold || 5) ? 'low-stock' : 'in-stock')),
+            stock: p.stock ?? 20,
+            subcat: p.category_id || p.categoryId || 'All'
+          }));
+        } else if (store.isCustomStore) {
+          // New dynamic store with zero products yet
+          prods = [];
+        }
+      }
+    } catch (e) {
+      console.warn('[store.js] Products fetch error:', e);
+    }
+  }
+
+  SSD.products = prods;
   SSD.filteredProducts = [...SSD.products];
 
   // Sync live open/closed status from admin panel
@@ -591,12 +725,24 @@ function renderProductGrid() {
   const grid = document.getElementById('store-products-grid');
   if (!grid) return;
 
+  if (SSD.products.length === 0) {
+    grid.innerHTML = `
+      <div class="store-no-products" style="padding: 56px 20px; text-align: center; width: 100%; grid-column: 1 / -1;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🏪</div>
+        <h4 style="font-size: 19px; font-weight: 800; color: var(--text); margin-bottom: 6px;">No products added yet</h4>
+        <p style="font-size: 14px; color: var(--text-secondary); max-width: 360px; margin: 0 auto; line-height: 1.5;">
+          <strong>${SSD.store.name}</strong> hasn't published any items yet. The store manager will add their menu and products soon!
+        </p>
+      </div>`;
+    return;
+  }
+
   if (SSD.filteredProducts.length === 0) {
     grid.innerHTML = `
-      <div class="store-no-products">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <h4>No products found</h4>
-        <p>Try a different search or category</p>
+      <div class="store-no-products" style="padding: 48px 20px; text-align: center; width: 100%; grid-column: 1 / -1;">
+        <svg viewBox="0 0 24 24" style="width: 36px; height: 36px; stroke: var(--text-muted); fill: none; margin-bottom: 10px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <h4 style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px;">No products found</h4>
+        <p style="font-size: 13.5px; color: var(--text-secondary);">Try a different search or category filter</p>
       </div>`;
     return;
   }

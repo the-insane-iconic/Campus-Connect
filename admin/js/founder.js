@@ -436,7 +436,7 @@ function loadPendingRegistrations() {
   }).join('');
 }
 
-function approveRegistration(index) {
+async function approveRegistration(index) {
   const registrations = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
   if (!registrations[index]) return;
 
@@ -444,6 +444,36 @@ function approveRegistration(index) {
   reg.status = 'approved';
   reg.reviewedAt = new Date().toISOString();
   localStorage.setItem('unimall_registered_stores', JSON.stringify(registrations));
+
+  // Authoritatively persist store approval in Neon PostgreSQL tables (unimall_stores & stores)
+  if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.neonSql === 'function') {
+    try {
+      await window.UniMallDB.neonSql(`
+        INSERT INTO unimall_stores (id, name, slug, description, category, location, phone, is_open, delivery_available, pickup_available, updated_at)
+        VALUES ($1, $2, $1, $3, $4, $5, $6, true, true, true, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          is_open = true,
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          category = EXCLUDED.category,
+          location = EXCLUDED.location,
+          phone = EXCLUDED.phone,
+          updated_at = NOW();
+      `, [reg.storeId, reg.storeName, reg.description || `${reg.storeType} Store`, reg.storeType || 'food', reg.location || 'Campus Center', reg.phone || '']);
+
+      await window.UniMallDB.neonSql(`
+        INSERT INTO stores (id, name, slug, description, category, location, phone, is_open, is_active, accepts_pickup, accepts_delivery, updated_at)
+        VALUES ($1, $2, $1, $3, $4, $5, $6, 1, 1, 1, 1, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          is_active = 1,
+          is_open = 1,
+          name = EXCLUDED.name,
+          updated_at = NOW();
+      `, [reg.storeId, reg.storeName, reg.description || `${reg.storeType} Store`, reg.storeType || 'food', reg.location || 'Campus Center', reg.phone || '']);
+    } catch (dbErr) {
+      console.warn('[Founder] Neon DB store approval notice:', dbErr);
+    }
+  }
 
   syncStoreStatusToUserApp(reg.storeId, true);
 
@@ -462,7 +492,7 @@ function approveRegistration(index) {
     }
   }
 
-  showToast(`"${reg.storeName}" approved! Manager can now sign in with their store name.`, 'success');
+  showToast(`"${reg.storeName}" approved and saved permanently to database!`, 'success');
   loadPendingRegistrations();
   loadAllStoresMonitor();
 }

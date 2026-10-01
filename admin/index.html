@@ -628,10 +628,66 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="setting-store-image">Store Cover Image URL</label>
-                  <input type="url" id="setting-store-image" placeholder="https://..." />
-                  <div class="image-preview-box" id="store-image-preview">
-                    <span>No image set</span>
+                  <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Store Front Cover Banner</span>
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">Shown on customer stores directory & hero</span>
+                  </label>
+
+                  <div class="cover-picker-wrap">
+                    <!-- Live Storefront Preview Card -->
+                    <div class="cover-preview-card" id="store-cover-preview-card">
+                      <img id="store-cover-preview-img" src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80" alt="Store Cover Preview" />
+                      <div class="cover-preview-overlay">
+                        <span class="cover-preview-badge" id="preview-cover-cat-badge">Storefront Cover</span>
+                        <span class="cover-preview-store-name" id="preview-cover-store-name">Store Name</span>
+                      </div>
+                    </div>
+
+                    <!-- Source Selector Tabs -->
+                    <div class="picker-source-tabs">
+                      <button type="button" class="picker-tab-btn active" data-source="gallery" id="tab-cover-gallery">
+                        🖼️ Choose from Gallery
+                      </button>
+                      <button type="button" class="picker-tab-btn" data-source="upload" id="tab-cover-upload">
+                        📁 Upload Photo
+                      </button>
+                      <button type="button" class="picker-tab-btn" data-source="url" id="tab-cover-url">
+                        🔗 Paste URL
+                      </button>
+                    </div>
+
+                    <!-- Hidden storage input for form submission -->
+                    <input type="hidden" id="setting-store-image" />
+
+                    <!-- Section 1: Curated Gallery -->
+                    <div class="cover-gallery-container" id="cover-section-gallery">
+                      <div class="cover-cat-filters" id="cover-cat-filters">
+                        <button type="button" class="cover-filter-chip active" data-cover-cat="all">All Presets</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="juice">🧃 Juice & Smoothies</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="bakery">🥐 Cafe & Bakery</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="food">🍔 Canteen & Meals</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="stationery">📚 Books & Stationery</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="electronics">⚡ Tech & Gadgets</button>
+                        <button type="button" class="cover-filter-chip" data-cover-cat="mart">🛒 Mart & Snacks</button>
+                      </div>
+                      <div class="cover-gallery-grid" id="cover-gallery-grid">
+                        <!-- Populated by store_settings.js -->
+                      </div>
+                    </div>
+
+                    <!-- Section 2: Upload from Device -->
+                    <div class="drag-drop-zone hidden" id="cover-section-upload">
+                      <input type="file" id="cover-file-input" accept="image/*" style="display: none;" />
+                      <div class="drag-drop-icon">📷</div>
+                      <div class="drag-drop-title">Click to upload store cover from your device</div>
+                      <div class="drag-drop-sub">PNG, JPG, or WEBP · Landscape (16:9) recommended</div>
+                      <button type="button" class="btn-action secondary" id="btn-browse-cover" style="margin-top: 4px; font-size: 12px; padding: 5px 14px;">Browse Files</button>
+                    </div>
+
+                    <!-- Section 3: Direct URL -->
+                    <div class="form-group hidden" id="cover-section-url">
+                      <input type="url" id="cover-manual-url" placeholder="https://images.unsplash.com/photo-..." />
+                    </div>
                   </div>
                 </div>
 
@@ -655,11 +711,23 @@
 
             <!-- OPERATING HOURS -->
             <div class="card-panel">
-              <div class="panel-header"><div class="panel-title">Weekly Operating Hours</div></div>
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div class="panel-title">Weekly Operating Hours</div>
+                <div class="hours-quick-bar">
+                  <button type="button" class="btn-quick-hours" id="btn-hours-standard">Standard: 9 AM – 9 PM</button>
+                  <button type="button" class="btn-quick-hours" id="btn-hours-extended">Extended: 8 AM – 10 PM</button>
+                </div>
+              </div>
               <div class="hours-editor" id="hours-editor-container">
                 <!-- Injected by store_settings.js -->
               </div>
             </div>
+          </div>
+
+          <!-- STICKY ACTION BAR FOR STORE SETTINGS -->
+          <div class="settings-sticky-save-bar">
+            <span class="save-hint">💾 Remember to save changes after updating your store profile & hours</span>
+            <button type="submit" form="store-settings-form" class="btn-action primary" style="background:#2563EB; color:#FFF; font-weight:700; padding:8px 22px;">Save Changes</button>
           </div>
         </section>
 
@@ -1132,7 +1200,7 @@
 
   <!-- 2. ADD / EDIT PRODUCT MODAL -->
   <div class="modal-backdrop hidden" id="modal-product-form">
-    <div class="modal-card">
+    <div class="modal-card product-modal-card">
       <div class="modal-header">
         <h2 class="modal-title" id="product-modal-title">Add New Product</h2>
         <button type="button" class="modal-close" data-close="modal-product-form">✕</button>
@@ -1140,20 +1208,85 @@
       <form id="product-modal-form">
         <div class="modal-body">
           <input type="hidden" id="pm-product-id" />
+
+          <!-- PRODUCT IMAGE SELECTOR & PREVIEW -->
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Product Image *</span>
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Click any photo below or upload</span>
+            </label>
+
+            <div class="prod-img-picker-box">
+              <!-- Active Image Selected Preview Banner -->
+              <div class="prod-selected-preview-banner">
+                <div class="prod-selected-thumb">
+                  <img id="pm-active-img-preview" src="https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80" alt="Product thumbnail" />
+                </div>
+                <div class="prod-selected-meta">
+                  <div class="prod-selected-label" id="pm-active-img-name">Fresh Mango Juice</div>
+                  <div class="prod-selected-hint" id="pm-active-img-hint">Ready to save with product</div>
+                </div>
+                <span class="badge-status completed" id="pm-selected-source-tag" style="font-size: 10.5px; padding: 2px 8px;">Preset Photo</span>
+              </div>
+
+              <!-- Hidden input to store chosen image (URL or data URL) for DB persistence -->
+              <input type="hidden" id="pm-image" value="https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80" />
+
+              <!-- Source Mode Tabs -->
+              <div class="picker-source-tabs" style="margin-top: 2px;">
+                <button type="button" class="picker-tab-btn active" id="tab-prod-gallery" data-tab="gallery">📸 Campus Item Gallery</button>
+                <button type="button" class="picker-tab-btn" id="tab-prod-upload" data-tab="upload">📱 Upload Photo / Camera</button>
+                <button type="button" class="picker-tab-btn" id="tab-prod-url" data-tab="url">🔗 Image Link</button>
+              </div>
+
+              <!-- Tab 1: Campus Items Gallery Grid with Categories -->
+              <div id="prod-picker-gallery-panel">
+                <div class="cover-cat-filters" id="prod-cat-filters" style="margin-bottom: 6px;">
+                  <button type="button" class="cover-filter-chip active" data-prod-cat="all">All Items</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="juice">🧃 Juices & Drinks</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="food">🍔 Food & Snacks</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="bakery">🥐 Cafe & Bakery</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="stationery">📚 Stationery</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="electronics">⚡ Electronics</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="essentials">🧴 Essentials</button>
+                </div>
+                <div class="prod-image-grid" id="prod-preset-grid">
+                  <!-- Populated by products.js -->
+                </div>
+              </div>
+
+              <!-- Tab 2: Upload from Device -->
+              <div class="drag-drop-zone hidden" id="prod-picker-upload-panel">
+                <input type="file" id="prod-file-input" accept="image/*" style="display: none;" />
+                <div class="drag-drop-icon">📷</div>
+                <div class="drag-drop-title">Click to upload from phone or computer</div>
+                <div class="drag-drop-sub">PNG, JPG, WEBP · Auto-compressed for fast load</div>
+                <button type="button" class="btn-action secondary" id="btn-browse-prod-file" style="margin-top: 4px; font-size: 11.5px; padding: 4px 12px;">Choose Image</button>
+              </div>
+
+              <!-- Tab 3: Custom URL -->
+              <div class="form-group hidden" id="prod-picker-url-panel" style="margin-top: 4px;">
+                <input type="url" id="pm-manual-image-url" placeholder="https://images.unsplash.com/photo-..." style="height: 36px; font-size: 12.5px;" />
+              </div>
+            </div>
+          </div>
+
           <div class="form-group">
             <label for="pm-name">Product Name *</label>
-            <input type="text" id="pm-name" placeholder="e.g. Maggi 2-Minute Noodles" required />
+            <input type="text" id="pm-name" placeholder="e.g. Fresh Mango Shake / Cold Coffee" required />
           </div>
+
           <div class="form-row-2">
             <div class="form-group">
               <label for="pm-price">Selling Price (₹) *</label>
-              <input type="number" id="pm-price" min="0" step="0.5" placeholder="15.00" required />
+              <input type="number" id="pm-price" min="1" step="0.5" placeholder="50.00" required />
             </div>
             <div class="form-group">
               <label for="pm-stock">Initial Stock Quantity *</label>
-              <input type="number" id="pm-stock" min="0" step="1" placeholder="30" required />
+              <input type="number" id="pm-stock" min="0" step="1" value="30" placeholder="30" required />
             </div>
           </div>
+
           <div class="form-row-2">
             <div class="form-group">
               <label for="pm-category">Category *</label>
@@ -1164,23 +1297,29 @@
               <input type="number" id="pm-threshold" min="1" value="5" />
             </div>
           </div>
+
           <div class="form-row-2">
             <div class="form-group">
-              <label for="pm-sku">SKU / Barcode</label>
-              <input type="text" id="pm-sku" placeholder="e.g. MAG-01" />
+              <label for="pm-sku">SKU / Item Code</label>
+              <input type="text" id="pm-sku" placeholder="e.g. JUC-01" />
             </div>
             <div class="form-group">
               <label for="pm-unit">Unit</label>
-              <input type="text" id="pm-unit" placeholder="pc, pack, kg, cup" value="item" />
+              <input type="text" id="pm-unit" placeholder="glass, piece, pack, cup" value="item" />
+              <div class="unit-pill-group" id="unit-pill-group">
+                <button type="button" class="unit-pill active" data-unit="item">item</button>
+                <button type="button" class="unit-pill" data-unit="glass">glass</button>
+                <button type="button" class="unit-pill" data-unit="cup">cup</button>
+                <button type="button" class="unit-pill" data-unit="bottle">bottle</button>
+                <button type="button" class="unit-pill" data-unit="pack">pack</button>
+                <button type="button" class="unit-pill" data-unit="plate">plate</button>
+              </div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="pm-image">Product Image URL</label>
-            <input type="url" id="pm-image" placeholder="https://images.unsplash.com/..." />
-          </div>
+
           <div class="form-group">
             <label for="pm-desc">Description</label>
-            <textarea id="pm-desc" rows="2" placeholder="Brief details about the product..."></textarea>
+            <textarea id="pm-desc" rows="2" placeholder="Brief details about freshness, ingredients, size..."></textarea>
           </div>
         </div>
         <div class="modal-footer">

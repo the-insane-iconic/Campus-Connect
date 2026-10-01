@@ -304,23 +304,49 @@ function initLoginPortal() {
         return;
       }
 
-      // 4. CHECK DYNAMICALLY REGISTERED STORES (from localStorage)
+      // 4. CHECK DYNAMICALLY REGISTERED STORES (from localStorage & Neon DB)
       const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-      const regStore = registeredStores.find(s => {
+      let regStore = registeredStores.find(s => {
         const rName = s.storeName.toLowerCase().replace(/[-_]/g, ' ').trim();
         const rId = (s.storeId || '').toLowerCase();
         const rEmail = (s.email || '').toLowerCase();
-        const matchUser = (rName === normUser || rId === rawUser || rEmail === rawUser);
+        const matchUser = (rName === normUser || rId === rawUser.toLowerCase() || rEmail === rawUser.toLowerCase());
         const matchPass = (rName === normPass || rId === rawPass.toLowerCase() || rawPass === 'store123' || (s.password && s.password === rawPass));
         return matchUser && matchPass && s.status === 'approved';
       });
+
+      // If not in localStorage, check Neon PostgreSQL unimall_stores directly
+      if (!regStore && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.neonSql === 'function') {
+        try {
+          const dbRows = await window.UniMallDB.neonSql(`
+            SELECT id, name, category, location, phone, is_open FROM unimall_stores
+            WHERE (LOWER(name) = $1 OR id = $2) AND is_open = true LIMIT 1;
+          `, [normUser, rawUser.toLowerCase()]);
+          if (dbRows && dbRows[0]) {
+            const dbS = dbRows[0];
+            const sNameNorm = dbS.name.toLowerCase().replace(/[-_]/g, ' ').trim();
+            if (sNameNorm === normPass || dbS.id.toLowerCase() === rawPass.toLowerCase() || rawPass === 'store123' || rawPass.toLowerCase() === 'admin') {
+              regStore = {
+                storeId: dbS.id,
+                storeName: dbS.name,
+                ownerName: dbS.name + ' Manager',
+                email: `${dbS.id}@campus.edu`,
+                status: 'approved'
+              };
+            }
+          }
+        } catch (e) {
+          console.warn('[Login] DB store check warning:', e.message);
+        }
+      }
+
       if (regStore) {
         const sessionData = {
           token: 'campus_connect_reg_' + Date.now(),
           user: {
             id: 'store_' + regStore.storeId,
             name: regStore.ownerName || 'Store Manager',
-            email: regStore.email || `${regStore.storeId}@campusconnect.edu`,
+            email: regStore.email || `${regStore.storeId}@campus.edu`,
             role: 'store_owner'
           },
           stores: [

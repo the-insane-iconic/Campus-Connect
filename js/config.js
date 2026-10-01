@@ -142,6 +142,34 @@ window.UniMallDB = {
     return (typeof STORES !== 'undefined') ? STORES : [];
   },
 
+  /* ── Get Specific Store by ID or Slug ── */
+  async getStore(storeId) {
+    if (!storeId) return null;
+    try {
+      const rows = await this.neonSql(`
+        SELECT id, name, slug, description, category, floor, location, phone, 
+               cover_image, is_open, delivery_available, pickup_available, 
+               opening_time, closing_time, rating, popularity
+        FROM unimall_stores
+        WHERE id = $1 OR slug = $1 LIMIT 1
+      `, [storeId]);
+      if (rows && rows[0]) return rows[0];
+
+      // Fallback: check stores table
+      const fallbackRows = await this.neonSql(`
+        SELECT id, name, slug, description, category, floor, location, phone, 
+               cover_image, (is_open = 1) AS is_open, 
+               opening_time, closing_time, rating, popularity
+        FROM stores
+        WHERE (id = $1 OR slug = $1) AND is_active = 1 LIMIT 1
+      `, [storeId]);
+      if (fallbackRows && fallbackRows[0]) return fallbackRows[0];
+    } catch (e) {
+      console.warn('[UniMallDB] Neon getStore error:', e.message);
+    }
+    return null;
+  },
+
   /* ── Get Products ── */
   async getProducts(storeId = null) {
     try {
@@ -154,15 +182,24 @@ window.UniMallDB = {
       `;
       const params = [];
       if (storeId) {
-        query += ` AND store_id = $1`;
-        params.push(storeId);
+        query += ` AND (store_id = $1 OR store_id = $2)`;
+        params.push(storeId, storeId.replace('store-', ''));
       }
       query += ` ORDER BY name ASC`;
 
       const rows = await this.neonSql(query, params);
-      if (rows && rows.length > 0) return rows;
+      if (Array.isArray(rows)) {
+        // Authoritative query executed: return the rows directly for this store (even if empty)
+        if (storeId) return rows;
+        if (rows.length > 0) return rows;
+      }
     } catch (e) {
       console.warn('[UniMallDB] Neon products fetch fallback:', e.message);
+    }
+
+    if (storeId) {
+      const local = (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+      return local.filter(p => p.storeId === storeId || p.store_id === storeId);
     }
     return (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
   },
@@ -481,8 +518,26 @@ window.UniMallDB = {
           stock = EXCLUDED.stock,
           availability = EXCLUDED.availability,
           image = EXCLUDED.image,
+          category_id = EXCLUDED.category_id,
+          is_active = true,
           updated_at = NOW();
       `, [id, storeId, categoryId, name, desc, price, emoji, image, stock, avail]);
+
+      await this.neonSql(`
+        INSERT INTO products (
+          id, store_id, category_id, name, description, price, sku, unit, stock, low_stock_threshold, is_active, image_url, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, $11, NOW()
+        ) ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          description = EXCLUDED.description,
+          price = EXCLUDED.price,
+          stock = EXCLUDED.stock,
+          image_url = EXCLUDED.image_url,
+          is_active = 1,
+          updated_at = NOW();
+      `, [id, storeId, categoryId, name, desc, price, prod.sku || 'SKU-' + id, prod.unit || 'item', stock, prod.low_stock_threshold || 5, image]).catch(() => {});
+
       return { id, ...prod };
     } catch (e) {
       console.warn('[UniMallDB] upsertProduct Neon warning:', e.message);
@@ -496,6 +551,9 @@ window.UniMallDB = {
       await this.neonSql(`
         UPDATE unimall_products SET is_active = false, updated_at = NOW() WHERE id = $1
       `, [prodId]);
+      await this.neonSql(`
+        UPDATE products SET is_active = 0, updated_at = NOW() WHERE id = $1
+      `, [prodId]).catch(() => {});
       return true;
     } catch (e) {
       console.warn('[UniMallDB] deleteProduct warning:', e.message);

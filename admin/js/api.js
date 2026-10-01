@@ -217,6 +217,34 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       }
 
       const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+
+      // 1. Authoritative Neon PostgreSQL Query
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStore === 'function') {
+        try {
+          const dbStore = await window.UniMallDB.getStore(storeId);
+          if (dbStore) {
+            const isOpen = storeStatuses[storeId] !== undefined ? storeStatuses[storeId] : (dbStore.is_open ? 1 : 0);
+            return {
+              store: {
+                id: dbStore.id,
+                name: dbStore.name,
+                category: dbStore.category || 'General',
+                location: dbStore.location || 'Campus Center',
+                phone: dbStore.phone || '',
+                description: dbStore.description || '',
+                image_url: dbStore.cover_image || '',
+                accepts_delivery: dbStore.delivery_available ? 1 : 0,
+                accepts_pickup: dbStore.pickup_available ? 1 : 0,
+                is_open: isOpen ? 1 : 0
+              }
+            };
+          }
+        } catch (e) {
+          console.warn('[api.js] Neon getStore error:', e.message);
+        }
+      }
+
+      // 2. Local Fallback
       const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
       const reg = registeredStores.find(r => r.storeId === storeId);
 
@@ -260,10 +288,95 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     }
 
     if (method === 'PATCH' || method === 'POST') {
-      // Save updated store settings
+      const coverImg = body.image_url || body.cover_image || null;
+      const deliveryAvail = body.accepts_delivery !== undefined ? Boolean(body.accepts_delivery) : (body.delivery_available !== undefined ? Boolean(body.delivery_available) : null);
+      const pickupAvail = body.accepts_pickup !== undefined ? Boolean(body.accepts_pickup) : (body.pickup_available !== undefined ? Boolean(body.pickup_available) : null);
+      const openTime = body.opening_time || (body.hours_json?.monday?.open ? body.hours_json.monday.open : null);
+      const closeTime = body.closing_time || (body.hours_json?.monday?.close ? body.hours_json.monday.close : null);
+
+      // Persist updated store settings to Neon PostgreSQL online database
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.neonSql === 'function') {
+        try {
+          await window.UniMallDB.neonSql(`
+            UPDATE unimall_stores
+            SET name = COALESCE($2, name),
+                description = COALESCE($3, description),
+                category = COALESCE($4, category),
+                location = COALESCE($5, location),
+                phone = COALESCE($6, phone),
+                cover_image = COALESCE($7, cover_image),
+                delivery_available = COALESCE($8, delivery_available),
+                pickup_available = COALESCE($9, pickup_available),
+                opening_time = COALESCE($10, opening_time),
+                closing_time = COALESCE($11, closing_time),
+                updated_at = NOW()
+            WHERE id = $1;
+          `, [
+            storeId, 
+            body.name || null, 
+            body.description || null, 
+            body.category || null, 
+            body.location || null, 
+            body.phone || null,
+            coverImg,
+            deliveryAvail,
+            pickupAvail,
+            openTime,
+            closeTime
+          ]);
+
+          await window.UniMallDB.neonSql(`
+            UPDATE stores
+            SET name = COALESCE($2, name),
+                description = COALESCE($3, description),
+                category = COALESCE($4, category),
+                location = COALESCE($5, location),
+                phone = COALESCE($6, phone),
+                cover_image = COALESCE($7, cover_image),
+                accepts_delivery = COALESCE($8, accepts_delivery),
+                accepts_pickup = COALESCE($9, accepts_pickup),
+                opening_time = COALESCE($10, opening_time),
+                closing_time = COALESCE($11, closing_time),
+                updated_at = NOW()
+            WHERE id = $1;
+          `, [
+            storeId, 
+            body.name || null, 
+            body.description || null, 
+            body.category || null, 
+            body.location || null, 
+            body.phone || null,
+            coverImg,
+            deliveryAvail !== null ? (deliveryAvail ? 1 : 0) : null,
+            pickupAvail !== null ? (pickupAvail ? 1 : 0) : null,
+            openTime,
+            closeTime
+          ]);
+        } catch (e) {
+          console.warn('[api.js] Update store DB warning:', e.message);
+        }
+      }
+
+      // Save updated store settings locally
       const customStoreSettings = JSON.parse(localStorage.getItem('unimall_custom_store_settings') || '{}');
-      customStoreSettings[storeId] = { ...(customStoreSettings[storeId] || {}), ...body };
+      customStoreSettings[storeId] = { ...(customStoreSettings[storeId] || {}), ...body, image_url: coverImg || customStoreSettings[storeId]?.image_url };
       localStorage.setItem('unimall_custom_store_settings', JSON.stringify(customStoreSettings));
+
+      // Also sync to unimall_registered_stores if present
+      try {
+        const regList = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
+        const regIdx = regList.findIndex(r => r.storeId === storeId);
+        if (regIdx !== -1) {
+          if (body.name) regList[regIdx].storeName = body.name;
+          if (body.description) regList[regIdx].description = body.description;
+          if (body.category) regList[regIdx].storeType = body.category;
+          if (body.location) regList[regIdx].location = body.location;
+          if (body.phone) regList[regIdx].phone = body.phone;
+          if (coverImg) regList[regIdx].coverImage = coverImg;
+          localStorage.setItem('unimall_registered_stores', JSON.stringify(regList));
+        }
+      } catch (e) {}
+
       return { success: true, store: customStoreSettings[storeId] };
     }
   }
@@ -528,7 +641,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
       if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
         try {
           const dbProds = await window.UniMallDB.getProducts(storeId === 'all' ? null : storeId);
-          if (dbProds && dbProds.length > 0) {
+          if (Array.isArray(dbProds)) {
             return {
               products: dbProds.map(p => ({
                 id: p.id,
@@ -623,6 +736,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     const idx = catalog.findIndex(p => p.id === prodId);
 
     if (method === 'PATCH') {
+      let prodObj = null;
       if (idx !== -1) {
         catalog[idx] = { ...catalog[idx], ...body };
         if (body.price !== undefined) catalog[idx].price = parseFloat(body.price);
@@ -630,17 +744,20 @@ async function handleClientAdminRequest(endpoint, options = {}) {
           catalog[idx].stock = parseInt(body.stock, 10);
           catalog[idx].availability = catalog[idx].stock === 0 ? 'out_of_stock' : (catalog[idx].stock <= (catalog[idx].low_stock_threshold || 5) ? 'low_stock' : 'in_stock');
         }
-
-        // Persist to Neon PostgreSQL online database
-        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
-          await window.UniMallDB.upsertProduct(catalog[idx]).catch(() => {});
-        }
-
-        saveStoredCatalog(catalog);
-        notifyCatalogUpdated();
-        return { success: true, product: catalog[idx] };
+        prodObj = catalog[idx];
+      } else {
+        prodObj = { id: prodId, ...body };
+        catalog.push(prodObj);
       }
-      return { success: true };
+
+      // Persist to Neon PostgreSQL online database
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
+        await window.UniMallDB.upsertProduct(prodObj).catch(() => {});
+      }
+
+      saveStoredCatalog(catalog);
+      notifyCatalogUpdated();
+      return { success: true, product: prodObj };
     }
 
     if (method === 'DELETE') {
@@ -666,7 +783,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
       try {
         const dbProds = await window.UniMallDB.getProducts(storeId === 'all' ? null : storeId);
-        if (dbProds && dbProds.length > 0) {
+        if (Array.isArray(dbProds)) {
           return {
             inventory: dbProds.map(p => ({
               product_id: p.id,

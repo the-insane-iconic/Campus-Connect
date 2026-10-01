@@ -363,10 +363,11 @@ function renderStores() {
 
 function openStore(storeId) {
   const store = STORES.find(s => s.id === storeId);
-  if (!store) return;
+  const targetId = (store && store.id) ? store.id : storeId;
+  if (!targetId) return;
 
   // Navigate to the store detail page
-  window.location.href = `store.html?id=${encodeURIComponent(store.id)}`;
+  window.location.href = `store.html?id=${encodeURIComponent(targetId)}`;
 }
 
 
