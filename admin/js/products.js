@@ -943,7 +943,14 @@ async function handleProductFormSubmit(e) {
       });
       showToast(`Product "${payload.name}" updated permanently in database!`, 'success');
     } else {
-      await apiRequest(`/admin/stores/${activeStoreId}/products`, {
+      const storeTarget = (activeStoreId && activeStoreId !== 'all') 
+        ? activeStoreId 
+        : (sessionStorage.getItem('unimall_admin_active_store') || (window.currentAuthorizedStores && window.currentAuthorizedStores[0]?.store_id));
+      if (!storeTarget) {
+        showToast('Please select a store to add this product to.', 'error');
+        return;
+      }
+      await apiRequest(`/admin/stores/${storeTarget}/products`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
@@ -953,7 +960,10 @@ async function handleProductFormSubmit(e) {
     const modal = document.getElementById('modal-product-form');
     if (modal) modal.classList.add('hidden');
 
-    if (activeStoreId) loadProductsAndStock(activeStoreId);
+    const refreshStoreId = (activeStoreId && activeStoreId !== 'all') 
+      ? activeStoreId 
+      : (sessionStorage.getItem('unimall_admin_active_store') || (window.currentAuthorizedStores && window.currentAuthorizedStores[0]?.store_id));
+    if (refreshStoreId) loadProductsAndStock(refreshStoreId);
   } catch (err) {
     showToast(`Error saving product: ${err.message}`, 'error');
   } finally {

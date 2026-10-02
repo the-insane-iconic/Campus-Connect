@@ -436,47 +436,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const storeId = params.get('id') || params.get('store') || '';
 
-  let store = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId);
+  let store = null;
 
-  // 1. Check dynamically registered stores in localStorage
-  if (!store) {
-    const regRaw = localStorage.getItem('unimall_registered_stores');
-    if (regRaw) {
-      try {
-        const regList = JSON.parse(regRaw);
-        const r = regList.find(s => s.storeId === storeId || s.storeName?.toLowerCase() === storeId?.toLowerCase());
-        if (r && r.status === 'approved') {
-          store = {
-            id: r.storeId,
-            dataId: r.storeId,
-            name: r.storeName,
-            emoji: getCategoryEmoji(r.storeType),
-            logo: null,
-            coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
-            gallery: ['https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80'],
-            description: r.description || `Welcome to ${r.storeName}. Campus store providing quality items.`,
-            categoryLabel: r.storeType ? (r.storeType.charAt(0).toUpperCase() + r.storeType.slice(1)) : 'Campus Store',
-            productCategories: ['All'],
-            status: 'open',
-            openingTime: r.operatingHours ? (r.operatingHours.split('–')[0]?.trim() || '9:00 AM') : '9:00 AM',
-            closingTime: r.operatingHours ? (r.operatingHours.split('–')[1]?.trim() || '9:00 PM') : '9:00 PM',
-            walkingTime: 2,
-            floor: r.location || 'Campus Center',
-            location: r.location || 'Campus Center, Ground Floor',
-            phone: r.phone || '+91 98765 00000',
-            paymentMethods: 'Razorpay UPI, Cash',
-            rating: 4.8,
-            ratingBreakdown: [85, 10, 5, 0, 0],
-            reviewCount: 0,
-            isCustomStore: true
-          };
-        }
-      } catch (e) {}
-    }
-  }
-
-  // 2. Query authoritative Neon PostgreSQL database for store
-  if (!store && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStore === 'function') {
+  // 1. Authoritative Neon PostgreSQL Database Query for Store (Primary)
+  if (storeId && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStore === 'function') {
     try {
       const dbStore = await window.UniMallDB.getStore(storeId);
       if (dbStore) {
@@ -486,8 +449,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           name: dbStore.name,
           emoji: getCategoryEmoji(dbStore.category),
           logo: null,
-          coverImage: dbStore.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80',
-          gallery: [dbStore.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80'],
+          coverImage: dbStore.cover_image || 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80',
+          gallery: [dbStore.cover_image || 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80'],
           description: dbStore.description || `Welcome to ${dbStore.name}. Campus store providing quality products.`,
           categoryLabel: dbStore.category ? (dbStore.category.charAt(0).toUpperCase() + dbStore.category.slice(1)) : 'Campus Store',
           productCategories: ['All'],
@@ -510,7 +473,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // If store was not found anywhere, DO NOT fake-redirect to Campus Bakery!
+  // 2. Check dynamically registered stores in localStorage
+  if (!store && storeId) {
+    const regRaw = localStorage.getItem('unimall_registered_stores');
+    if (regRaw) {
+      try {
+        const regList = JSON.parse(regRaw);
+        const r = regList.find(s => 
+          (s.storeId && s.storeId.toLowerCase() === storeId.toLowerCase()) || 
+          (s.storeName && s.storeName.toLowerCase() === storeId.toLowerCase())
+        );
+        if (r) {
+          store = {
+            id: r.storeId,
+            dataId: r.storeId,
+            name: r.storeName,
+            emoji: getCategoryEmoji(r.storeType),
+            logo: null,
+            coverImage: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80',
+            gallery: ['https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80'],
+            description: r.description || `Welcome to ${r.storeName}. Campus store providing quality items.`,
+            categoryLabel: r.storeType ? (r.storeType.charAt(0).toUpperCase() + r.storeType.slice(1)) : 'Campus Store',
+            productCategories: ['All'],
+            status: 'open',
+            openingTime: r.operatingHours ? (r.operatingHours.split('–')[0]?.trim() || '9:00 AM') : '9:00 AM',
+            closingTime: r.operatingHours ? (r.operatingHours.split('–')[1]?.trim() || '9:00 PM') : '9:00 PM',
+            walkingTime: 2,
+            floor: r.location || 'Campus Center',
+            location: r.location || 'Campus Center, Ground Floor',
+            phone: r.phone || '+91 98765 00000',
+            paymentMethods: 'Razorpay UPI, Cash',
+            rating: 4.8,
+            ratingBreakdown: [85, 10, 5, 0, 0],
+            reviewCount: 0,
+            isCustomStore: true
+          };
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 3. Fallback to hardcoded catalog if still not resolved
+  if (!store && storeId) {
+    store = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId);
+  }
+
+  // If store was not found anywhere, render Store Not Found
   if (!store) {
     renderStoreNotFound(storeId);
     return;
@@ -518,35 +526,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   SSD.store = store;
 
-  // 3. Resolve products for this store strictly isolated
+  // 4. Resolve products for this store (Neon PostgreSQL authoritative)
   let prods = [];
-  if (!store.isCustomStore && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
-    prods = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
-  }
 
-  // Query authoritative database products for this store
   if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
     try {
       const dbProds = await window.UniMallDB.getProducts(store.id);
-      if (Array.isArray(dbProds)) {
-        if (dbProds.length > 0) {
-          prods = dbProds.map(p => ({
-            id: p.id,
-            name: p.name,
-            price: parseFloat(p.price || 0),
-            image: p.image || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-            availability: (p.stock === 0 ? 'out-of-stock' : (p.stock <= (p.low_stock_threshold || 5) ? 'low-stock' : 'in-stock')),
-            stock: p.stock ?? 20,
-            subcat: p.category_id || p.categoryId || 'All'
-          }));
-        } else if (store.isCustomStore) {
-          // New dynamic store with zero products yet
-          prods = [];
-        }
+      if (Array.isArray(dbProds) && dbProds.length > 0) {
+        prods = dbProds.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: parseFloat(p.price || 0),
+          image: p.image || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+          availability: (p.stock === 0 ? 'out-of-stock' : (p.stock <= (p.low_stock_threshold || 5) ? 'low-stock' : 'in-stock')),
+          stock: p.stock ?? 20,
+          subcat: p.category_id || p.categoryId || 'General',
+          description: p.description || ''
+        }));
       }
     } catch (e) {
       console.warn('[store.js] Products fetch error:', e);
     }
+  }
+
+  // Fallback to static catalog if DB returned nothing AND not custom store
+  if (prods.length === 0 && !store.isCustomStore && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
+    prods = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
+  }
+
+  // Derive dynamic category chips from actual product subcategories
+  const distinctSubcats = [...new Set(prods.map(p => p.subcat).filter(Boolean))];
+  if (distinctSubcats.length > 0) {
+    SSD.store.productCategories = ['All', ...distinctSubcats];
+  } else {
+    SSD.store.productCategories = ['All'];
   }
 
   SSD.products = prods;

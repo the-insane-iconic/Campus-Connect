@@ -579,9 +579,18 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     }
 
     if (method === 'POST') {
+      const resolvedStoreId = (storeId && storeId !== 'all') 
+        ? storeId 
+        : (sessionStorage.getItem('unimall_admin_active_store') || (window.currentAuthorizedStores && window.currentAuthorizedStores[0]?.store_id));
+      
+      if (!resolvedStoreId) {
+        throw new Error('No active store selected. Please select a store before creating products.');
+      }
+
+      const imgVal = body.image || body.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
       const newProd = {
         id: 'p-' + Date.now().toString().slice(-6),
-        store_id: storeId,
+        store_id: resolvedStoreId,
         category_id: body.category_id || 'food',
         name: body.name,
         description: body.description || '',
@@ -591,13 +600,20 @@ async function handleClientAdminRequest(endpoint, options = {}) {
         sku: body.sku || 'SKU-' + Date.now().toString().slice(-4),
         unit: body.unit || 'item',
         is_active: 1,
-        image_url: body.image_url || '',
+        image_url: imgVal,
+        image: imgVal,
+        emoji: body.emoji || '📦',
         availability: 'in_stock'
       };
 
       // Persist to Neon PostgreSQL online database
       if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
-        await window.UniMallDB.upsertProduct(newProd).catch(() => {});
+        try {
+          await window.UniMallDB.upsertProduct(newProd);
+        } catch (dbErr) {
+          console.error('[api.js] Neon upsertProduct error:', dbErr);
+          throw dbErr;
+        }
       }
 
       const catalog = getStoredCatalog();
@@ -633,9 +649,17 @@ async function handleClientAdminRequest(endpoint, options = {}) {
         catalog.push(prodObj);
       }
 
+      if (!prodObj.store_id) {
+        prodObj.store_id = sessionStorage.getItem('unimall_admin_active_store') || (window.currentAuthorizedStores && window.currentAuthorizedStores[0]?.store_id);
+      }
+
       // Persist to Neon PostgreSQL online database
       if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.upsertProduct === 'function') {
-        await window.UniMallDB.upsertProduct(prodObj).catch(() => {});
+        try {
+          await window.UniMallDB.upsertProduct(prodObj);
+        } catch (dbErr) {
+          console.warn('[api.js] Neon upsertProduct patch warning:', dbErr);
+        }
       }
 
       saveStoredCatalog(catalog);

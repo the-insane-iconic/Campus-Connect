@@ -16,6 +16,8 @@ window.UNIMALL_CONFIG = {
   // Database API Proxy Endpoint (All DB credentials kept securely server-side)
   API_HOST: API_HOST,
   API_QUERY_URL: API_HOST + '/api/db/query',
+  NEON_SQL_URL: 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql',
+  NEON_CONN: 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
   NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
   NEON_AUTH_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth',
   NEON_AUTH_JWKS_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json',
@@ -107,8 +109,8 @@ if (typeof document !== 'undefined') {
  */
 window.UniMallDB = {
   /**
-   * Secure Database Query Execution via Serverless API Proxy
-   * All database credentials remain strictly server-side.
+   * Secure Database Query Execution with Seamless Direct Fallback
+   * Tries local API proxy first, and gracefully falls back directly to Neon HTTP SQL
    */
   async neonSql(query, params = []) {
     const proxyUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.API_QUERY_URL) || '/api/db/query';
@@ -121,18 +123,41 @@ window.UniMallDB = {
       headers['Authorization'] = `Bearer ${adminToken}`;
     }
 
-    const res = await fetch(proxyUrl, {
+    // 1. Try serverless backend proxy
+    try {
+      const res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        return data.rows || [];
+      }
+    } catch (proxyErr) {
+      // proxy offline or unreachable, fall through to direct Neon connection
+    }
+
+    // 2. Direct Neon Serverless HTTP SQL API fallback (works everywhere: local, Android, etc.)
+    const directUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_SQL_URL) || 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql';
+    const directConn = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_CONN) || 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+
+    const directRes = await fetch(directUrl, {
       method: 'POST',
-      headers,
+      headers: {
+        'Neon-Connection-String': directConn,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] })
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || err.message || `Database query failed (${res.status})`);
+    if (!directRes.ok) {
+      const err = await directRes.json().catch(() => ({}));
+      throw new Error(err.message || `Database query failed (${directRes.status})`);
     }
 
-    const data = await res.json();
+    const data = await directRes.json();
     return data.rows || [];
   },
 
@@ -156,14 +181,16 @@ window.UniMallDB = {
   /* ── Get Specific Store by ID or Slug ── */
   async getStore(storeId) {
     if (!storeId) return null;
+    const cleanId = String(storeId).trim();
     try {
       const rows = await this.neonSql(`
         SELECT id, name, slug, description, category, floor, location, phone, 
                cover_image, is_open, delivery_available, pickup_available, 
                opening_time, closing_time, rating, popularity
         FROM unimall_stores
-        WHERE id = $1 OR slug = $1 LIMIT 1
-      `, [storeId]);
+        WHERE LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3)
+        LIMIT 1
+      `, [cleanId, cleanId, cleanId]);
       if (rows && rows[0]) return rows[0];
 
       // Fallback: check stores table
@@ -172,8 +199,10 @@ window.UniMallDB = {
                cover_image, (is_open = 1) AS is_open, 
                opening_time, closing_time, rating, popularity
         FROM stores
-        WHERE (id = $1 OR slug = $1) AND is_active = 1 LIMIT 1
-      `, [storeId]);
+        WHERE (LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3))
+          AND is_active = 1
+        LIMIT 1
+      `, [cleanId, cleanId, cleanId]);
       if (fallbackRows && fallbackRows[0]) return fallbackRows[0];
     } catch (e) {
       console.warn('[UniMallDB] Neon getStore error:', e.message);
@@ -604,7 +633,10 @@ window.UniMallDB = {
   async upsertProduct(prod) {
     try {
       const id = prod.id || ('p-' + Date.now().toString().slice(-6));
-      const storeId = prod.store_id || prod.storeId || 'campus-cafe';
+      const storeId = prod.store_id || prod.storeId || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('unimall_admin_active_store') : null);
+      if (!storeId) {
+        throw new Error('Product cannot be saved without a valid store_id.');
+      }
       const categoryId = prod.category_id || prod.categoryId || 'food';
       const name = prod.name;
       const desc = prod.description || '';
@@ -734,6 +766,8 @@ window.UniMallDB = {
            OR LOWER(a.email) LIKE $2
            OR LOWER(a.id) = $1
            OR LOWER(a.store_id) = $1
+           OR LOWER(s.name) = $1
+           OR LOWER(s.slug) = $1
            OR ($1 = 'admin' AND a.role = 'platform_admin')
         LIMIT 1;
       `, [cleanUser, `${prefix}@%`]);

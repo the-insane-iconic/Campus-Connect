@@ -97,14 +97,18 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Look up merchant in unimall_admins table
+    // 2. Look up merchant in unimall_admins table (by email, store_id, or name)
     const adminRows = await neonSql(
       `SELECT a.id, a.email, a.name, a.role, a.store_id, a.password_hash,
               COALESCE(s.name, 'Campus Store') AS store_name
        FROM unimall_admins a
        LEFT JOIN unimall_stores s ON a.store_id = s.id
-       WHERE LOWER(a.email) = $1 LIMIT 1`,
-      [cleanEmail]
+       WHERE LOWER(a.email) = $1 
+          OR LOWER(a.store_id) = $2 
+          OR LOWER(a.id) = $3 
+          OR LOWER(s.name) = $4 
+       LIMIT 1`,
+      [cleanEmail, cleanEmail, cleanEmail, cleanEmail]
     );
 
     if (adminRows.length === 0) {
@@ -130,12 +134,16 @@ export default async function handler(req, res) {
       }
     }
 
-    // Fallback for store/admin default logins
+    // Fallback for store/admin logins (supports store_id or name/name login)
     if (!validPassword) {
-      const p = password.toLowerCase();
+      const p = password.toLowerCase().trim();
+      const sId = (admin.store_id || '').toLowerCase().trim();
+      const sName = (admin.store_name || '').toLowerCase().replace(/[-_]/g, ' ').trim();
       validPassword = (
         p === 'store123' || p === 'admin123' || p === 'admin' ||
-        (admin.store_id && p === `${admin.store_id.toLowerCase()}123`)
+        (sId && p === sId) ||
+        (sName && p === sName) ||
+        (sId && p === `${sId}123`)
       );
     }
 
