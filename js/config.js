@@ -4,9 +4,18 @@
 
 'use strict';
 
+// Auto-detect native Android Capacitor environment vs web
+const IS_NATIVE = (typeof window !== 'undefined' && (
+  window.Capacitor !== undefined ||
+  window.location.protocol === 'capacitor:' ||
+  (window.location.hostname === 'localhost' && !window.location.port)
+));
+const API_HOST = IS_NATIVE ? 'https://campus-connect.vercel.app' : '';
+
 window.UNIMALL_CONFIG = {
   // Database API Proxy Endpoint (All DB credentials kept securely server-side)
-  API_QUERY_URL: '/api/db/query',
+  API_HOST: API_HOST,
+  API_QUERY_URL: API_HOST + '/api/db/query',
   NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
   NEON_AUTH_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth',
   NEON_AUTH_JWKS_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json',

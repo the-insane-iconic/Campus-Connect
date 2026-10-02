@@ -1,0 +1,14 @@
+{
+  "appId": "com.campusconnect.app",
+  "appName": "Campus Connect",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
+}

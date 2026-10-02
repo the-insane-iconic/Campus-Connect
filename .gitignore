@@ -22,3 +22,11 @@ venv/
 Thumbs.db
 .neon
 node_modules/
+
+# Android build outputs & local sync
+www/
+android/.gradle/
+android/app/build/
+android/build/
+*.apk
+*.aab
