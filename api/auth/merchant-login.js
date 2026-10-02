@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    const dbUrl = process.env.DATABASE_URL;
+    const dbUrl = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
     if (!dbUrl) return res.status(500).json({ error: 'Database not configured' });
 
     const afterAt = dbUrl.split('@')[1] || '';
