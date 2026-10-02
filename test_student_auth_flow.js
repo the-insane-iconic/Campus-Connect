@@ -31,9 +31,12 @@ const userManagerJs = fs.readFileSync(path.join(ROOT, 'js', 'user-manager.js'), 
 const profileJs = fs.readFileSync(path.join(ROOT, 'profile.js'), 'utf8');
 const configJs = fs.readFileSync(path.join(ROOT, 'js', 'config.js'), 'utf8');
 
-const NEON_SQL_URL = 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql';
-const NEON_CONNECTION_STRING = 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
-const NEON_AUTH_URL = 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth';
+require('dotenv').config();
+const NEON_CONNECTION_STRING = process.env.DATABASE_URL;
+const afterAt = (NEON_CONNECTION_STRING || '').split('@')[1] || '';
+const host = afterAt.split('/')[0];
+const NEON_SQL_URL = host ? `https://${host}/sql` : '';
+const NEON_AUTH_URL = process.env.NEON_AUTH_URL || 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth';
 
 async function main() {
   console.log('\n======================================================');

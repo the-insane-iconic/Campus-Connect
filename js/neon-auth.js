@@ -272,9 +272,27 @@
             const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
             window.history.replaceState({}, document.title, cleanUrl);
             
-            // If on login.html, navigate to index.html
+            // Resolve user role from database via /api/auth/role
+            let userRole = 'user';
+            try {
+              const roleRes = await fetch(`/api/auth/role?email=${encodeURIComponent(sessionData.user.email)}`);
+              if (roleRes.ok) {
+                const roleInfo = await roleRes.json();
+                userRole = roleInfo.role || 'user';
+                sessionStorage.setItem('unimall_user_role', userRole);
+                if (roleInfo.store_id) sessionStorage.setItem('unimall_admin_active_store', roleInfo.store_id);
+              }
+            } catch (rErr) {
+              console.warn('[NeonAuth] Role check notice:', rErr.message);
+            }
+
+            // Navigate to appropriate portal based on role
             if (window.location.pathname.endsWith('login.html')) {
-              window.location.href = window.location.pathname.includes('/admin/') ? '../index.html' : 'index.html';
+              if (userRole === 'admin' || userRole === 'merchant') {
+                window.location.href = window.location.pathname.includes('/admin/') ? 'index.html' : 'admin/index.html';
+              } else {
+                window.location.href = window.location.pathname.includes('/admin/') ? '../index.html' : 'index.html';
+              }
             }
           }
         } catch (err) {

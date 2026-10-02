@@ -5,9 +5,8 @@
 'use strict';
 
 window.UNIMALL_CONFIG = {
-  // Neon Lakebase PostgreSQL Connection & REST / SQL HTTP URLs
-  NEON_SQL_URL: 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql',
-  NEON_CONNECTION_STRING: 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
+  // Database API Proxy Endpoint (All DB credentials kept securely server-side)
+  API_QUERY_URL: '/api/db/query',
   NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
   NEON_AUTH_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth',
   NEON_AUTH_JWKS_URL: 'https://ep-broad-morning-b30i16bo.neonauth.c-4.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json',
@@ -99,26 +98,29 @@ if (typeof document !== 'undefined') {
  */
 window.UniMallDB = {
   /**
-   * Direct Neon PostgreSQL Query Execution via HTTPS SQL API
+   * Secure Database Query Execution via Serverless API Proxy
+   * All database credentials remain strictly server-side.
    */
   async neonSql(query, params = []) {
-    const url = window.UNIMALL_CONFIG.NEON_SQL_URL;
-    // Note: Do NOT send 'Content-Type': 'application/json' because Neon SQL HTTP API
-    // CORS preflight only permits Authorization, Neon-Connection-String... in Access-Control-Allow-Headers.
-    // Fetch automatically uses text/plain for string bodies which is a CORS-safelisted type.
+    const proxyUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.API_QUERY_URL) || '/api/db/query';
+    const adminToken = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_auth_token');
+    
     const headers = {
-      'Neon-Connection-String': window.UNIMALL_CONFIG.NEON_CONNECTION_STRING
+      'Content-Type': 'application/json'
     };
+    if (adminToken) {
+      headers['Authorization'] = `Bearer ${adminToken}`;
+    }
 
-    const res = await fetch(url, {
+    const res = await fetch(proxyUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ query, params })
+      body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] })
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Neon SQL query failed (${res.status})`);
+      throw new Error(err.error || err.message || `Database query failed (${res.status})`);
     }
 
     const data = await res.json();

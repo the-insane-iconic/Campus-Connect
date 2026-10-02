@@ -121,9 +121,9 @@ function initLoginPortal() {
       // UI pause for realistic verification feedback
       await new Promise(r => setTimeout(r, 350));
 
-      // 1. Try real backend API authentication if available
+      // 1. Authoritative Backend Authentication via Serverless Edge Function
       try {
-        const apiRes = await fetch(`${API_BASE}/auth/login`, {
+        const apiRes = await fetch(`${API_BASE}/auth/merchant-login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: rawUser, password: rawPass })
@@ -136,9 +136,13 @@ function initLoginPortal() {
             setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
             return;
           }
+        } else if (apiRes.status === 401) {
+          showError('Invalid credentials. Please verify your email / Store ID and password.');
+          setLoading(false);
+          return;
         }
       } catch (err) {
-        // Backend offline or local static mode; fall through to DB auth
+        // Backend offline or local static mode; fall through to DB client
       }
 
       // 2. AUTHORITATIVE ONLINE DATABASE AUTHENTICATION (Neon Lakebase PostgreSQL)
@@ -456,7 +460,7 @@ function initLoginPortal() {
 
   async function verifyExistingAdminSession(token) {
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
+      const res = await fetch(`${API_BASE}/auth/verify`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

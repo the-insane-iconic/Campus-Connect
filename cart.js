@@ -310,7 +310,7 @@ function handlePlaceOrder() {
     }
 
     const options = {
-      key: window.RAZORPAY_KEY_ID || 'rzp_test_TiK8sBDv7ObzG5', // Verified Razorpay test key
+      key: window.RAZORPAY_KEY_ID || window.UNIMALL_CONFIG?.RAZORPAY_KEY_ID || '',
       amount: amountInPaise,
       currency: 'INR',
       name: 'UniMall · ' + storeName,

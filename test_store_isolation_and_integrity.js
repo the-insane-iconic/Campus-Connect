@@ -8,10 +8,13 @@
  * 5. Isolation between different store managers / stores
  */
 
+require('dotenv').config();
 const https = require('https');
 
-const NEON_SQL_ENDPOINT = 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql';
-const NEON_CONNECTION_STRING = 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+const NEON_CONNECTION_STRING = process.env.DATABASE_URL;
+const afterAt = (NEON_CONNECTION_STRING || '').split('@')[1] || '';
+const host = afterAt.split('/')[0];
+const NEON_SQL_ENDPOINT = host ? `https://${host}/sql` : '';
 
 function runNeonSql(query, params = []) {
   return new Promise((resolve, reject) => {
