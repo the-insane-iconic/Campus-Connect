@@ -80,25 +80,6 @@ async function loadDashboard(storeId) {
       metrics = await window.UniMallDB.getDashboardMetrics(isPlatformView ? 'all' : effectiveStoreId);
     }
 
-    const CANONICAL_DEFAULT = [
-      { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
-      { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
-      { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
-      { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
-      { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
-      { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
-    ].map(s => ({
-      ...s,
-      today_orders_count: 0,
-      today_customers_count: 0,
-      today_gross_sales: 0,
-      digital_sales: 0,
-      cash_sales: 0,
-      platform_fee: 0,
-      net_payout: 0,
-      settlement_status: 'No Sales Today'
-    }));
-
     if (!metrics) {
       metrics = {
         today_sales: 0,
@@ -107,10 +88,10 @@ async function loadDashboard(storeId) {
         active_orders: 0,
         platform_fee_total: 0,
         net_payout_total: 0,
-        stores_ledger: CANONICAL_DEFAULT
+        stores_ledger: [] // DB returned no stores — show empty ledger
       };
-    } else if (!metrics.stores_ledger || metrics.stores_ledger.length === 0) {
-      metrics.stores_ledger = CANONICAL_DEFAULT;
+    } else if (!metrics.stores_ledger) {
+      metrics.stores_ledger = [];
     }
 
     currentDashboardMetrics = metrics;

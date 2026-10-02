@@ -176,30 +176,22 @@ async function loadFounderHub() {
 
 /**
  * Return comprehensive list of all registered campus stores
+ * Source of truth: Neon DB (cachedStoresList) + approved localStorage registrations
  */
 function getCompleteStoresList() {
-  const baseMap = new Map();
-  const BASE_STORES = [
-    { id: 'campus-cafe', name: 'Campus Café', category: 'Food & Drinks', location: 'Ground Floor, Student Center', icon: '☕' },
-    { id: 'book-corner', name: 'Book Corner', category: 'Stationery & Books', location: 'First Floor, Block B', icon: '📚' },
-    { id: 'techstop', name: 'TechStop', category: 'Electronics & Peripherals', location: 'Second Floor, Unimall', icon: '💻' },
-    { id: 'campus-mart', name: 'Campus Mart', category: 'Daily Essentials & Snacks', location: 'Ground Floor, Unimall', icon: '🛒' },
-    { id: 'campus-wear', name: 'Campus Wear', category: 'Fashion & Apparel', location: 'First Floor, Unimall', icon: '👕' },
-    { id: 'health-hub', name: 'Health Hub', category: 'Health & Care', location: 'Ground Floor, Medical Wing', icon: '💊' },
-  ];
-  BASE_STORES.forEach(s => baseMap.set(s.id, s));
+  const storeMap = new Map();
 
-  // Merge authoritative stores from Neon DB
+  // 1. Authoritative stores from Neon DB (fetched in loadFounderHub)
   if (Array.isArray(cachedStoresList) && cachedStoresList.length > 0) {
-    cachedStoresList.forEach(s => baseMap.set(s.id, { ...(baseMap.get(s.id) || {}), ...s }));
+    cachedStoresList.forEach(s => storeMap.set(s.id, s));
   }
 
-  // Merge approved stores from local registration
+  // 2. Merge approved stores from localStorage registrations
   try {
     const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
     registeredStores.filter(r => r.status === 'approved').forEach(r => {
-      if (!baseMap.has(r.storeId)) {
-        baseMap.set(r.storeId, {
+      if (!storeMap.has(r.storeId)) {
+        storeMap.set(r.storeId, {
           id: r.storeId,
           name: r.storeName,
           category: r.storeType || 'General',
@@ -210,7 +202,7 @@ function getCompleteStoresList() {
     });
   } catch(e) {}
 
-  return Array.from(baseMap.values());
+  return Array.from(storeMap.values());
 }
 
 // ─── 1. ALL STORES DIRECTORY & LIVE CONTROLS ─────────────────────

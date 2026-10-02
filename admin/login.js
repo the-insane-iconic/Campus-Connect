@@ -93,7 +93,6 @@ function initLoginPortal() {
     });
   }
 
-  // ── FORGOT CREDENTIALS HELPER ─────────────────────────────────
   if (forgotCredsBtn) {
     forgotCredsBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -107,36 +106,6 @@ function initLoginPortal() {
   if (existingToken && (urlParams.get('login') === 'admin' || window.location.hash === '#admin')) {
     verifyExistingAdminSession(existingToken);
   }
-
-  // ── STORE DATABASE (Recognized Campus Stores) ──────────────────
-  const STORE_ACCOUNTS = {
-    'campus café':            { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
-    'campus cafe':            { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
-    'campus-cafe':            { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
-    'cafe@campusconnect.edu': { storeId: 'campus-cafe',  storeName: 'Campus Café',    ownerName: 'Campus Café Manager',  icon: '☕' },
-
-    'book corner':            { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Book Corner Manager',  icon: '📚' },
-    'book-corner':            { storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Book Corner Manager',  icon: '📚' },
-    'books@campusconnect.edu':{ storeId: 'book-corner',  storeName: 'Book Corner',    ownerName: 'Book Corner Manager',  icon: '📚' },
-
-    'techstop':               { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'TechStop Manager',     icon: '💻' },
-    'tech-stop':              { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'TechStop Manager',     icon: '💻' },
-    'tech@campusconnect.edu': { storeId: 'techstop',     storeName: 'TechStop',       ownerName: 'TechStop Manager',     icon: '💻' },
-
-    'campus mart':            { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Campus Mart Manager',  icon: '🛒' },
-    'campus-mart':            { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Campus Mart Manager',  icon: '🛒' },
-    'mart@campusconnect.edu': { storeId: 'campus-mart',  storeName: 'Campus Mart',    ownerName: 'Campus Mart Manager',  icon: '🛒' },
-
-    'campus wear':            { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Campus Wear Manager',  icon: '👕' },
-    'campus-wear':            { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Campus Wear Manager',  icon: '👕' },
-    'wear@campusconnect.edu': { storeId: 'campus-wear',  storeName: 'Campus Wear',    ownerName: 'Campus Wear Manager',  icon: '👕' },
-
-    'health hub':             { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Health Hub Manager',   icon: '💊' },
-    'health-hub':             { storeId: 'health-hub',   storeName: 'Health Hub',     ownerName: 'Health Hub Manager',   icon: '💊' },
-    'health@campusconnect.edu':{ storeId: 'health-hub',  storeName: 'Health Hub',     ownerName: 'Health Hub Manager',   icon: '💊' },
-
-    'hostel delivery':        { storeId: 'campus-cafe',  storeName: 'Hostel Delivery',ownerName: 'Hostel Dispatch Express', icon: '🛵' }
-  };
 
   // ── ADMIN / STORE LOGIN SUBMISSION ────────────────────────────
   if (form) {
@@ -169,7 +138,7 @@ function initLoginPortal() {
           }
         }
       } catch (err) {
-        // Backend offline or local static mode; fall through to verified campus credentials
+        // Backend offline or local static mode; fall through to DB auth
       }
 
       // 2. AUTHORITATIVE ONLINE DATABASE AUTHENTICATION (Neon Lakebase PostgreSQL)
@@ -180,7 +149,7 @@ function initLoginPortal() {
             const isPlatform = dbAdmin.role === 'platform_admin';
             const normPass = rawPass.toLowerCase().trim();
 
-            // Strict credential verification: require minimum length >= 4 and explicit valid password
+            // Credential verification via DB password_hash or known patterns
             let validPassword = false;
             if (rawPass.length >= 4) {
               if (isPlatform) {
@@ -197,21 +166,15 @@ function initLoginPortal() {
             if (validPassword) {
               let stores = [];
               if (isPlatform) {
+                // Load all stores from DB — no hardcoded fallback list
                 const dbStores = await window.UniMallDB.getStores().catch(() => []);
                 stores = (dbStores && dbStores.length > 0)
                   ? dbStores.map(s => ({ store_id: s.id, store_name: s.name, membership_role: 'admin' }))
-                  : [
-                      { store_id: 'campus-cafe', store_name: 'Campus Café', membership_role: 'admin' },
-                      { store_id: 'book-corner', store_name: 'Book Corner', membership_role: 'admin' },
-                      { store_id: 'techstop', store_name: 'TechStop', membership_role: 'admin' },
-                      { store_id: 'campus-mart', store_name: 'Campus Mart', membership_role: 'admin' },
-                      { store_id: 'campus-wear', store_name: 'Campus Wear', membership_role: 'admin' },
-                      { store_id: 'health-hub', store_name: 'Health Hub', membership_role: 'admin' }
-                    ];
+                  : [];
               } else {
                 stores = [
                   {
-                    store_id: dbAdmin.store_id || 'campus-cafe',
+                    store_id: dbAdmin.store_id,
                     store_name: dbAdmin.store_name || 'Campus Store',
                     membership_role: 'owner'
                   }
@@ -240,71 +203,9 @@ function initLoginPortal() {
         }
       }
 
-      // 3. PLATFORM SUPERADMIN LOCAL FALLBACK (username: admin, password: admin or admin@campusconnect.edu)
-      if ((rawUser === 'admin' || rawUser === 'admin@campusconnect.edu') && (rawPass.toLowerCase() === 'admin')) {
-        const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
-        const approvedStores = registeredStores.filter(s => s.status === 'approved').map(s => ({
-          store_id: s.storeId,
-          store_name: s.storeName,
-          membership_role: 'admin'
-        }));
-
-        const sessionData = {
-          token: 'campus_connect_admin_' + Date.now(),
-          user: {
-            id: 'admin_founder',
-            name: 'Campus Connect Admin',
-            email: 'admin@campusconnect.edu',
-            role: 'platform_admin'
-          },
-          stores: [
-            { store_id: 'campus-cafe', store_name: 'Campus Café', membership_role: 'admin' },
-            { store_id: 'book-corner', store_name: 'Book Corner', membership_role: 'admin' },
-            { store_id: 'techstop', store_name: 'TechStop', membership_role: 'admin' },
-            { store_id: 'campus-mart', store_name: 'Campus Mart', membership_role: 'admin' },
-            { store_id: 'campus-wear', store_name: 'Campus Wear', membership_role: 'admin' },
-            { store_id: 'health-hub', store_name: 'Health Hub', membership_role: 'admin' },
-            ...approvedStores
-          ]
-        };
-        saveAdminSession(sessionData);
-        showToast('Welcome, Administrator! Opening dashboard…');
-        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
-        return;
-      }
-
-      // 3. STORE OWNER CREDENTIALS
+      // 3. CHECK DYNAMICALLY REGISTERED STORES (from localStorage & Neon DB)
       const normUser = rawUser.replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
       const normPass = rawPass.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-
-      const storeAccount = STORE_ACCOUNTS[rawUser] || STORE_ACCOUNTS[normUser];
-      const validStorePass = storeAccount && (
-        rawPass.toLowerCase() === rawUser ||
-        normPass === normUser ||
-        rawPass.toLowerCase() === storeAccount.storeId ||
-        rawPass.toLowerCase() === storeAccount.storeName.toLowerCase() ||
-        rawPass === 'store123'
-      );
-      if (storeAccount && validStorePass) {
-        const sessionData = {
-          token: 'campus_connect_store_' + Date.now(),
-          user: {
-            id: 'store_' + storeAccount.storeId,
-            name: storeAccount.ownerName,
-            email: `${storeAccount.storeId}@campusconnect.edu`,
-            role: 'store_owner'
-          },
-          stores: [
-            { store_id: storeAccount.storeId, store_name: storeAccount.storeName, membership_role: 'owner' }
-          ]
-        };
-        saveAdminSession(sessionData);
-        showToast(`Signed in to ${storeAccount.storeName}!`);
-        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
-        return;
-      }
-
-      // 4. CHECK DYNAMICALLY REGISTERED STORES (from localStorage & Neon DB)
       const registeredStores = JSON.parse(localStorage.getItem('unimall_registered_stores') || '[]');
       let regStore = registeredStores.find(s => {
         const rName = s.storeName.toLowerCase().replace(/[-_]/g, ' ').trim();

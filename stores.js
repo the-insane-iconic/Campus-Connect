@@ -7,111 +7,8 @@
    STORE DATA
 ========================================================= */
 
-let STORES = [
-  {
-    id: "campus-cafe",
-    name: "Campus Bakery & Café",
-    categories: ["food"],
-    categoryLabel: "Bakery, Snacks, Coffee & Beverages",
-    coverImage: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "7:30 AM",
-    closingTime: "10:00 PM",
-    distance: 2,
-    walkingTime: 2,
-    floor: "Ground Floor",
-    location: "Block A, Food Court",
-    rating: 4.7,
-    popularity: 95
-  },
-  {
-    id: "book-corner",
-    name: "Stationery Hub & Book Corner",
-    categories: ["stationery"],
-    categoryLabel: "Course Books, Notebooks, Stationery & Print",
-    coverImage: "https://images.unsplash.com/photo-1507842229451-79b1be886a20?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "9:00 AM",
-    closingTime: "8:30 PM",
-    distance: 2,
-    walkingTime: 2,
-    floor: "First Floor",
-    location: "Block B, Academic Wing",
-    rating: 4.6,
-    popularity: 92
-  },
-  {
-    id: "techstop",
-    name: "TechStop Electronics",
-    categories: ["electronics"],
-    categoryLabel: "Chargers, Earbuds, Gadgets, Peripherals",
-    coverImage: "https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "10:00 AM",
-    closingTime: "9:00 PM",
-    distance: 3,
-    walkingTime: 3,
-    floor: "Ground Floor",
-    location: "Block C, Tech Hub",
-    rating: 4.5,
-    popularity: 88
-  },
-  {
-    id: "campus-mart",
-    name: "Campus Mart & Groceries",
-    categories: ["essentials", "food"],
-    categoryLabel: "Late Night Essentials, Ramen & Groceries",
-    coverImage: "https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "8:00 AM",
-    closingTime: "11:00 PM",
-    distance: 2,
-    walkingTime: 2,
-    floor: "Ground Floor",
-    location: "Hostel Quadrangle",
-    rating: 4.3,
-    popularity: 85
-  },
-  {
-    id: "campus-wear",
-    name: "Campus Wear & Style Square",
-    categories: ["fashion"],
-    categoryLabel: "Collegiate Hoodies, Varsity Jackets & Sportswear",
-    coverImage: "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "11:00 AM",
-    closingTime: "8:00 PM",
-    distance: 4,
-    walkingTime: 4,
-    floor: "First Floor",
-    location: "Student Activity Center",
-    rating: 4.6,
-    popularity: 80
-  },
-  {
-    id: "health-hub",
-    name: "Health Hub & Care",
-    categories: ["essentials"],
-    categoryLabel: "Protein Bars, Electrolytes, First-Aid & Wellness",
-    coverImage: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800&auto=format&fit=crop&q=80",
-    status: "open",
-    statusLabel: "Open",
-    openingTime: "8:00 AM",
-    closingTime: "9:00 PM",
-    distance: 1,
-    walkingTime: 1,
-    floor: "Ground Floor",
-    location: "Near Campus Clinic",
-    rating: 4.5,
-    popularity: 78
-  }
-];
-
+// Intentionally empty — populated from Neon DB at runtime
+let STORES = [];
 
 /* =========================================================
    APPLICATION STATE
@@ -727,24 +624,12 @@ function syncStoreStatuses() {
     const raw = localStorage.getItem('unimall_store_statuses');
     const statuses = raw ? JSON.parse(raw) : {};
 
-    const aliasMap = {
-      'store-bakery': ['campus-cafe', 'store-bakery'],
-      'store-stationery': ['book-corner', 'store-stationery'],
-      'store-electronics': ['techstop', 'store-electronics'],
-      'store-sports': ['campus-mart', 'store-sports'],
-      'store-fashion': ['campus-wear', 'store-fashion'],
-      'store-pharmacy': ['health-hub', 'store-pharmacy']
-    };
-
+    // Update store open/closed status using direct store ID (no legacy alias map)
     STORES.forEach(s => {
-      const keys = aliasMap[s.id] || [s.id];
-      for (const k of keys) {
-        if (statuses[k] !== undefined) {
-          const isOpen = Boolean(statuses[k]);
-          s.status = isOpen ? 'open' : 'closed';
-          s.statusLabel = isOpen ? 'Open' : 'Closed';
-          break;
-        }
+      if (statuses[s.id] !== undefined) {
+        const isOpen = Boolean(statuses[s.id]);
+        s.status = isOpen ? 'open' : 'closed';
+        s.statusLabel = isOpen ? 'Open' : 'Closed';
       }
     });
 

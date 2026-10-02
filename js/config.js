@@ -872,25 +872,7 @@ window.UniMallDB = {
       };
     } catch (e) {
       console.warn('[UniMallDB] getDashboardMetrics error:', e.message);
-      const CANONICAL_FALLBACK = [
-        { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
-        { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
-        { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
-        { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
-        { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
-        { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
-      ].map(s => ({
-        ...s,
-        today_orders_count: 0,
-        today_customers_count: 0,
-        today_gross_sales: 0,
-        digital_sales: 0,
-        cash_sales: 0,
-        platform_fee: 0,
-        net_payout: 0,
-        settlement_status: 'No Sales Today'
-      }));
-
+      // Return zero metrics with empty ledger — DB is the source of truth
       return {
         today_sales: 0,
         today_orders: 0,
@@ -901,7 +883,7 @@ window.UniMallDB = {
         lifetime_sales: 0,
         lifetime_orders: 0,
         lifetime_customers: 0,
-        stores_ledger: CANONICAL_FALLBACK
+        stores_ledger: []
       };
     }
   },

@@ -211,15 +211,6 @@ function renderStoreMatrixTable(storeMatrix, totalRevenue) {
   const tbody = document.getElementById('analytics-store-matrix-tbody');
   if (!tbody) return;
 
-  const CANONICAL_MATRIX = [
-    { store_id: 'campus-cafe', store_name: 'Campus Bakery & Café', category: 'food' },
-    { store_id: 'book-corner', store_name: 'Stationery Hub & Book Corner', category: 'stationery' },
-    { store_id: 'techstop', store_name: 'TechStop Electronics', category: 'electronics' },
-    { store_id: 'campus-mart', store_name: 'Campus Mart & Groceries', category: 'essentials' },
-    { store_id: 'campus-wear', store_name: 'Campus Wear & Style Square', category: 'fashion' },
-    { store_id: 'health-hub', store_name: 'Health Hub & Care', category: 'essentials' }
-  ];
-
   const fullMatrix = (storeMatrix && storeMatrix.length > 0)
     ? storeMatrix.map(r => ({
         store_id: r.store_id,
@@ -230,15 +221,7 @@ function renderStoreMatrixTable(storeMatrix, totalRevenue) {
         customers_count: parseInt(r.customers_count || 0, 10),
         aov: parseFloat(r.aov || 0)
       }))
-    : CANONICAL_MATRIX.map(base => ({
-        store_id: base.store_id,
-        store_name: base.store_name,
-        category: base.category,
-        revenue: 0,
-        orders_count: 0,
-        customers_count: 0,
-        aov: 0
-      }));
+    : []; // DB returned no store data — show empty matrix
 
   // Sort by revenue descending
   fullMatrix.sort((a, b) => b.revenue - a.revenue);
