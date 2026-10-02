@@ -137,7 +137,23 @@ async function loadProductsAndStock(storeId) {
 
   const tbody = document.getElementById('products-tbody');
   if (tbody) {
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-6">Loading products & stock...</td></tr>';
+    tbody.innerHTML = Array(5).fill(0).map(() => `
+      <tr class="skeleton-row" aria-hidden="true">
+        <td><div class="skeleton-bar" style="width: 20px;"></div></td>
+        <td><div class="skeleton-thumb-sq"></div></td>
+        <td>
+          <div class="skeleton-bar" style="width: 140px; height: 16px; margin-bottom: 6px;"></div>
+          <div class="skeleton-bar" style="width: 80px; height: 12px;"></div>
+        </td>
+        <td><div class="skeleton-bar" style="width: 70px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 60px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 50px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 90px; height: 18px; border-radius: 999px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 65px; height: 22px; border-radius: 999px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 40px; height: 20px; border-radius: 999px;"></div></td>
+        <td><div class="skeleton-bar" style="width: 70px; height: 28px; border-radius: 6px;"></div></td>
+      </tr>
+    `).join('');
   }
 
   try {

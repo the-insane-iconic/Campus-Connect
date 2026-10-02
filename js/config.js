@@ -105,9 +105,117 @@ if (typeof document !== 'undefined') {
 
 /**
  * UniMall Database Client (Powered by Neon Lakebase Postgres)
- * Executes queries directly against Neon PostgreSQL with secure HTTPS and atomic transactions.
+ * Protected with SWR Micro-Caching, In-Flight Deduplication & Connection Pooling
  */
 window.UniMallDB = {
+  // In-Memory Micro-Cache & In-Flight Promise Coalescing Map
+  _cache: new Map(),
+  _inflight: new Map(),
+
+  /**
+   * Stale-While-Revalidate (SWR) Engine with Request Coalescing
+   * Ensures 0ms instant UI rendering on reloads, dedupes parallel queries,
+   * and shields Neon free-tier compute from concurrent request spikes.
+   */
+  async _swr(key, ttlMs, fetcher, persistSession = true) {
+    const now = Date.now();
+    let entry = this._cache.get(key);
+
+    // 1. SessionStorage lookup for instant 0ms restoration across page reloads & navigations
+    if (!entry && persistSession && typeof sessionStorage !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('unimall_swr_' + key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.data !== undefined) {
+            entry = parsed;
+            this._cache.set(key, entry);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Cache Hit & Fresh -> 0ms immediate response
+    if (entry && (now - entry.timestamp < ttlMs)) {
+      return entry.data;
+    }
+
+    // 3. Request Coalescing: Return active in-flight Promise if another caller is already querying
+    if (this._inflight.has(key)) {
+      return this._inflight.get(key);
+    }
+
+    // 4. Stale-While-Revalidate: Return stale data immediately, revalidate asynchronously
+    if (entry && entry.data !== undefined) {
+      const bgPromise = (async () => {
+        try {
+          const freshData = await fetcher();
+          if (freshData !== undefined && freshData !== null) {
+            const newEntry = { data: freshData, timestamp: Date.now() };
+            this._cache.set(key, newEntry);
+            if (persistSession && typeof sessionStorage !== 'undefined') {
+              try { sessionStorage.setItem('unimall_swr_' + key, JSON.stringify(newEntry)); } catch(e) {}
+            }
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('unimall:dataRevalidated', { detail: { key, data: freshData } }));
+            }
+          }
+        } catch (err) {
+          console.warn('[UniMallDB] SWR background revalidation failed for ' + key, err.message);
+        } finally {
+          this._inflight.delete(key);
+        }
+      })();
+      this._inflight.set(key, bgPromise);
+      return entry.data;
+    }
+
+    // 5. Cold Cache: Execute fetcher with in-flight deduplication
+    const fetchPromise = (async () => {
+      try {
+        const data = await fetcher();
+        if (data !== undefined && data !== null) {
+          const newEntry = { data, timestamp: Date.now() };
+          this._cache.set(key, newEntry);
+          if (persistSession && typeof sessionStorage !== 'undefined') {
+            try { sessionStorage.setItem('unimall_swr_' + key, JSON.stringify(newEntry)); } catch(e) {}
+          }
+        }
+        return data;
+      } finally {
+        this._inflight.delete(key);
+      }
+    })();
+
+    this._inflight.set(key, fetchPromise);
+    return fetchPromise;
+  },
+
+  /**
+   * Invalidate specific cache keys or wildcards
+   */
+  invalidateCache(pattern = null) {
+    if (!pattern) {
+      this._cache.clear();
+      if (typeof sessionStorage !== 'undefined') {
+        try {
+          Object.keys(sessionStorage).forEach(k => {
+            if (k.startsWith('unimall_swr_')) sessionStorage.removeItem(k);
+          });
+        } catch (e) {}
+      }
+      return;
+    }
+    for (const k of this._cache.keys()) {
+      if (k.includes(pattern)) {
+        this._cache.delete(k);
+        if (typeof sessionStorage !== 'undefined') {
+          try { sessionStorage.removeItem('unimall_swr_' + k); } catch (e) {}
+        }
+      }
+    }
+  },
+
   /**
    * Secure Database Query Execution with Seamless Direct Fallback
    * Tries local API proxy first, and gracefully falls back directly to Neon HTTP SQL
@@ -161,87 +269,100 @@ window.UniMallDB = {
     return data.rows || [];
   },
 
-  /* ── Get Stores ── */
-  async getStores() {
-    try {
-      const rows = await this.neonSql(`
-        SELECT id, name, slug, description, category, floor, location, phone, 
-               cover_image, is_open, delivery_available, pickup_available, 
-               opening_time, closing_time, rating, popularity
-        FROM unimall_stores
-        ORDER BY popularity DESC
-      `);
-      if (rows && rows.length > 0) return rows;
-    } catch (e) {
-      console.warn('[UniMallDB] Neon stores fetch fallback:', e.message);
-    }
-    return (typeof STORES !== 'undefined') ? STORES : [];
+  /* ── Get Stores (Protected with SWR + Inflight Deduplication) ── */
+  async getStores(forceRefresh = false) {
+    if (forceRefresh) this.invalidateCache('stores');
+    return this._swr('stores', 45000, async () => {
+      try {
+        const rows = await this.neonSql(`
+          SELECT id, name, slug, description, category, floor, location, phone, 
+                 cover_image, is_open, delivery_available, pickup_available, 
+                 opening_time, closing_time, rating, popularity
+          FROM unimall_stores
+          ORDER BY popularity DESC
+        `);
+        if (rows && rows.length > 0) return rows;
+      } catch (e) {
+        console.warn('[UniMallDB] Neon stores fetch fallback:', e.message);
+      }
+      return (typeof STORES !== 'undefined') ? STORES : [];
+    });
   },
 
-  /* ── Get Specific Store by ID or Slug ── */
-  async getStore(storeId) {
+  /* ── Get Specific Store by ID or Slug (Cached 60s) ── */
+  async getStore(storeId, forceRefresh = false) {
     if (!storeId) return null;
-    const cleanId = String(storeId).trim();
-    try {
-      const rows = await this.neonSql(`
-        SELECT id, name, slug, description, category, floor, location, phone, 
-               cover_image, is_open, delivery_available, pickup_available, 
-               opening_time, closing_time, rating, popularity
-        FROM unimall_stores
-        WHERE LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3)
-        LIMIT 1
-      `, [cleanId, cleanId, cleanId]);
-      if (rows && rows[0]) return rows[0];
+    const cleanId = String(storeId).trim().toLowerCase();
+    const cacheKey = 'store:' + cleanId;
+    if (forceRefresh) this.invalidateCache(cacheKey);
 
-      // Fallback: check stores table
-      const fallbackRows = await this.neonSql(`
-        SELECT id, name, slug, description, category, floor, location, phone, 
-               cover_image, (is_open = 1) AS is_open, 
-               opening_time, closing_time, rating, popularity
-        FROM stores
-        WHERE (LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3))
-          AND is_active = 1
-        LIMIT 1
-      `, [cleanId, cleanId, cleanId]);
-      if (fallbackRows && fallbackRows[0]) return fallbackRows[0];
-    } catch (e) {
-      console.warn('[UniMallDB] Neon getStore error:', e.message);
-    }
-    return null;
+    return this._swr(cacheKey, 60000, async () => {
+      try {
+        const rows = await this.neonSql(`
+          SELECT id, name, slug, description, category, floor, location, phone, 
+                 cover_image, is_open, delivery_available, pickup_available, 
+                 opening_time, closing_time, rating, popularity
+          FROM unimall_stores
+          WHERE LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3)
+          LIMIT 1
+        `, [cleanId, cleanId, cleanId]);
+        if (rows && rows[0]) return rows[0];
+
+        // Fallback: check stores table
+        const fallbackRows = await this.neonSql(`
+          SELECT id, name, slug, description, category, floor, location, phone, 
+                 cover_image, (is_open = 1) AS is_open, 
+                 opening_time, closing_time, rating, popularity
+          FROM stores
+          WHERE (LOWER(id) = LOWER($1) OR LOWER(slug) = LOWER($2) OR LOWER(name) = LOWER($3))
+            AND is_active = 1
+          LIMIT 1
+        `, [cleanId, cleanId, cleanId]);
+        if (fallbackRows && fallbackRows[0]) return fallbackRows[0];
+      } catch (e) {
+        console.warn('[UniMallDB] Neon getStore error:', e.message);
+      }
+      return null;
+    });
   },
 
-  /* ── Get Products ── */
-  async getProducts(storeId = null) {
-    try {
-      let query = `
-        SELECT id, store_id, name, description, price, emoji, image, bg, 
-               stock, availability, delivery_available, pickup_available, 
-               category_id, rating
-        FROM unimall_products
-        WHERE is_active = true
-      `;
-      const params = [];
+  /* ── Get Products (Cached 30s + Inflight Deduplication) ── */
+  async getProducts(storeId = null, forceRefresh = false) {
+    const cleanId = storeId ? String(storeId).trim().toLowerCase() : 'all';
+    const cacheKey = 'products:' + cleanId;
+    if (forceRefresh) this.invalidateCache(cacheKey);
+
+    return this._swr(cacheKey, 30000, async () => {
+      try {
+        let query = `
+          SELECT id, store_id, name, description, price, emoji, image, bg, 
+                 stock, availability, delivery_available, pickup_available, 
+                 category_id, rating
+          FROM unimall_products
+          WHERE is_active = true
+        `;
+        const params = [];
+        if (storeId && storeId !== 'all') {
+          query += ` AND (LOWER(store_id) = LOWER($1) OR LOWER(store_id) = LOWER($2))`;
+          params.push(cleanId, cleanId.replace('store-', ''));
+        }
+        query += ` ORDER BY name ASC`;
+
+        const rows = await this.neonSql(query, params);
+        if (Array.isArray(rows)) {
+          if (storeId && storeId !== 'all') return rows;
+          if (rows.length > 0) return rows;
+        }
+      } catch (e) {
+        console.warn('[UniMallDB] Neon products fetch fallback:', e.message);
+      }
+
       if (storeId && storeId !== 'all') {
-        query += ` AND (store_id = $1 OR store_id = $2)`;
-        params.push(storeId, storeId.replace('store-', ''));
+        const local = (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+        return local.filter(p => p.storeId === storeId || p.store_id === storeId);
       }
-      query += ` ORDER BY name ASC`;
-
-      const rows = await this.neonSql(query, params);
-      if (Array.isArray(rows)) {
-        // Authoritative query executed: return the rows directly
-        if (storeId && storeId !== 'all') return rows;
-        if (rows.length > 0) return rows;
-      }
-    } catch (e) {
-      console.warn('[UniMallDB] Neon products fetch fallback:', e.message);
-    }
-
-    if (storeId && storeId !== 'all') {
-      const local = (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
-      return local.filter(p => p.storeId === storeId || p.store_id === storeId);
-    }
-    return (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+      return (typeof PRODUCTS !== 'undefined') ? PRODUCTS : [];
+    });
   },
 
   /* ── Sequential Store Order Number Helper (#ORD-01, #ORD-02, ...) ── */
@@ -381,68 +502,107 @@ window.UniMallDB = {
       console.warn('[UniMallDB] Neon order insertion warning:', dbErr.message);
     }
 
+    // Invalidate orders caches so fresh data renders immediately
+    this.invalidateCache('user_orders');
+    this.invalidateCache('store_orders');
+    this.invalidateCache('dash_metrics');
+
     return orderPayload;
   },
 
-  /* ── Get Orders for User ── */
-  async getUserOrders(userId) {
+  /* ── Get Orders for User (Optimized Batch Query — Zero N+1 Queries) ── */
+  async getUserOrders(userId, forceRefresh = false) {
     if (!userId || userId === 'all') {
       return [];
     }
-    try {
-      const query = `SELECT * FROM unimall_orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`;
-      const params = [userId];
+    const cacheKey = 'user_orders:' + String(userId).trim();
+    if (forceRefresh) this.invalidateCache(cacheKey);
 
-      const orders = await this.neonSql(query, params);
+    return this._swr(cacheKey, 10000, async () => {
+      try {
+        const query = `
+          SELECT o.*, COALESCE(s.name, 'Campus Store') AS store_name
+          FROM unimall_orders o
+          LEFT JOIN unimall_stores s ON o.store_id = s.id
+          WHERE o.user_id = $1
+          ORDER BY o.created_at DESC LIMIT 50
+        `;
+        const orders = await this.neonSql(query, [userId]);
+        if (!orders || !Array.isArray(orders) || orders.length === 0) return [];
 
-      for (const ord of orders) {
-        const items = await this.neonSql(`
-          SELECT * FROM unimall_order_items WHERE order_id = $1
-        `, [ord.id]);
-        const history = await this.neonSql(`
-          SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
-        `, [ord.id]);
+        const orderIds = orders.map(o => o.id);
+        const [allItems, allHistory] = await Promise.all([
+          this.neonSql(`
+            SELECT order_id, product_id, product_name, price, qty, emoji, image 
+            FROM unimall_order_items 
+            WHERE order_id = ANY($1)
+          `, [orderIds]).catch(() => []),
+          this.neonSql(`
+            SELECT order_id, status, notes, created_at 
+            FROM unimall_order_status_history 
+            WHERE order_id = ANY($1) 
+            ORDER BY created_at ASC
+          `, [orderIds]).catch(() => [])
+        ]);
 
-        const normalizedItems = (items || []).map(it => ({
-          ...it,
-          productId: it.productId || it.product_id || it.id,
-          product_id: it.product_id || it.productId || it.id,
-          name: it.name || it.product_name || 'Item',
-          product_name: it.product_name || it.name || 'Item',
-          qty: Number(it.qty !== undefined ? it.qty : (it.quantity || 1)),
-          quantity: Number(it.quantity !== undefined ? it.quantity : (it.qty || 1)),
-          price: Number(it.price || 0),
-          image: it.image || it.image_url || '',
-          emoji: it.emoji || '📦'
-        }));
+        const itemsByOrder = {};
+        (allItems || []).forEach(it => {
+          if (!itemsByOrder[it.order_id]) itemsByOrder[it.order_id] = [];
+          itemsByOrder[it.order_id].push({
+            ...it,
+            productId: it.product_id || it.productId || it.id,
+            product_id: it.product_id || it.productId || it.id,
+            name: it.product_name || it.name || 'Campus Item',
+            product_name: it.product_name || it.name || 'Campus Item',
+            qty: Number(it.qty !== undefined ? it.qty : (it.quantity || 1)),
+            quantity: Number(it.quantity !== undefined ? it.quantity : (it.qty || 1)),
+            price: Number(it.price || 0),
+            image: it.image || it.image_url || '',
+            emoji: it.emoji || '📦'
+          });
+        });
 
-        ord.items = normalizedItems;
-        ord.unimall_order_items = normalizedItems;
-        ord.statusHistory = history || [];
-        ord.unimall_order_status_history = history || [];
+        const historyByOrder = {};
+        (allHistory || []).forEach(h => {
+          if (!historyByOrder[h.order_id]) historyByOrder[h.order_id] = [];
+          historyByOrder[h.order_id].push({
+            status: h.status,
+            time: h.created_at,
+            created_at: h.created_at,
+            label: h.notes || h.status
+          });
+        });
+
+        for (const ord of orders) {
+          ord.items = itemsByOrder[ord.id] || [];
+          ord.unimall_order_items = ord.items;
+          ord.statusHistory = historyByOrder[ord.id] || [];
+          ord.unimall_order_status_history = ord.statusHistory;
+        }
+        return orders;
+      } catch (e) {
+        console.warn('[UniMallDB] getUserOrders fallback:', e.message);
+        return [];
       }
-      return orders;
-    } catch (e) {
-      console.warn('[UniMallDB] getUserOrders fallback:', e.message);
-      return [];
-    }
+    });
   },
 
-  /* ── Get Specific Order by ID ── */
+  /* ── Get Specific Order by ID (Parallel Fetch) ── */
   async getOrderById(orderId) {
     try {
       const orders = await this.neonSql(`
-        SELECT * FROM unimall_orders WHERE id = $1 LIMIT 1
+        SELECT o.*, COALESCE(s.name, 'Campus Store') AS store_name
+        FROM unimall_orders o
+        LEFT JOIN unimall_stores s ON o.store_id = s.id
+        WHERE o.id = $1 LIMIT 1
       `, [orderId]);
 
       if (orders && orders[0]) {
         const order = orders[0];
-        const items = await this.neonSql(`
-          SELECT * FROM unimall_order_items WHERE order_id = $1
-        `, [orderId]);
-        const history = await this.neonSql(`
-          SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
-        `, [orderId]);
+        const [items, history] = await Promise.all([
+          this.neonSql(`SELECT * FROM unimall_order_items WHERE order_id = $1`, [orderId]).catch(() => []),
+          this.neonSql(`SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC`, [orderId]).catch(() => [])
+        ]);
 
         const normalizedItems = (items || []).map(it => ({
           ...it,
@@ -458,7 +618,9 @@ window.UniMallDB = {
         }));
 
         order.items = normalizedItems;
-        order.statusHistory = history;
+        order.unimall_order_items = normalizedItems;
+        order.statusHistory = history || [];
+        order.unimall_order_status_history = history || [];
         return order;
       }
     } catch (e) {
@@ -605,6 +767,10 @@ window.UniMallDB = {
       detail: { orderId, status: normStatus, deliveredAt: nowIso }
     }));
 
+    this.invalidateCache('user_orders');
+    this.invalidateCache('store_orders');
+    this.invalidateCache('dash_metrics');
+
     return { id: orderId, status: normStatus };
   },
 
@@ -622,6 +788,8 @@ window.UniMallDB = {
         WHERE id = $2 OR slug = $2
       `, [isOpen ? 1 : 0, storeId]).catch(() => {});
       console.log(`[UniMallDB] Store ${storeId} status updated in Neon DB: ${isOpen ? 'OPEN' : 'CLOSED'}`);
+      this.invalidateCache('stores');
+      this.invalidateCache('store:');
       return true;
     } catch (e) {
       console.warn('[UniMallDB] updateStoreStatus Neon warning:', e.message);
@@ -678,6 +846,9 @@ window.UniMallDB = {
           updated_at = NOW();
       `, [id, storeId, categoryId, name, desc, price, prod.sku || 'SKU-' + id, prod.unit || 'item', stock, prod.low_stock_threshold || 5, image]).catch(() => {});
 
+      this.invalidateCache('products:');
+      this.invalidateCache('store:');
+
       return { id, ...prod };
     } catch (e) {
       console.warn('[UniMallDB] upsertProduct Neon warning:', e.message);
@@ -694,6 +865,10 @@ window.UniMallDB = {
       await this.neonSql(`
         UPDATE products SET is_active = 0, updated_at = NOW() WHERE id = $1
       `, [prodId]).catch(() => {});
+
+      this.invalidateCache('products:');
+      this.invalidateCache('store:');
+
       return true;
     } catch (e) {
       console.warn('[UniMallDB] deleteProduct warning:', e.message);
@@ -795,12 +970,16 @@ window.UniMallDB = {
    * ── Get Authoritative Dashboard Metrics & Store Sales Payout Ledger ──
    * Calculates Today's Gross Sales, Unique Customers, and Store-by-Store Payout Ledger
    */
-  async getDashboardMetrics(storeId = null) {
-    try {
-      const isPlatform = !storeId || storeId === 'all';
+  async getDashboardMetrics(storeId = null, forceRefresh = false) {
+    const key = 'dash_metrics:' + (storeId ? String(storeId).toLowerCase() : 'all');
+    if (forceRefresh) this.invalidateCache(key);
 
-      // Check if calendar today (Asia/Kolkata) has orders
-      const checkToday = await this.neonSql(`
+    return this._swr(key, 12000, async () => {
+      try {
+        const isPlatform = !storeId || storeId === 'all';
+
+        // Check if calendar today (Asia/Kolkata) has orders
+        const checkToday = await this.neonSql(`
         SELECT COUNT(id) AS cnt FROM unimall_orders WHERE created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date
       `).catch(() => []);
       const hasToday = checkToday && checkToday[0] && parseInt(checkToday[0].cnt || 0, 10) > 0;
@@ -931,6 +1110,7 @@ window.UniMallDB = {
         stores_ledger: []
       };
     }
+    });
   },
 
   /**

@@ -107,6 +107,26 @@ export default async function handler(req, res) {
       }
     }
 
+    // Micro-cache & In-Flight Promise Coalescing to support 200+ concurrent users on Neon Free Tier
+    const isRead = /^\s*SELECT\b/i.test(query);
+    const cacheKey = isRead ? `${query.trim()}::${JSON.stringify(params || [])}` : null;
+
+    if (isRead && cacheKey) {
+      const cached = serverQueryCache.get(cacheKey);
+      const now = Date.now();
+      if (cached && now - cached.timestamp < cached.ttlMs) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json({ rows: cached.rows });
+      }
+
+      // Check if an identical query is already in-flight from another concurrent user
+      if (inflightQueries.has(cacheKey)) {
+        res.setHeader('X-Cache', 'COALESCED');
+        const rows = await inflightQueries.get(cacheKey);
+        return res.status(200).json({ rows });
+      }
+    }
+
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) {
       return res.status(500).json({ error: 'Database not configured' });
@@ -117,22 +137,62 @@ export default async function handler(req, res) {
     const host = afterAt.split('/')[0];
     const sqlUrl = `https://${host}/sql`;
 
-    const neonRes = await fetch(sqlUrl, {
-      method: 'POST',
-      headers: { 'Neon-Connection-String': dbUrl },
-      body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] }),
-    });
+    const executeNeonQuery = async () => {
+      const neonRes = await fetch(sqlUrl, {
+        method: 'POST',
+        headers: { 'Neon-Connection-String': dbUrl },
+        body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] }),
+      });
 
-    if (!neonRes.ok) {
-      const errData = await neonRes.json().catch(() => ({}));
-      return res.status(neonRes.status).json({ error: errData.message || 'Database query failed' });
+      if (!neonRes.ok) {
+        const errData = await neonRes.json().catch(() => ({}));
+        throw new Error(errData.message || `Database query failed (${neonRes.status})`);
+      }
+
+      const data = await neonRes.json();
+      return data.rows || [];
+    };
+
+    let rows;
+    if (isRead && cacheKey) {
+      // Coalesce in-flight query
+      const inflightPromise = executeNeonQuery();
+      inflightQueries.set(cacheKey, inflightPromise);
+
+      try {
+        rows = await inflightPromise;
+      } finally {
+        inflightQueries.delete(cacheKey);
+      }
+
+      // Determine TTL: 30s for catalog & stores, 10s for others
+      const isCatalog = /unimall_(stores|products)/i.test(query);
+      const ttlMs = isCatalog ? 30000 : 8000;
+      serverQueryCache.set(cacheKey, { rows, timestamp: Date.now(), ttlMs });
+
+      // Clean up cache if too large (LRU-like eviction)
+      if (serverQueryCache.size > 200) {
+        const oldestKey = serverQueryCache.keys().next().value;
+        serverQueryCache.delete(oldestKey);
+      }
+    } else {
+      // Mutation: invalidate cache on writes
+      if (isWrite) {
+        serverQueryCache.clear();
+      }
+      rows = await executeNeonQuery();
     }
 
-    const data = await neonRes.json();
-    return res.status(200).json({ rows: data.rows || [] });
+    res.setHeader('X-Cache', 'MISS');
+    return res.status(200).json({ rows });
 
   } catch (err) {
     console.error('[API/DB] Error:', err.message);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 }
+
+// In-memory serverless cache & inflight maps
+const serverQueryCache = new Map();
+const inflightQueries = new Map();
+

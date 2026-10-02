@@ -252,6 +252,38 @@ function renderLiveTracker() {
   });
 }
 
+let isOrdersLoading = true;
+
+/* ─── ORDER SKELETON SHIMMER ──────────────────────────────── */
+function renderOrderSkeletons(count = 3) {
+  const listEl = document.getElementById('ordersList');
+  const emptyEl = document.getElementById('emptyState');
+  if (!listEl) return;
+  listEl.classList.remove('hidden');
+  if (emptyEl) emptyEl.classList.add('hidden');
+
+  listEl.innerHTML = Array(count).fill(0).map(() => `
+    <div class="order-card-skeleton" aria-hidden="true">
+      <div class="sk-header">
+        <div class="sk-icon skeleton-shimmer"></div>
+        <div class="sk-store-meta">
+          <div class="skeleton-shimmer" style="width: 140px; height: 16px; border-radius: 4px;"></div>
+          <div class="skeleton-shimmer" style="width: 90px; height: 12px; border-radius: 4px; margin-top: 4px;"></div>
+        </div>
+        <div class="sk-badge skeleton-shimmer"></div>
+      </div>
+      <div class="sk-items">
+        <div class="skeleton-shimmer" style="width: 75%; height: 14px; border-radius: 4px;"></div>
+        <div class="skeleton-shimmer" style="width: 50%; height: 14px; border-radius: 4px; margin-top: 6px;"></div>
+      </div>
+      <div class="sk-footer">
+        <div class="skeleton-shimmer" style="width: 80px; height: 18px; border-radius: 4px;"></div>
+        <div class="skeleton-shimmer" style="width: 90px; height: 28px; border-radius: 8px;"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
 /* ─── ORDERS LIST COMPONENT ──────────────────────────────── */
 function renderOrdersList() {
   const listEl = document.getElementById('ordersList');
@@ -259,6 +291,11 @@ function renderOrdersList() {
   const sectionTitle = document.getElementById('ordersSectionTitle');
   const sectionCount = document.getElementById('ordersSectionCount');
   if (!listEl || !emptyEl) return;
+
+  if (isOrdersLoading && OrdersState.orders.length === 0) {
+    renderOrderSkeletons(3);
+    return;
+  }
 
   const orders = getFilteredOrders();
 
@@ -776,6 +813,7 @@ async function syncOrdersWithSupabase() {
     }
     const userId = activeUser?.uid || activeUser?.id || activeUser?.guestId;
     if (!userId) {
+      isOrdersLoading = false;
       OrdersState.orders = [];
       saveOrdersToStorage();
       updateTabCounts();
@@ -784,7 +822,13 @@ async function syncOrdersWithSupabase() {
       return;
     }
 
+    if (OrdersState.orders.length === 0) {
+      renderOrderSkeletons(3);
+    }
+
     const dbOrders = await window.UniMallDB.getUserOrders(userId).catch(() => []);
+    isOrdersLoading = false;
+
     const storeNamesMap = {
       'campus-cafe': 'Campus Café',
       'book-corner': 'Book Corner',
@@ -795,7 +839,7 @@ async function syncOrdersWithSupabase() {
     };
 
     const formattedOrders = (dbOrders || []).map((remote, idx) => {
-      const cleanStoreName = storeNamesMap[remote.store_id] || remote.store_name || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
+      const cleanStoreName = remote.store_name || storeNamesMap[remote.store_id] || (typeof STORES !== 'undefined' ? STORES.find(s => s.id === remote.store_id)?.name : null) || 'Campus Store';
       const rawItems = remote.items || remote.unimall_order_items || [];
       let dispNum = remote.order_number;
       if (!dispNum) {
@@ -852,6 +896,8 @@ async function syncOrdersWithSupabase() {
     renderLiveTracker();
     renderOrdersList();
   } catch (e) {
+    isOrdersLoading = false;
+    renderOrdersList();
     console.warn('[UniMall] Orders sync note:', e.message);
   }
 }
@@ -886,6 +932,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (hash && OrdersState.orders.some(o => o.id === hash)) {
     openOrderModal(hash);
   }
+
+  // Live SWR revalidation listener
+  window.addEventListener('unimall:dataRevalidated', (e) => {
+    if (e.detail && e.detail.key && e.detail.key.startsWith('user_orders:')) {
+      syncOrdersWithSupabase();
+    }
+  });
 });
 
 /* ─── 1-TAP COPY HELPER ──────────────────────────────────── */

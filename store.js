@@ -430,9 +430,30 @@ function renderStoreNotFound(storeId) {
 }
 
 /* ─────────────────────────────────────────────────────────
+   PRODUCT SKELETON SHIMMER LOADER
+   ───────────────────────────────────────────────────────── */
+function renderProductSkeletons(count = 6) {
+  const grid = document.getElementById('store-products-grid');
+  if (!grid) return;
+  grid.innerHTML = Array(count).fill(0).map(() => `
+    <div class="store-product-card-skeleton" aria-hidden="true">
+      <div class="skeleton-thumb skeleton-shimmer"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-line-title skeleton-shimmer"></div>
+        <div class="skeleton-line-price skeleton-shimmer"></div>
+        <div class="skeleton-btn skeleton-shimmer"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ─────────────────────────────────────────────────────────
    INIT
    ───────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
+  // Render skeletons immediately on page parse so there is zero blank state
+  renderProductSkeletons(6);
+
   const params = new URLSearchParams(window.location.search);
   const storeId = params.get('id') || params.get('store') || '';
 
@@ -596,6 +617,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       syncCurrentStoreStatus();
       renderInfoSheet();
       renderProductsPanel();
+    }
+  });
+
+  // Background SWR revalidation listener
+  window.addEventListener('unimall:dataRevalidated', (e) => {
+    if (e.detail && SSD.store) {
+      const activeId = String(SSD.store.id).toLowerCase();
+      if (e.detail.key === 'store:' + activeId && e.detail.data) {
+        SSD.store.name = e.detail.data.name || SSD.store.name;
+        SSD.store.status = e.detail.data.is_open ? 'open' : 'closed';
+        renderHero();
+        renderInfoSheet();
+      } else if (e.detail.key === 'products:' + activeId && Array.isArray(e.detail.data)) {
+        SSD.products = e.detail.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: parseFloat(p.price || 0),
+          image: p.image || p.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
+          availability: (p.stock === 0 ? 'out-of-stock' : (p.stock <= (p.low_stock_threshold || 5) ? 'low-stock' : 'in-stock')),
+          stock: p.stock ?? 20,
+          subcat: p.category_id || p.categoryId || 'General',
+          description: p.description || ''
+        }));
+        SSD.filteredProducts = [...SSD.products];
+        renderProductGrid();
+      }
     }
   });
 });

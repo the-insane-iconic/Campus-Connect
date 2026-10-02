@@ -218,11 +218,46 @@ function getFilteredStores() {
 }
 
 
+let isStoresLoading = true;
+
+/* =========================================================
+   SKELETON SHIMMER LOADER
+========================================================= */
+
+function renderStoreSkeletons(count = 4) {
+  if (!storeList) return;
+  storeList.classList.remove("hidden");
+  if (emptyState) emptyState.classList.add("hidden");
+  if (storeCount) storeCount.textContent = "Loading campus stores…";
+
+  storeList.innerHTML = Array(count).fill(0).map(() => `
+    <div class="store-card-skeleton" aria-hidden="true">
+      <div class="skeleton-img skeleton-shimmer"></div>
+      <div class="skeleton-details">
+        <div>
+          <div class="skeleton-line skeleton-shimmer" style="width: 75%; height: 20px; margin-bottom: 8px;"></div>
+          <div class="skeleton-line skeleton-shimmer" style="width: 45%; height: 13px; margin-bottom: 12px;"></div>
+        </div>
+        <div style="display:flex; gap:8px; margin: 6px 0;">
+          <div class="skeleton-shimmer" style="width: 90px; height: 22px; border-radius: 999px;"></div>
+          <div class="skeleton-shimmer" style="width: 80px; height: 22px; border-radius: 999px;"></div>
+        </div>
+        <div class="skeleton-line skeleton-shimmer" style="width: 85%; height: 12px; margin-top: auto;"></div>
+      </div>
+    </div>
+  `).join("");
+}
+
 /* =========================================================
    RENDER
 ========================================================= */
 
 function renderStores() {
+  if (isStoresLoading && STORES.length === 0) {
+    renderStoreSkeletons(4);
+    return;
+  }
+
   const stores = getFilteredStores();
 
   storeList.innerHTML = "";
@@ -662,7 +697,39 @@ function syncStoreStatuses() {
   } catch(e) {}
 }
 
+function mapDbStoreToCard(s) {
+  return {
+    id: s.id,
+    name: s.name,
+    categories: [s.category || 'food'],
+    categoryLabel: s.description || `${s.category || 'Campus'} Store`,
+    coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
+    status: s.is_open ? 'open' : 'closed',
+    statusLabel: s.is_open ? 'Open' : 'Closed',
+    openingTime: s.opening_time || '8:00 AM',
+    closingTime: s.closing_time || '10:00 PM',
+    distance: 2,
+    walkingTime: 3,
+    floor: s.floor || 'Ground Floor',
+    rating: Number(s.rating) || 4.5,
+    popularity: s.popularity || 85
+  };
+}
+
+// 1. Instant 0ms hydration from cache on reload or navigation
+try {
+  const cached = sessionStorage.getItem('unimall_swr_stores');
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    if (parsed && Array.isArray(parsed.data) && parsed.data.length > 0) {
+      STORES = parsed.data.map(mapDbStoreToCard);
+      isStoresLoading = false;
+    }
+  }
+} catch (e) {}
+
 syncStoreStatuses();
+
 window.addEventListener('storage', (e) => {
   if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses') {
     syncStoreStatuses();
@@ -670,33 +737,31 @@ window.addEventListener('storage', (e) => {
   }
 });
 
+// Render immediately (either 0ms cached cards or 4 shimmering skeletons)
 renderStores();
 
+// 2. Fetch authoritative stores from Neon DB (SWR protected)
 if (typeof window.UniMallDB !== 'undefined') {
   window.UniMallDB.getStores().then(dbStores => {
+    isStoresLoading = false;
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
-      const currentIds = STORES.map(s => s.id).sort().join(',');
-      const incomingIds = dbStores.map(s => s.id).sort().join(',');
-      if (currentIds !== incomingIds || dbStores.length !== STORES.length) {
-        STORES = dbStores.map(s => ({
-          id: s.id,
-          name: s.name,
-          categories: [s.category || 'food'],
-          categoryLabel: s.description || 'Campus Store',
-          coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
-          status: s.is_open ? 'open' : 'closed',
-          statusLabel: s.is_open ? 'Open' : 'Closed',
-          openingTime: s.opening_time || '8:00 AM',
-          closingTime: s.closing_time || '10:00 PM',
-          distance: 2,
-          walkingTime: 3,
-          floor: s.floor || 'Ground Floor',
-          rating: Number(s.rating) || 4.5,
-          popularity: s.popularity || 85
-        }));
-        renderStores();
-      }
+      STORES = dbStores.map(mapDbStoreToCard);
+      syncStoreStatuses();
+      renderStores();
     }
-  }).catch(() => {});
+  }).catch(() => {
+    isStoresLoading = false;
+    renderStores();
+  });
 }
+
+// 3. Listen for background SWR revalidation updates
+window.addEventListener('unimall:dataRevalidated', (e) => {
+  if (e.detail && e.detail.key === 'stores' && Array.isArray(e.detail.data)) {
+    STORES = e.detail.data.map(mapDbStoreToCard);
+    syncStoreStatuses();
+    renderStores();
+  }
+});
+
 

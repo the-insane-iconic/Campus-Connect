@@ -3871,4 +3871,31 @@ body.role-platform_admin .platform-admin-only {
   background: #DBEAFE;
 }
 
+/* ─── DATA TABLE SKELETON SHIMMER ────────────────────────── */
+@keyframes tableShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-row td {
+  padding: 14px 16px !important;
+  vertical-align: middle;
+}
+.skeleton-bar {
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: tableShimmer 1.5s infinite ease-in-out;
+  border-radius: 6px;
+  height: 16px;
+  display: block;
+}
+.skeleton-thumb-sq {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: tableShimmer 1.5s infinite ease-in-out;
+}
+
+
 

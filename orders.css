@@ -1278,3 +1278,53 @@ button {
     gap: 20px;
   }
 }
+
+/* ─── ORDER CARD SKELETON SHIMMER ─────────────────────────── */
+.order-card-skeleton {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card, 16px);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+.order-card-skeleton .sk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.order-card-skeleton .sk-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+.order-card-skeleton .sk-store-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.order-card-skeleton .sk-badge {
+  width: 76px;
+  height: 24px;
+  border-radius: 999px;
+  margin-left: auto;
+}
+.order-card-skeleton .sk-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-light, #f1f5f9);
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+.order-card-skeleton .sk-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
