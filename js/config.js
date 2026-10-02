@@ -363,8 +363,21 @@ window.UniMallDB = {
           SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
         `, [ord.id]);
 
-        ord.items = items || [];
-        ord.unimall_order_items = items || [];
+        const normalizedItems = (items || []).map(it => ({
+          ...it,
+          productId: it.productId || it.product_id || it.id,
+          product_id: it.product_id || it.productId || it.id,
+          name: it.name || it.product_name || 'Item',
+          product_name: it.product_name || it.name || 'Item',
+          qty: Number(it.qty !== undefined ? it.qty : (it.quantity || 1)),
+          quantity: Number(it.quantity !== undefined ? it.quantity : (it.qty || 1)),
+          price: Number(it.price || 0),
+          image: it.image || it.image_url || '',
+          emoji: it.emoji || '📦'
+        }));
+
+        ord.items = normalizedItems;
+        ord.unimall_order_items = normalizedItems;
         ord.statusHistory = history || [];
         ord.unimall_order_status_history = history || [];
       }
@@ -391,7 +404,20 @@ window.UniMallDB = {
           SELECT * FROM unimall_order_status_history WHERE order_id = $1 ORDER BY created_at ASC
         `, [orderId]);
 
-        order.items = items;
+        const normalizedItems = (items || []).map(it => ({
+          ...it,
+          productId: it.productId || it.product_id || it.id,
+          product_id: it.product_id || it.productId || it.id,
+          name: it.name || it.product_name || 'Item',
+          product_name: it.product_name || it.name || 'Item',
+          qty: Number(it.qty !== undefined ? it.qty : (it.quantity || 1)),
+          quantity: Number(it.quantity !== undefined ? it.quantity : (it.qty || 1)),
+          price: Number(it.price || 0),
+          image: it.image || it.image_url || '',
+          emoji: it.emoji || '📦'
+        }));
+
+        order.items = normalizedItems;
         order.statusHistory = history;
         return order;
       }
@@ -443,6 +469,8 @@ window.UniMallDB = {
         (allItems || []).forEach(it => {
           if (!itemsByOrder[it.order_id]) itemsByOrder[it.order_id] = [];
           itemsByOrder[it.order_id].push({
+            productId: it.product_id,
+            product_id: it.product_id,
             product_name: it.product_name,
             name: it.product_name,
             price: parseFloat(it.price || 0),

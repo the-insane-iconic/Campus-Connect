@@ -329,8 +329,8 @@ function renderOrdersList() {
         <div class="order-items-box">
           ${firstItems.map(item => `
             <div class="order-item-row">
-              <span class="order-item-title">${item.emoji || '📦'} ${item.name}</span>
-              <span class="order-item-qty">×${item.qty}</span>
+              <span class="order-item-title">${item.emoji || '📦'} ${item.name || item.product_name || 'Item'}</span>
+              <span class="order-item-qty">×${item.qty !== undefined ? item.qty : (item.quantity || 1)}</span>
             </div>
           `).join('')}
           ${hasMore ? `<div class="order-item-row"><span class="order-item-qty" style="color:var(--blue);">+ ${order.items.length - 3} more items</span></div>` : ''}
@@ -343,6 +343,11 @@ function renderOrdersList() {
           </div>
 
           <div class="order-card-actions">
+            ${(order.fulfillmentType === 'pickup' && order.status !== 'cancelled') ? `
+              <button class="counter-pass-btn" data-oid="${order.id}" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; border: none; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.3);">
+                <span>🎟️</span> Show at Counter
+              </button>
+            ` : ''}
             <button class="reorder-btn" data-oid="${order.id}">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="1 4 1 10 7 10"></polyline>
@@ -360,8 +365,17 @@ function renderOrdersList() {
   // Attach card click handlers
   listEl.querySelectorAll('.order-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.reorder-btn')) return;
+      if (e.target.closest('.reorder-btn') || e.target.closest('.counter-pass-btn')) return;
       const orderId = card.dataset.oid;
+      openOrderModal(orderId);
+    });
+  });
+
+  // Attach Counter Pass buttons
+  listEl.querySelectorAll('.counter-pass-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const orderId = btn.dataset.oid;
       openOrderModal(orderId);
     });
   });
@@ -396,53 +410,38 @@ function handleReorder(orderId) {
     if (raw) {
       appData = JSON.parse(raw);
     }
-    if (!Array.isArray(appData.cart)) {
-      appData.cart = [];
-    }
+    // Set cart to ONLY the items of this reordered order to eliminate mixing with previous sessions
+    appData.cart = [];
 
     const targetStoreId = order.storeId || order.store_id || 'campus-cafe';
 
-    // Merge items into cart with full product preservation
+    // Populate fresh cart from this order
     order.items.forEach(item => {
-      const pId = item.productId || item.id;
-      const existing = appData.cart.find(l => (l.productId === pId || l.id === pId));
-      if (existing) {
-        existing.qty = (existing.qty || 1) + (item.qty || 1);
-        if (!existing.name && item.name) existing.name = item.name;
-        if (!existing.price && item.price) existing.price = item.price;
-        if (!existing.storeId) existing.storeId = item.storeId || targetStoreId;
-        if (!existing.image && item.image) existing.image = item.image;
-        if (!existing.emoji && item.emoji) existing.emoji = item.emoji;
-        if (!existing.product) {
-          existing.product = {
-            id: pId,
-            name: existing.name || item.name || 'Campus Item',
-            price: existing.price || item.price || 50,
-            image: existing.image || item.image || '',
-            emoji: existing.emoji || item.emoji || '🛍️',
-            storeId: existing.storeId || targetStoreId
-          };
+      const pId = item.productId || item.product_id || item.id;
+      const pName = item.name || item.product_name || 'Campus Item';
+      const pQty = Number(item.qty !== undefined ? item.qty : (item.quantity || 1));
+      const pPrice = Number(item.price || 0);
+      const pImage = item.image || item.image_url || '';
+      const pEmoji = item.emoji || '🛍️';
+
+      const itemObj = {
+        productId: pId,
+        qty: pQty,
+        name: pName,
+        price: pPrice,
+        image: pImage,
+        emoji: pEmoji,
+        storeId: item.storeId || item.store_id || targetStoreId,
+        product: {
+          id: pId,
+          name: pName,
+          price: pPrice,
+          image: pImage,
+          emoji: pEmoji,
+          storeId: item.storeId || item.store_id || targetStoreId
         }
-      } else {
-        const itemObj = {
-          productId: pId,
-          qty: item.qty || 1,
-          name: item.name || 'Campus Item',
-          price: Number(item.price) || 50,
-          image: item.image || '',
-          emoji: item.emoji || '📦',
-          storeId: item.storeId || targetStoreId,
-          product: {
-            id: pId,
-            name: item.name || 'Campus Item',
-            price: Number(item.price) || 50,
-            image: item.image || '',
-            emoji: item.emoji || '🛍️',
-            storeId: item.storeId || targetStoreId
-          }
-        };
-        appData.cart.push(itemObj);
-      }
+      };
+      appData.cart.push(itemObj);
     });
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
@@ -546,6 +545,21 @@ function renderModalContent(orderId) {
     }).join('');
 
   modalBody.innerHTML = `
+    ${order.fulfillmentType === 'pickup' ? `
+    <!-- COUNTER PICKUP PASS CARD -->
+    <div class="modal-pass-card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 18px 20px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px -5px rgba(15,23,42,0.25);">
+      <div>
+        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: #94a3b8; text-transform: uppercase;">COUNTER PICKUP PASS</div>
+        <div style="font-size: 17px; font-weight: 800; margin-top: 4px; color: #f8fafc;">${order.customerName || order.user_name || 'STUDENT'}</div>
+        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Flash at ${order.storeName || 'Store'} counter</div>
+      </div>
+      <div style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 8px 14px; text-align: center;">
+        <div style="font-size: 9px; font-weight: 700; color: #93c5fd; letter-spacing: 0.08em;">PICKUP OTP</div>
+        <div style="font-size: 20px; font-weight: 900; font-family: monospace; color: #ffffff; letter-spacing: 2px;">${order.otp || 'Ready'}</div>
+      </div>
+    </div>
+    ` : ''}
+
     <!-- STATUS & TRACKING -->
     <div class="modal-section">
       <div class="modal-section-title">Order Status</div>
@@ -565,12 +579,16 @@ function renderModalContent(orderId) {
     <div class="modal-section">
       <div class="modal-section-title">Order Items (${order.items.length})</div>
       <div class="modal-items-list">
-        ${order.items.map(i => `
+        ${order.items.map(i => {
+          const qty = i.qty !== undefined ? i.qty : (i.quantity || 1);
+          const name = i.name || i.product_name || 'Item';
+          const price = Number(i.price || 0);
+          return `
           <div class="modal-item-row">
-            <span>${i.emoji || '📦'} ${i.name} <strong>×${i.qty}</strong></span>
-            <span>₹${fmtPrice(i.price * i.qty)}</span>
+            <span>${i.emoji || '📦'} ${name} <strong>×${qty}</strong></span>
+            <span>₹${fmtPrice(price * qty)}</span>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
 
       <div class="modal-price-breakdown">

@@ -260,8 +260,13 @@ function _wireCategoryCardEvents(container) {
       updateCartBadges();
       showYayCartToast(prod ? prod.name : 'Item');
 
-      btn.classList.add('pulse');
-      setTimeout(() => btn.classList.remove('pulse'), 200);
+      btn.classList.add('added');
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '✓';
+      setTimeout(() => {
+        btn.classList.remove('added');
+        btn.innerHTML = origHtml;
+      }, 650);
     });
   });
 
@@ -420,8 +425,13 @@ function _fillProductSection(containerId, products) {
       updateCartBadges();
       showYayCartToast(prod ? prod.name : 'Item');
 
-      btn.classList.add('pulse');
-      setTimeout(() => btn.classList.remove('pulse'), 200);
+      btn.classList.add('added');
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '✓';
+      setTimeout(() => {
+        btn.classList.remove('added');
+        btn.innerHTML = origHtml;
+      }, 650);
     });
   });
 
@@ -538,15 +548,42 @@ function _openProduct(productId) {
     incBtn?.addEventListener('click', () => { if (localQty < p.stock) { localQty++; updateQtyDisplay(); } });
 
     addBtn?.addEventListener('click', () => {
-      // Set qty to desired amount
       const existing = AppState.cart.find(l => l.productId === p.id);
       if (existing) {
-        existing.qty = Math.min(existing.qty + localQty, p.stock);
-        setState({});
+        existing.qty = Math.min((existing.qty || 1) + localQty, p.stock || 99);
+        existing.name = p.name;
+        existing.price = p.price;
+        existing.image = p.image || '';
+        existing.emoji = p.emoji || '🛍️';
+        existing.storeId = p.storeId || 'campus-cafe';
+        existing.product = {
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          image: p.image || '',
+          emoji: p.emoji || '🛍️',
+          storeId: p.storeId || 'campus-cafe'
+        };
       } else {
-        AppState.cart.push({ productId: p.id, qty: localQty });
-        setState({});
+        AppState.cart.push({
+          productId: p.id,
+          qty: localQty,
+          name: p.name,
+          price: p.price,
+          image: p.image || '',
+          emoji: p.emoji || '🛍️',
+          storeId: p.storeId || 'campus-cafe',
+          product: {
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            image: p.image || '',
+            emoji: p.emoji || '🛍️',
+            storeId: p.storeId || 'campus-cafe'
+          }
+        });
       }
+      setState({});
       updateCartBadges();
       showYayCartToast(p.name);
       closeOverlay();
@@ -775,8 +812,8 @@ function _bindCheckoutEvents() {
     const placeBtn = overlay.querySelector('#co-place-btn');
     if (placeBtn) { placeBtn.disabled = true; placeBtn.textContent = 'Processing…'; }
 
-    setTimeout(() => {
-      const orderId = placeOrder(fulfillment, deliveryInfo);
+    setTimeout(async () => {
+      const orderId = await placeOrder(fulfillment, deliveryInfo);
       navigate('order-confirm', { selectedOrderId: orderId });
     }, 1200);
   });

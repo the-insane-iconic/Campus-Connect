@@ -7,13 +7,27 @@
 'use strict';
 
 function initSearch() {
-  const input   = document.getElementById('main-search');
-  const scanBtn = document.getElementById('scan-btn');
+  const input    = document.getElementById('main-search');
+  const scanBtn  = document.getElementById('scan-btn');
+  const clearBtn = document.getElementById('clear-search-btn');
   if (!input) return;
+
+  const updateClearBtn = () => {
+    if (clearBtn) {
+      if (input.value.trim().length > 0) {
+        clearBtn.classList.remove('hidden');
+        clearBtn.style.display = 'flex';
+      } else {
+        clearBtn.classList.add('hidden');
+        clearBtn.style.display = 'none';
+      }
+    }
+  };
 
   let _timer = null;
 
   input.addEventListener('input', () => {
+    updateClearBtn();
     clearTimeout(_timer);
     _timer = setTimeout(() => {
       setState({ ui: { searchQuery: input.value.trim(), selectedCategoryId: null } });
@@ -21,9 +35,20 @@ function initSearch() {
     }, 240);
   });
 
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      updateClearBtn();
+      setState({ ui: { searchQuery: '', selectedCategoryId: null } });
+      renderHome();
+      input.focus();
+    });
+  }
+
   input.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       input.value = '';
+      updateClearBtn();
       setState({ ui: { searchQuery: '', selectedCategoryId: null, activeFilters: [] } });
       renderHome();
       input.blur();

@@ -141,10 +141,39 @@ function cartAdd(productId) {
 
   const existing = AppState.cart.find(l => l.productId === productId);
   if (existing) {
-    if (existing.qty >= product.stock) return; // stock cap
+    if (existing.qty >= (product.stock || 99)) return; // stock cap
     existing.qty++;
+    existing.name = product.name;
+    existing.price = product.price;
+    existing.image = product.image || '';
+    existing.emoji = product.emoji || '🛍️';
+    existing.storeId = product.storeId || 'campus-cafe';
+    existing.product = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image || '',
+      emoji: product.emoji || '🛍️',
+      storeId: product.storeId || 'campus-cafe'
+    };
   } else {
-    AppState.cart.push({ productId, qty: 1 });
+    AppState.cart.push({
+      productId,
+      qty: 1,
+      name: product.name,
+      price: product.price,
+      image: product.image || '',
+      emoji: product.emoji || '🛍️',
+      storeId: product.storeId || 'campus-cafe',
+      product: {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image || '',
+        emoji: product.emoji || '🛍️',
+        storeId: product.storeId || 'campus-cafe'
+      }
+    });
   }
   setState({});
 }
@@ -156,7 +185,7 @@ function cartRemove(productId) {
 
 function cartUpdateQty(productId, delta) {
   const line    = AppState.cart.find(l => l.productId === productId);
-  const product = getProduct(productId);
+  const product = getProduct(productId) || (line && line.product);
   if (!line || !product) return;
 
   const newQty = line.qty + delta;
@@ -164,7 +193,7 @@ function cartUpdateQty(productId, delta) {
     cartRemove(productId);
     return;
   }
-  line.qty = Math.min(newQty, product.stock);
+  line.qty = Math.min(newQty, product.stock || 99);
   setState({});
 }
 
@@ -176,12 +205,11 @@ function cartClear() {
 /* ─── ORDER MUTATORS ─────────────────────────────────────── */
 
 /** Create an order from current cart state, sync to Neon DB, notify store, and return new order id. */
-function placeOrder(fulfillmentType, deliveryInfo) {
+async function placeOrder(fulfillmentType, deliveryInfo) {
   const items   = getCartItems();
   const totals  = getCartTotals();
   const id      = 'UM' + Math.floor(10000 + Math.random() * 90000);
-  const displayNum = '#ORD-' + String(id).slice(-4);
-  const otp = String(Math.floor(1000 + Math.random() * 9000));
+  const otp     = String(Math.floor(1000 + Math.random() * 9000));
 
   // 1. Resolve canonical user identity
   let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
@@ -237,7 +265,24 @@ function placeOrder(fulfillmentType, deliveryInfo) {
 
     const firstStore = (typeof getStore === 'function') ? getStore(sId) : (typeof STORES !== 'undefined' ? STORES.find(s => s.id === sId) : null);
     const id = 'UM' + Math.floor(10000 + Math.random() * 90000);
-    const displayNum = '#ORD-' + String(id).slice(-4);
+    let displayNum = '#ORD-01';
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getNextStoreOrderNumber === 'function') {
+      try {
+        displayNum = await window.UniMallDB.getNextStoreOrderNumber(sId);
+      } catch (e) {
+        const localStoreOrders = (AppState.orders || []).filter(o => o.storeId === sId || o.store_id === sId);
+        displayNum = `#ORD-${String(localStoreOrders.length + 1).padStart(2, '0')}`;
+      }
+    } else {
+      const localStoreOrders = (AppState.orders || []).filter(o => o.storeId === sId || o.store_id === sId);
+      displayNum = `#ORD-${String(localStoreOrders.length + 1).padStart(2, '0')}`;
+    }
+    const alreadyInBatch = createdOrders.filter(o => o.storeId === sId).length;
+    if (alreadyInBatch > 0) {
+      const m = displayNum.match(/#?ORD-(\d+)/i);
+      const curVal = m ? parseInt(m[1], 10) : 1;
+      displayNum = `#ORD-${String(curVal + alreadyInBatch).padStart(2, '0')}`;
+    }
     const otp = String(Math.floor(1000 + Math.random() * 9000));
 
     const order = {

@@ -341,6 +341,32 @@ button:active:not(:disabled) {
   stroke-linejoin: round;
 }
 
+.clear-search-btn {
+  background: rgba(0, 0, 0, 0.08);
+  border: none;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  flex-shrink: 0;
+  line-height: 1;
+}
+.clear-search-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--text-primary);
+  transform: scale(1.08);
+}
+.clear-search-btn.hidden {
+  display: none !important;
+}
+
 /* ─── 6. HERO BANNERS AREA & SLIDER ──────────────────────── */
 .hero-banners-area {
   position: relative;
@@ -2090,6 +2116,14 @@ button:active:not(:disabled) {
   stroke-width: 2.5;
   stroke-linecap: round; stroke-linejoin: round;
 }
+.add-btn.added {
+  background: #059669 !important;
+  color: #ffffff !important;
+  transform: scale(1.18) !important;
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.4);
+}
 
 /* ─── 11. CAN'T FIND IT CARD ─────────────────────────────── */
 .cantfind-card, .request-card {
@@ -2340,6 +2374,10 @@ button:active:not(:disabled) {
 }
 
 /* ─── 15. SCREEN OVERLAY SYSTEM ──────────────────────────── */
+body.overlay-open {
+  overflow: hidden !important;
+}
+
 #screen-overlay, .screen-overlay {
   position: fixed;
   inset: 0;
@@ -2348,6 +2386,13 @@ button:active:not(:disabled) {
   display: none;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  #screen-overlay, .screen-overlay {
+    left: var(--sidebar-w);
+    width: calc(100% - var(--sidebar-w));
+  }
 }
 
 #screen-overlay.active, #screen-overlay.is-open, #screen-overlay.open,
@@ -2879,7 +2924,7 @@ button:active:not(:disabled) {
 /* ─── YAY! CART TOAST (FAMOUS BRAND EXCITEMENT) ───────────── */
 .yay-cart-toast {
   position: fixed;
-  bottom: 84px;
+  bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 0px) + 16px);
   left: 50%;
   transform: translateX(-50%) translateY(35px) scale(0.92);
   background: rgba(15, 23, 42, 0.95);
