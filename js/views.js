@@ -1716,27 +1716,15 @@ function openOrderBottomSheet(orderData) {
     totalValEl.textContent = `₹${order.total || order.total_amount || 150}`;
   }
 
-  // 6. Test simulator button
-  const simBtn = document.getElementById('btnSheetSimulateDelivery');
-  if (simBtn) {
+  // 6. Action button state
+  const closeBtnAction = document.getElementById('btnSheetCloseAction');
+  if (closeBtnAction) {
     if (isDelivered) {
-      simBtn.innerHTML = '<span>🔄 Reset Order for Testing (Set Ready)</span>';
-      simBtn.onclick = (e) => {
-        e.preventDefault();
-        if (typeof window.resetActiveOrderForTesting === 'function') {
-          window.resetActiveOrderForTesting();
-          openOrderBottomSheet();
-        }
-      };
+      closeBtnAction.innerHTML = '<span>✅ Order Collected · Done</span>';
+      closeBtnAction.style.background = 'linear-gradient(135deg, #10B981 0%, #059669 100%)';
     } else {
-      simBtn.innerHTML = '<span>⚡ Store Manager: Mark Delivered (Test Ripple)</span>';
-      simBtn.onclick = (e) => {
-        e.preventDefault();
-        if (typeof window.simulateStoreDelivered === 'function') {
-          window.simulateStoreDelivered();
-          openOrderBottomSheet();
-        }
-      };
+      closeBtnAction.innerHTML = '<span>Done · Close Pass</span>';
+      closeBtnAction.style.background = 'linear-gradient(135deg, #4F46E5 0%, #3730A3 100%)';
     }
   }
 
@@ -1975,80 +1963,6 @@ function initRealtimeOrderListeners() {
   // 4. Background polling disabled — user/store admin reloads manually
 }
 
-/**
- * Developer & Testing Simulation:
- * Call window.simulateStoreDelivered() in console or via test trigger
- * to see the satisfaction center ripple and light-green transition!
- */
-window.simulateStoreDelivered = function() {
-  let appData = {};
-  const raw = localStorage.getItem('unimall_v1');
-  if (raw) {
-    try { appData = JSON.parse(raw); } catch(e) {}
-  }
-  if (!Array.isArray(appData.orders) || appData.orders.length === 0) {
-    if (typeof AppState !== 'undefined' && Array.isArray(AppState.orders) && AppState.orders.length > 0) {
-      appData.orders = [...AppState.orders];
-    } else {
-      console.warn('[UniMall] No orders available to simulate delivery.');
-      return;
-    }
-  }
 
-  // Find active order or first order
-  let order = appData.orders.find(o => ['placed', 'accepted', 'preparing', 'ready'].includes((o.status || '').toLowerCase()));
-  if (!order) order = appData.orders[0];
-
-  const nowIso = new Date().toISOString();
-  order.status = 'delivered';
-  order.deliveredAt = nowIso;
-  if (!order.statusHistory) order.statusHistory = [];
-  order.statusHistory.push({
-    status: 'delivered',
-    time: nowIso,
-    label: 'Order Delivered by Store Manager'
-  });
-
-  localStorage.setItem('unimall_v1', JSON.stringify(appData));
-  if (typeof AppState !== 'undefined') {
-    AppState.orders = appData.orders;
-  }
-
-  try {
-    localStorage.setItem('unimall_order_delivered_event', JSON.stringify({
-      orderId: order.id,
-      status: 'delivered',
-      deliveredAt: nowIso,
-      timestamp: Date.now()
-    }));
-  } catch(e) {}
-
-  window.dispatchEvent(new CustomEvent('unimall:orderStatusUpdated', {
-    detail: { orderId: order.id, status: 'delivered', deliveredAt: nowIso }
-  }));
-
-  triggerOrderDeliveredRipple(order);
-  console.log(`%c[UniMall] Store Manager marked #${order.id} Delivered! Center ripple triggered!`, 'color: #059669; font-weight: bold;');
-};
-
-/**
- * Reset test order back to 'ready' for repeated testing
- */
-window.resetActiveOrderForTesting = function() {
-  let appData = {};
-  const raw = localStorage.getItem('unimall_v1');
-  if (raw) {
-    try { appData = JSON.parse(raw); } catch(e) {}
-  }
-  if (Array.isArray(appData.orders) && appData.orders[0]) {
-    appData.orders[0].status = 'ready';
-    delete appData.orders[0].deliveredAt;
-    localStorage.setItem('unimall_v1', JSON.stringify(appData));
-    if (typeof AppState !== 'undefined') AppState.orders = appData.orders;
-    _currentOrderDeliveredState = false;
-    renderActiveOrderBanner();
-    console.log(`%c[UniMall] Order #${appData.orders[0].id} reset to READY FOR PICKUP`, 'color: #2563eb; font-weight: bold;');
-  }
-};
 
 window.navigate = navigate;

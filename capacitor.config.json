@@ -1,7 +1,7 @@
 {
   "appId": "com.campusconnect.app",
   "appName": "Campus Connect",
-  "webDir": ".",
+  "webDir": "www",
   "server": {
     "androidScheme": "https",
     "cleartext": true

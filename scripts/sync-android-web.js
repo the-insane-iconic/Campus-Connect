@@ -1,51 +1,47 @@
 /**
  * scripts/sync-android-web.js
- * Syncs the root web application assets directly into the Android native assets directory.
- * Keeps the workspace 100% clean without creating redundant duplicate folders.
+ * Syncs the web application assets into `www/` (for Capacitor CLI) and `android/app/src/main/assets/public/`
+ * Ensures Capacitor and Android Studio builds have 100% live, identical code.
  */
 
 const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
+const WWW_DIR = path.resolve(ROOT, 'www');
 const ANDROID_PUBLIC = path.resolve(ROOT, 'android/app/src/main/assets/public');
 
-if (!fs.existsSync(ANDROID_PUBLIC)) {
-  fs.mkdirSync(ANDROID_PUBLIC, { recursive: true });
-}
+[WWW_DIR, ANDROID_PUBLIC].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
-function copyFile(relPath) {
-  const src = path.join(ROOT, relPath);
-  const dest = path.join(ANDROID_PUBLIC, relPath);
-  if (fs.existsSync(src)) {
-    const destDir = path.dirname(dest);
-    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-    fs.copyFileSync(src, dest);
+function copyFileTo(srcPath, destDir) {
+  if (fs.existsSync(srcPath)) {
+    const rel = path.relative(ROOT, srcPath);
+    const dest = path.join(destDir, rel);
+    const parent = path.dirname(dest);
+    if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+    fs.copyFileSync(srcPath, dest);
   }
 }
 
-function copyDir(relPath) {
-  const src = path.join(ROOT, relPath);
-  const dest = path.join(ANDROID_PUBLIC, relPath);
-  if (!fs.existsSync(src)) return;
-
-  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-
-  const entries = fs.readdirSync(src, { withFileTypes: true });
+function copyDirTo(srcPath, destDir) {
+  if (!fs.existsSync(srcPath)) return;
+  const entries = fs.readdirSync(srcPath, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'www' || entry.name === 'android') continue;
-    const srcEntry = path.join(src, entry.name);
-    const destEntry = path.join(dest, entry.name);
-
+    const fullSrc = path.join(srcPath, entry.name);
     if (entry.isDirectory()) {
-      copyDir(path.relative(ROOT, srcEntry));
+      copyDirTo(fullSrc, destDir);
     } else {
-      fs.copyFileSync(srcEntry, destEntry);
+      copyFileTo(fullSrc, destDir);
     }
   }
 }
 
-console.log('📱 Syncing web assets directly into Android app assets...');
+console.log('📱 Syncing web assets to www/ and Android assets...');
 
 const files = [
   'index.html',
@@ -68,15 +64,24 @@ const files = [
   'manifest.json',
   'sw.js'
 ];
-files.forEach(f => copyFile(f));
+
+files.forEach(f => {
+  const p = path.join(ROOT, f);
+  copyFileTo(p, WWW_DIR);
+  copyFileTo(p, ANDROID_PUBLIC);
+});
 
 const dirs = ['assets', 'css', 'js', 'admin', 'merchant', 'vendor'];
-dirs.forEach(d => copyDir(d));
+dirs.forEach(d => {
+  const p = path.join(ROOT, d);
+  copyDirTo(p, WWW_DIR);
+  copyDirTo(p, ANDROID_PUBLIC);
+});
 
-// Remove any stale www folder inside Android assets if present
+// Remove any nested stale www folder inside Android assets if present
 const staleWww = path.join(ANDROID_PUBLIC, 'www');
 if (fs.existsSync(staleWww)) {
   fs.rmSync(staleWww, { recursive: true, force: true });
 }
 
-console.log('✅ Android assets synced directly — no duplicate folders in workspace.');
+console.log('✅ Web assets synced successfully for Capacitor & Android Studio.');
