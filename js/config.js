@@ -270,15 +270,18 @@ window.UniMallDB = {
   },
 
   /* ── Get Stores (Protected with SWR + Inflight Deduplication) ── */
-  async getStores(forceRefresh = false) {
+  async getStores(forceRefresh = false, includeHidden = false) {
     if (forceRefresh) this.invalidateCache('stores');
-    return this._swr('stores', 45000, async () => {
+    const cacheKey = includeHidden ? 'stores:all' : 'stores';
+    return this._swr(cacheKey, 45000, async () => {
       try {
+        const visibilityClause = includeHidden ? '' : 'AND (is_visible IS NULL OR is_visible = true)';
         const rows = await this.neonSql(`
           SELECT id, name, slug, description, category, floor, location, phone, 
-                 cover_image, is_open, delivery_available, pickup_available, 
+                 cover_image, is_open, is_visible, delivery_available, pickup_available, 
                  opening_time, closing_time, rating, popularity
           FROM unimall_stores
+          WHERE 1=1 ${visibilityClause}
           ORDER BY popularity DESC
         `);
         if (rows && rows.length > 0) return rows;
@@ -327,6 +330,7 @@ window.UniMallDB = {
   },
 
   /* ── Get Products (Cached 30s + Inflight Deduplication) ── */
+  /* Only returns products from VISIBLE stores. Hidden stores' products are excluded from the user-facing home. */
   async getProducts(storeId = null, forceRefresh = false) {
     const cleanId = storeId ? String(storeId).trim().toLowerCase() : 'all';
     const cacheKey = 'products:' + cleanId;
@@ -334,19 +338,39 @@ window.UniMallDB = {
 
     return this._swr(cacheKey, 30000, async () => {
       try {
-        let query = `
-          SELECT id, store_id, name, description, price, emoji, image, bg, 
-                 stock, availability, delivery_available, pickup_available, 
-                 category_id, rating
-          FROM unimall_products
-          WHERE is_active = true
-        `;
+        let query;
         const params = [];
         if (storeId && storeId !== 'all') {
-          query += ` AND (LOWER(store_id) = LOWER($1) OR LOWER(store_id) = LOWER($2))`;
+          // Store-specific: no visibility filter (store manager viewing their own products)
+          query = `
+            SELECT p.id, p.store_id, p.name, p.description, p.price, p.emoji, p.image, p.bg,
+                   p.stock, p.availability, p.delivery_available, p.pickup_available,
+                   p.category_id, p.rating,
+                   COALESCE(p.is_nearby, false) AS is_nearby,
+                   COALESCE(p.is_popular, false) AS is_popular,
+                   COALESCE(p.is_restocked, false) AS is_restocked
+            FROM unimall_products p
+            WHERE p.is_active = true
+              AND (LOWER(p.store_id) = LOWER($1) OR LOWER(p.store_id) = LOWER($2))
+            ORDER BY p.name ASC
+          `;
           params.push(cleanId, cleanId.replace('store-', ''));
+        } else {
+          // Home/global: only products from VISIBLE stores
+          query = `
+            SELECT p.id, p.store_id, p.name, p.description, p.price, p.emoji, p.image, p.bg,
+                   p.stock, p.availability, p.delivery_available, p.pickup_available,
+                   p.category_id, p.rating,
+                   COALESCE(p.is_nearby, false) AS is_nearby,
+                   COALESCE(p.is_popular, false) AS is_popular,
+                   COALESCE(p.is_restocked, false) AS is_restocked
+            FROM unimall_products p
+            INNER JOIN unimall_stores s ON p.store_id = s.id
+            WHERE p.is_active = true
+              AND (s.is_visible IS NULL OR s.is_visible = true)
+            ORDER BY p.name ASC
+          `;
         }
-        query += ` ORDER BY name ASC`;
 
         const rows = await this.neonSql(query, params);
         if (Array.isArray(rows)) {
@@ -793,6 +817,28 @@ window.UniMallDB = {
       return true;
     } catch (e) {
       console.warn('[UniMallDB] updateStoreStatus Neon warning:', e.message);
+      return false;
+    }
+  },
+
+  /* ── Update Store Visibility (show/hide on user-facing UI) ── */
+  async updateStoreVisibility(storeId, isVisible) {
+    try {
+      await this.neonSql(`
+        UPDATE unimall_stores
+        SET is_visible = $1, updated_at = NOW()
+        WHERE id = $2 OR slug = $2
+      `, [!!isVisible, storeId]);
+      console.log(`[UniMallDB] Store ${storeId} visibility updated: ${isVisible ? 'VISIBLE' : 'HIDDEN'}`);
+      // Invalidate ALL product/store caches so home screen reflects change immediately
+      this.invalidateCache('stores');
+      this.invalidateCache('stores:all');
+      this.invalidateCache('store:');
+      this.invalidateCache('products:');
+      this.invalidateCache('products:all');
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] updateStoreVisibility Neon warning:', e.message);
       return false;
     }
   },
@@ -1273,3 +1319,43 @@ window.UniMallDB = {
     }
   }
 };
+
+/**
+ * ─── DB SCHEMA MIGRATION (runs once, silently) ──────────────────────────────
+ * Adds new columns to unimall_stores and unimall_products if they don't exist.
+ * PostgreSQL ALTER TABLE ... ADD COLUMN IF NOT EXISTS is idempotent — safe to
+ * run on every page load because it's a no-op when the column already exists.
+ */
+(async function runUniMallMigrations() {
+  // Only run in browser context with UniMallDB available
+  if (typeof window === 'undefined' || typeof window.UniMallDB === 'undefined') return;
+
+  // Delay slightly to avoid racing the initial page render
+  await new Promise(r => setTimeout(r, 1500));
+
+  try {
+    // 1. Stores: add is_visible column (controls whether store & its products appear in user UI)
+    await window.UniMallDB.neonSql(`
+      ALTER TABLE unimall_stores
+        ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT TRUE;
+    `).catch(() => {});
+
+    // 2. Products: add home-screen flag columns
+    await window.UniMallDB.neonSql(`
+      ALTER TABLE unimall_products
+        ADD COLUMN IF NOT EXISTS is_nearby    BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS is_popular   BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS is_restocked BOOLEAN NOT NULL DEFAULT FALSE;
+    `).catch(() => {});
+
+    // 3. Invalidate SWR cache so the fresh schema is used on next fetch
+    window.UniMallDB.invalidateCache('stores');
+    window.UniMallDB.invalidateCache('stores:all');
+    window.UniMallDB.invalidateCache('products:all');
+
+    console.log('[UniMall] DB migrations applied ✓');
+  } catch (e) {
+    // Silent — migration is best-effort; the app still works without new columns
+    // (COALESCE defaults are used in all queries)
+  }
+})();

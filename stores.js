@@ -658,6 +658,8 @@ function syncStoreStatuses() {
   try {
     const raw = localStorage.getItem('unimall_store_statuses');
     const statuses = raw ? JSON.parse(raw) : {};
+    const visibilityRaw = localStorage.getItem('unimall_store_visibility');
+    const visibility = visibilityRaw ? JSON.parse(visibilityRaw) : {};
 
     // Update store open/closed status using direct store ID (no legacy alias map)
     STORES.forEach(s => {
@@ -666,13 +668,22 @@ function syncStoreStatuses() {
         s.status = isOpen ? 'open' : 'closed';
         s.statusLabel = isOpen ? 'Open' : 'Closed';
       }
+      // Apply localStorage visibility override (cross-tab real-time, before DB reflects)
+      if (visibility[s.id] !== undefined) {
+        s.isVisible = Boolean(visibility[s.id]);
+      }
     });
+
+    // Filter out stores that are explicitly hidden
+    STORES = STORES.filter(s => s.isVisible !== false);
 
     // Also include approved registered stores
     const regRaw = localStorage.getItem('unimall_registered_stores');
     if (regRaw) {
       const regStores = JSON.parse(regRaw);
       regStores.filter(r => r.status === 'approved').forEach(r => {
+        const isVisible = visibility[r.storeId] !== false;
+        if (!isVisible) return; // skip hidden stores
         if (!STORES.some(s => s.id === r.storeId)) {
           const isOpen = statuses[r.storeId] !== false;
           STORES.push({
@@ -683,6 +694,7 @@ function syncStoreStatuses() {
             coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
             status: isOpen ? 'open' : 'closed',
             statusLabel: isOpen ? 'Open' : 'Closed',
+            isVisible: true,
             openingTime: '9:00 AM',
             closingTime: '9:00 PM',
             distance: 2,
@@ -706,6 +718,7 @@ function mapDbStoreToCard(s) {
     coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
     status: s.is_open ? 'open' : 'closed',
     statusLabel: s.is_open ? 'Open' : 'Closed',
+    isVisible: s.is_visible !== false, // default visible when null
     openingTime: s.opening_time || '8:00 AM',
     closingTime: s.closing_time || '10:00 PM',
     distance: 2,
@@ -741,11 +754,12 @@ window.addEventListener('storage', (e) => {
 renderStores();
 
 // 2. Fetch authoritative stores from Neon DB (SWR protected)
+// getStores() already filters hidden stores (is_visible = true) at the DB level
 if (typeof window.UniMallDB !== 'undefined') {
   window.UniMallDB.getStores().then(dbStores => {
     isStoresLoading = false;
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
-      STORES = dbStores.map(mapDbStoreToCard);
+      STORES = dbStores.map(mapDbStoreToCard).filter(s => s.isVisible !== false);
       syncStoreStatuses();
       renderStores();
     }
@@ -758,9 +772,37 @@ if (typeof window.UniMallDB !== 'undefined') {
 // 3. Listen for background SWR revalidation updates
 window.addEventListener('unimall:dataRevalidated', (e) => {
   if (e.detail && e.detail.key === 'stores' && Array.isArray(e.detail.data)) {
-    STORES = e.detail.data.map(mapDbStoreToCard);
+    STORES = e.detail.data.map(mapDbStoreToCard).filter(s => s.isVisible !== false);
     syncStoreStatuses();
     renderStores();
+  }
+});
+
+// 4. Re-fetch when store visibility changes (admin hiding/showing a store)
+window.addEventListener('unimall:storeVisibilityChanged', () => {
+  if (typeof window.UniMallDB !== 'undefined') {
+    window.UniMallDB.invalidateCache('stores');
+    window.UniMallDB.getStores().then(dbStores => {
+      if (dbStores && Array.isArray(dbStores)) {
+        STORES = dbStores.map(mapDbStoreToCard).filter(s => s.isVisible !== false);
+        renderStores();
+      }
+    }).catch(() => {});
+  }
+});
+
+window.addEventListener('storage', (e) => {
+  if (e.key === 'unimall_store_visibility' || e.key === 'unimall_catalog_sync_event') {
+    if (typeof window.UniMallDB !== 'undefined') {
+      window.UniMallDB.invalidateCache('stores');
+      window.UniMallDB.getStores().then(dbStores => {
+        if (dbStores && Array.isArray(dbStores)) {
+          STORES = dbStores.map(mapDbStoreToCard).filter(s => s.isVisible !== false);
+          syncStoreStatuses();
+          renderStores();
+        }
+      }).catch(() => {});
+    }
   }
 });
 

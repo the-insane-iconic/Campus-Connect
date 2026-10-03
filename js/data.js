@@ -77,11 +77,12 @@ async function syncCatalogWithSupabase() {
       const newIds = dbStores.map(s => s.id).sort().join(',');
       if (prevIds !== newIds || dbStores.length !== STORES.length) {
         hasChanged = true;
-        STORES = dbStores.map(s => ({
+      STORES = dbStores.map(s => ({
           id: s.id,
           name: s.name,
           floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
           openNow: s.is_open !== false,
+          isVisible: s.is_visible !== false, // default visible when null (new stores)
           hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
           category: s.category || 'essentials',
           location: s.location || 'Campus Center',
@@ -129,11 +130,17 @@ function syncStoreStatusesFromAdmin() {
   try {
     const raw = localStorage.getItem('unimall_store_statuses');
     const storeStatuses = raw ? JSON.parse(raw) : {};
+    const visRaw = localStorage.getItem('unimall_store_visibility');
+    const storeVisibility = visRaw ? JSON.parse(visRaw) : {};
 
-    // 1. Update STORES openNow status using direct store ID
+    // 1. Update STORES openNow and isVisible status using direct store ID
     STORES.forEach(s => {
       if (storeStatuses[s.id] !== undefined) {
         s.openNow = Boolean(storeStatuses[s.id]);
+      }
+      // Apply localStorage visibility override (immediate cross-tab, before DB reflects)
+      if (storeVisibility[s.id] !== undefined) {
+        s.isVisible = Boolean(storeVisibility[s.id]);
       }
     });
 
@@ -193,9 +200,14 @@ function syncStoreStatusesFromAdmin() {
       });
     }
 
-    // 4. Update AppState if available
+    // 4. Update AppState if available — filter out products from hidden stores
     if (typeof AppState !== 'undefined') {
-      AppState.products = PRODUCTS.filter(p => p.isActive !== false);
+      const hiddenStoreIds = new Set(
+        STORES.filter(s => s.isVisible === false).map(s => s.id)
+      );
+      AppState.products = PRODUCTS.filter(p =>
+        p.isActive !== false && !hiddenStoreIds.has(p.storeId)
+      );
     }
   } catch (err) {
     console.warn('[UniMall] syncStoreStatusesFromAdmin note:', err);

@@ -294,6 +294,36 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     return { success: true, is_open: newState ? 1 : 0 };
   }
 
+  // ── TOGGLE STORE VISIBILITY: /admin/stores/:storeId/toggle-visibility ──
+  const visibilityMatch = endpoint.match(/^\/admin\/stores\/([^\/]+)\/toggle-visibility$/);
+  if (visibilityMatch) {
+    const storeId = visibilityMatch[1];
+    const storeVisibility = JSON.parse(localStorage.getItem('unimall_store_visibility') || '{}');
+    // Default to visible (true). If not set, assume visible; toggling makes it hidden.
+    const currentlyVisible = storeVisibility[storeId] !== false;
+    const newVisibility = !currentlyVisible;
+
+    storeVisibility[storeId] = newVisibility;
+    localStorage.setItem('unimall_store_visibility', JSON.stringify(storeVisibility));
+
+    // Persist to authoritative online database (Neon PostgreSQL)
+    if (window.UniMallDB && typeof window.UniMallDB.updateStoreVisibility === 'function') {
+      await window.UniMallDB.updateStoreVisibility(storeId, newVisibility).catch(() => {});
+    }
+
+    // Broadcast so all open user tabs refresh
+    window.dispatchEvent(new CustomEvent('unimall:storeVisibilityChanged', {
+      detail: { storeId, isVisible: newVisibility }
+    }));
+    try {
+      localStorage.setItem('unimall_catalog_sync_event', JSON.stringify({
+        storeId, isVisible: newVisibility, timestamp: Date.now()
+      }));
+    } catch(e) {}
+
+    return { success: true, is_visible: newVisibility ? 1 : 0 };
+  }
+
   // ── GET Orders: /admin/stores/:storeId/orders ──
   const ordersMatch = endpoint.match(/^\/admin\/stores\/([^\/]+)\/orders/);
   if (ordersMatch && method === 'GET') {

@@ -65,14 +65,30 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 6b. Sync store open/close statuses & catalog updates from admin panel */
   syncStoreStatusesFromAdmin();
   window.addEventListener('storage', (e) => {
-    if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses' || e.key === 'unimall_catalog_sync_event') {
+    if (e.key === 'unimall_store_status_event' || e.key === 'unimall_store_statuses' ||
+        e.key === 'unimall_catalog_sync_event' || e.key === 'unimall_store_visibility') {
       syncStoreStatusesFromAdmin();
-      renderHome();
+      if (typeof syncCatalogWithSupabase === 'function') {
+        syncCatalogWithSupabase().then(() => renderHome()).catch(() => renderHome());
+      } else {
+        renderHome();
+      }
     }
   });
   window.addEventListener('unimall:storeStatusChanged', () => {
     syncStoreStatusesFromAdmin();
     renderHome();
+  });
+  window.addEventListener('unimall:storeVisibilityChanged', () => {
+    // Force re-fetch ignoring SWR cache so hidden stores are excluded immediately
+    if (typeof window.UniMallDB !== 'undefined') {
+      window.UniMallDB.invalidateCache('stores');
+      window.UniMallDB.invalidateCache('products:all');
+    }
+    syncCatalogWithSupabase().then(() => {
+      syncStoreStatusesFromAdmin();
+      renderHome();
+    }).catch(() => renderHome());
   });
 
   /* 7. Sync notification dot — show red dot if any unread notifications */

@@ -282,9 +282,28 @@ function _renderDefaultHomeSections() {
   // Show normal section headers
   _setHomeSectionsVisible(true);
 
-  const nearYou = AppState.products.filter(p => p.isNearby);
-  const popular = AppState.products.filter(p => p.isPopular);
-  const restocked = AppState.products.filter(p => p.isRestocked);
+  let nearYou = AppState.products.filter(p => p.isNearby);
+  let popular  = AppState.products.filter(p => p.isPopular);
+  let restocked = AppState.products.filter(p => p.isRestocked);
+
+  // ── Smart Fallback: if DB flags aren't configured yet, gracefully distribute
+  //    ALL available products across the home sections so the home screen is
+  //    never empty just because admin hasn't toggled the flag columns.
+  const allActive = AppState.products.filter(p => p.availability !== 'out-of-stock');
+  if (nearYou.length === 0 && popular.length === 0 && restocked.length === 0 && allActive.length > 0) {
+    // Sort by rating desc for "popular"
+    const byRating  = [...allActive].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    // Show top 8 by rating as "Available Near You"
+    nearYou   = byRating.slice(0, 8);
+    // Next 4 as "Popular Right Now"
+    popular   = byRating.slice(8, 14);
+    // Remaining as "Recently Restocked" (or overlap with near-you if few products)
+    restocked = byRating.slice(14, 20).length > 0 ? byRating.slice(14, 20) : byRating.slice(4, 10);
+  } else {
+    // Mix in any active products if a specific section is empty
+    if (nearYou.length === 0)  nearYou  = allActive.slice(0, 8);
+    if (popular.length === 0)  popular  = allActive.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 6);
+  }
 
   _fillProductSection('near-you-scroll', nearYou);
   _fillProductSection('popular-scroll', popular);

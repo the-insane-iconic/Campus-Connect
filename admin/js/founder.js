@@ -213,6 +213,7 @@ function loadAllStoresMonitor() {
 
   const allStores = getCompleteStoresList();
   const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
+  const storeVisibility = JSON.parse(localStorage.getItem('unimall_store_visibility') || '{}');
 
   const elStores = document.getElementById('founder-stat-stores');
   if (elStores) elStores.textContent = allStores.length;
@@ -224,11 +225,15 @@ function loadAllStoresMonitor() {
 
   tbody.innerHTML = allStores.map(s => {
     const isOpen = storeStatuses[s.id] !== false; // Default to open
+    // is_visible: default true (visible) if not in localStorage
+    const isVisible = storeVisibility[s.id] !== false;
     const statusClass = isOpen ? 'completed' : 'cancelled';
     const statusLabel = isOpen ? '● Online' : '○ Offline';
+    const visClass = isVisible ? 'completed' : 'preparing';
+    const visLabel = isVisible ? '👁 Visible' : '🚫 Hidden';
 
     return `
-      <tr>
+      <tr style="opacity: ${isVisible ? '1' : '0.62'};">
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 16px;">${s.icon || '🏪'}</span>
@@ -241,19 +246,29 @@ function loadAllStoresMonitor() {
         <td style="font-size: 13px;">${escapeHtml(s.category)}</td>
         <td style="font-size: 13px;">${escapeHtml(s.location)}</td>
         <td>
-          <span class="badge-status ${statusClass}" style="font-size: 11px;">${statusLabel}</span>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span class="badge-status ${statusClass}" style="font-size: 11px;">${statusLabel}</span>
+            <span class="badge-status ${visClass}" style="font-size: 11px;">${visLabel}</span>
+          </div>
         </td>
         <td>
-          <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <button type="button" class="btn-action ${isOpen ? 'secondary' : 'primary'}" 
                     onclick="adminToggleStore('${s.id}', ${!isOpen})"
-                    style="height: 28px; font-size: 11.5px; padding: 0 10px;">
+                    style="height: 28px; font-size: 11.5px; padding: 0 10px;"
+                    title="${isOpen ? 'Pause orders — store stays visible to users' : 'Open store for orders'}">
               ${isOpen ? '⏸ Set Offline' : '▶ Set Online'}
+            </button>
+            <button type="button" class="btn-action ${isVisible ? 'secondary' : 'primary'}" 
+                    onclick="adminToggleStoreVisibility('${s.id}', ${!isVisible})"
+                    style="height: 28px; font-size: 11.5px; padding: 0 10px; ${isVisible ? '' : 'background: #F59E0B; color: #1C1917; border-color: #F59E0B;'}"
+                    title="${isVisible ? 'Hide this store from home screen and user view entirely' : 'Show this store and its products on home screen'}">
+              ${isVisible ? '🙈 Hide Store' : '👁 Show Store'}
             </button>
             <button type="button" class="btn-action secondary" 
                     onclick="drillDownStore('${s.id}')"
                     style="height: 28px; font-size: 11.5px; padding: 0 10px;">
-              Manage Store →
+              Manage →
             </button>
           </div>
         </td>
@@ -261,6 +276,28 @@ function loadAllStoresMonitor() {
     `;
   }).join('');
 }
+
+async function adminToggleStoreVisibility(storeId, setVisible) {
+  try {
+    await apiRequest(`/admin/stores/${storeId}/toggle-visibility`);
+    const actionLabel = setVisible ? 'now VISIBLE on the home screen' : 'now HIDDEN from all user views';
+    showToast(`${storeId} is ${actionLabel}`, setVisible ? 'success' : 'warning');
+  } catch (e) {
+    // Fallback: write directly to localStorage
+    const storeVisibility = JSON.parse(localStorage.getItem('unimall_store_visibility') || '{}');
+    storeVisibility[storeId] = setVisible;
+    localStorage.setItem('unimall_store_visibility', JSON.stringify(storeVisibility));
+    if (window.UniMallDB && typeof window.UniMallDB.updateStoreVisibility === 'function') {
+      await window.UniMallDB.updateStoreVisibility(storeId, setVisible).catch(() => {});
+    }
+    showToast(`${storeId} visibility updated`, 'success');
+  }
+  loadAllStoresMonitor();
+  if (typeof window.loadDashboard === 'function') {
+    window.loadDashboard(window.activeStoreId);
+  }
+}
+window.adminToggleStoreVisibility = adminToggleStoreVisibility;
 
 function adminToggleStore(storeId, setOpen) {
   syncStoreStatusToUserApp(storeId, setOpen);
