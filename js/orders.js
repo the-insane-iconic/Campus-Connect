@@ -943,7 +943,6 @@ if (document.readyState === 'loading') {
       syncOrdersWithSupabase();
     }
   });
-});
 
 /* ─── 1-TAP COPY HELPER ──────────────────────────────────── */
 function copyOrderText(text, label = 'Code') {
