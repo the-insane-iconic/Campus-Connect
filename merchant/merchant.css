@@ -1,0 +1,93 @@
+/* ═══════════════════════════════════════════════════════════
+   UNIMALL MERCHANT PORTAL — ISOLATED STORE OWNER STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+@import url('/admin/admin.css');
+
+/* Store Owner specific overrides */
+:root {
+  --merchant-primary: #2563EB;
+  --merchant-accent: #059669;
+}
+
+body.role-merchant {
+  --nav-bg: #F0FDF4;
+  --nav-bg-gradient: linear-gradient(180deg, #F8FAF9 0%, #ECFDF5 100%);
+  --nav-border: #D1FAE5;
+  --header-bg: #F0FDF4;
+  --header-bg-gradient: linear-gradient(90deg, #F8FAF9 0%, #ECFDF5 100%);
+  --header-border: #D1FAE5;
+}
+
+/* Explicit removal of any store switcher */
+.store-selector-wrapper,
+#store-selector-wrapper,
+#store-selector {
+  display: none !important;
+}
+
+/* Isolated Store Identity Badge in Topbar */
+.merchant-store-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full, 9999px);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.merchant-store-badge .store-badge-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563EB, #1D4ED8);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.merchant-store-badge .store-badge-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.2px;
+}
+
+.merchant-store-badge .store-badge-category {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: #ECFDF5;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+/* Product card merchant description preview */
+.merchant-product-desc-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Security Isolation Notice */
+.isolation-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+  background: #D1FAE5;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

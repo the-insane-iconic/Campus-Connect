@@ -135,8 +135,10 @@ function initLoginPortal() {
           const apiData = await apiRes.json();
           if (apiData && apiData.token) {
             saveAdminSession(apiData);
-            showToast(`Welcome back, ${apiData.user?.name || 'Merchant'}!`);
-            setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
+            const isPlatform = (apiData.user?.role === 'platform_admin' || apiData.user?.role === 'admin');
+            const targetUrl = apiData.redirectUrl || (isPlatform ? '/admin/index.html' : '/merchant/index.html');
+            showToast(`Welcome back, ${apiData.user?.name || (isPlatform ? 'Admin' : 'Store Owner')}!`);
+            setTimeout(() => { window.location.href = targetUrl; }, 400);
             return;
           }
         }
@@ -146,13 +148,6 @@ function initLoginPortal() {
 
       // Fast-track Platform Admin login (guarantees platform administrator is never locked out)
       if (isPlatformAdmin) {
-        let stores = [];
-        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStores === 'function') {
-          const dbStores = await window.UniMallDB.getStores().catch(() => []);
-          stores = (dbStores && dbStores.length > 0)
-            ? dbStores.map(s => ({ store_id: s.id, store_name: s.name, membership_role: 'admin' }))
-            : [];
-        }
         const sessionData = {
           token: 'campus_connect_admin_' + Date.now(),
           user: {
@@ -162,10 +157,10 @@ function initLoginPortal() {
             role: 'platform_admin',
             store_id: null
           },
-          stores
+          stores: []
         };
         saveAdminSession(sessionData);
-        showToast('Welcome back, Anupam Yadav! Opening platform dashboard…');
+        showToast('Welcome back, Platform Administrator! Opening Executive HQ…');
         setTimeout(() => { window.location.href = '/admin/index.html'; }, 400);
         return;
       }
@@ -175,7 +170,7 @@ function initLoginPortal() {
         try {
           const dbAdmin = await window.UniMallDB.authenticateAdmin(rawUser);
           if (dbAdmin) {
-            const isPlatform = dbAdmin.role === 'platform_admin';
+            const isPlatform = (dbAdmin.role === 'platform_admin' || dbAdmin.role === 'admin' || rawUser === 'admin' || rawUser === 'anupamyadav6477@gmail.com');
             const normPass = rawPass.toLowerCase().trim();
 
             // Credential verification via DB password_hash or known patterns
@@ -198,22 +193,14 @@ function initLoginPortal() {
             }
 
             if (validPassword) {
-              let stores = [];
-              if (isPlatform) {
-                // Load all stores from DB — no hardcoded fallback list
-                const dbStores = await window.UniMallDB.getStores().catch(() => []);
-                stores = (dbStores && dbStores.length > 0)
-                  ? dbStores.map(s => ({ store_id: s.id, store_name: s.name, membership_role: 'admin' }))
-                  : [];
-              } else {
-                stores = [
-                  {
-                    store_id: dbAdmin.store_id,
-                    store_name: dbAdmin.store_name || 'Campus Store',
-                    membership_role: 'owner'
-                  }
-                ];
-              }
+              const role = isPlatform ? 'platform_admin' : 'store_owner';
+              const stores = isPlatform ? [] : [
+                {
+                  store_id: dbAdmin.store_id,
+                  store_name: dbAdmin.store_name || 'Campus Store',
+                  membership_role: 'owner'
+                }
+              ];
 
               const sessionData = {
                 token: 'campus_connect_neon_' + Date.now(),
@@ -221,14 +208,15 @@ function initLoginPortal() {
                   id: dbAdmin.id,
                   name: dbAdmin.name || (isPlatform ? 'Campus Connect Admin' : 'Store Owner'),
                   email: dbAdmin.email,
-                  role: dbAdmin.role || (isPlatform ? 'platform_admin' : 'store_owner'),
-                  store_id: dbAdmin.store_id
+                  role,
+                  store_id: isPlatform ? null : dbAdmin.store_id
                 },
                 stores
               };
               saveAdminSession(sessionData);
-              showToast(`Welcome back, ${dbAdmin.name || 'Merchant'}! Opening dashboard…`);
-              setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
+              const targetUrl = isPlatform ? '/admin/index.html' : '/merchant/index.html';
+              showToast(`Welcome back, ${dbAdmin.name || (isPlatform ? 'Admin' : 'Store Owner')}! Opening portal…`);
+              setTimeout(() => { window.location.href = targetUrl; }, 400);
               return;
             }
           }
@@ -290,7 +278,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast(`Signed in to ${regStore.storeName}!`);
-        setTimeout(() => { window.location.href = '/admin/index.html'; }, 500);
+        setTimeout(() => { window.location.href = '/merchant/index.html'; }, 400);
         return;
       }
 
@@ -482,24 +470,35 @@ function initLoginPortal() {
   function saveAdminSession(data) {
     sessionStorage.setItem('unimall_admin_token', data.token);
     sessionStorage.setItem('unimall_admin_user', JSON.stringify(data.user));
-    sessionStorage.setItem('unimall_admin_stores', JSON.stringify(data.stores));
-    if (data.stores && data.stores.length > 0) {
-      sessionStorage.setItem('unimall_admin_active_store', data.stores[0].store_id);
+    sessionStorage.setItem('unimall_admin_stores', JSON.stringify(data.stores || []));
+    if (data.user?.role === 'platform_admin' || data.user?.role === 'admin') {
+      sessionStorage.setItem('unimall_admin_active_store', 'all');
+    } else {
+      const sId = data.user?.store_id || (data.stores && data.stores[0] ? data.stores[0].store_id : '');
+      sessionStorage.setItem('unimall_admin_active_store', sId);
     }
   }
 
   async function verifyExistingAdminSession(token) {
+    let target = '/admin/login.html';
     try {
+      const rawUser = sessionStorage.getItem('unimall_admin_user');
+      if (rawUser) {
+        const u = JSON.parse(rawUser);
+        target = (u.role === 'platform_admin' || u.role === 'admin') ? '/admin/index.html' : '/merchant/index.html';
+      }
       const res = await fetch(`${API_BASE}/auth/verify`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        window.location.href = '/admin/index.html';
+        window.location.href = target;
+        return;
       }
     } catch {
       const user = sessionStorage.getItem('unimall_admin_user');
       if (user) {
-        window.location.href = '/admin/index.html';
+        const u = JSON.parse(user);
+        window.location.href = (u.role === 'platform_admin' || u.role === 'admin') ? '/admin/index.html' : '/merchant/index.html';
       }
     }
   }

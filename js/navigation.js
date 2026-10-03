@@ -206,18 +206,21 @@ function setHeaderGreeting() {
   const header = document.getElementById('main-header');
   if (!header) return;
   const user = AppState.currentUser || {};
-  const firstName = user.name ? user.name.trim().split(' ')[0] : 'there';
+  let displayName = user.name ? user.name.trim() : 'there';
+  if (!/^Student \d+$/i.test(displayName) && displayName.includes(' ')) {
+    displayName = displayName.split(' ')[0];
+  }
   const h = new Date().getHours();
 
   let greeting;
   if (h >= 22 || h < 5) {
-    greeting = `Late-night studying, ${firstName}? 🌙`;
+    greeting = `Late-night studying, ${displayName}? 🌙`;
   } else if (h < 12) {
-    greeting = `Good morning, ${firstName} ☀️`;
+    greeting = `Good morning, ${displayName} ☀️`;
   } else if (h < 17) {
-    greeting = `Good afternoon, ${firstName} 🥪`;
+    greeting = `Good afternoon, ${displayName} 🥪`;
   } else {
-    greeting = `Good evening, ${firstName} 🌆`;
+    greeting = `Good evening, ${displayName} 🌆`;
   }
   header.setAttribute('data-greeting', greeting);
 }

@@ -87,13 +87,13 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const dbStores = await neonSql(`SELECT id, name FROM unimall_stores ORDER BY name ASC`, []).catch(() => []);
-      const token = generateSessionToken({ email: ADMIN_EMAIL, role: 'admin', sub: 'admin' });
+      const token = generateSessionToken({ email: ADMIN_EMAIL, role: 'platform_admin', sub: 'admin' });
 
       return res.status(200).json({
         token,
-        user: { id: 'admin', name: 'Campus Connect Admin', email: ADMIN_EMAIL, role: 'admin', store_id: null },
-        stores: dbStores.map(s => ({ store_id: s.id, store_name: s.name, membership_role: 'admin' }))
+        user: { id: 'admin', name: 'Campus Connect Admin', email: ADMIN_EMAIL, role: 'platform_admin', store_id: null },
+        redirectUrl: '/admin/index.html',
+        stores: []
       });
     }
 
@@ -152,18 +152,32 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // 4. Issue session token
-    const isPlatform = admin.role === 'platform_admin';
-    const role = isPlatform ? 'admin' : 'merchant';
+    // 4. Issue session token & dedicated portal redirect
+    const isPlatform = (admin.role === 'platform_admin' || admin.role === 'admin' || cleanEmail === ADMIN_EMAIL.toLowerCase());
+    const role = isPlatform ? 'platform_admin' : 'store_owner';
     const token = generateSessionToken({ email: cleanEmail, role, store_id: admin.store_id, sub: admin.id });
 
-    let stores = [];
     if (isPlatform) {
-      const dbStores = await neonSql(`SELECT id, name FROM unimall_stores ORDER BY name ASC`, []).catch(() => []);
-      stores = dbStores.map(s => ({ store_id: s.id, store_name: s.name, membership_role: 'admin' }));
-    } else {
-      stores = [{ store_id: admin.store_id, store_name: admin.store_name, membership_role: 'owner' }];
+      return res.status(200).json({
+        token,
+        user: {
+          id: admin.id,
+          name: admin.name || 'Campus Connect Admin',
+          email: admin.email,
+          role: 'platform_admin',
+          store_id: null
+        },
+        redirectUrl: '/admin/index.html',
+        stores: []
+      });
     }
+
+    // Strictly isolated single-store merchant
+    const merchantStore = {
+      store_id: admin.store_id,
+      store_name: admin.store_name || 'Campus Store',
+      membership_role: 'owner'
+    };
 
     return res.status(200).json({
       token,
@@ -171,10 +185,11 @@ export default async function handler(req, res) {
         id: admin.id,
         name: admin.name || 'Store Owner',
         email: admin.email,
-        role,
+        role: 'store_owner',
         store_id: admin.store_id
       },
-      stores
+      redirectUrl: '/merchant/index.html',
+      stores: [merchantStore]
     });
 
   } catch (err) {

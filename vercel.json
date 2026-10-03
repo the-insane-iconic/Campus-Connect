@@ -78,6 +78,18 @@
       "dest": "/admin/index.html"
     },
     {
+      "src": "^/merchant$",
+      "dest": "/merchant/index.html"
+    },
+    {
+      "src": "^/merchant/$",
+      "dest": "/merchant/index.html"
+    },
+    {
+      "src": "^/merchant/(.*)$",
+      "dest": "/merchant/$1"
+    },
+    {
       "src": "^/(admin\\.css|login\\.css|login\\.js|girl\\.png)$",
       "dest": "/admin/$1"
     },

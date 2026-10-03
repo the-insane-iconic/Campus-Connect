@@ -70,13 +70,90 @@ function locationIcon() {
 
 
 /* =========================================================
+   STORE TYPE VISUAL HELPER
+========================================================= */
+
+function getStoreTypeVisual(category) {
+  const cat = String(category || '').toLowerCase();
+  if (cat.includes('food') || cat.includes('cafe') || cat.includes('bakery') || cat.includes('dine') || cat.includes('restaurant') || cat.includes('canteen')) {
+    return {
+      label: 'Food & Dining',
+      icon: '🍔',
+      badgeClass: 'type-food',
+      color: '#EA580C',
+      bg: '#FFF7ED',
+      border: '#FDBA74'
+    };
+  }
+  if (cat.includes('groc') || cat.includes('snack') || cat.includes('daily') || cat.includes('essential')) {
+    return {
+      label: 'Groceries & Essentials',
+      icon: '🛒',
+      badgeClass: 'type-grocery',
+      color: '#059669',
+      bg: '#ECFDF5',
+      border: '#A7F3D0'
+    };
+  }
+  if (cat.includes('elect') || cat.includes('tech') || cat.includes('gadget') || cat.includes('mobile')) {
+    return {
+      label: 'Electronics & Tech',
+      icon: '💻',
+      badgeClass: 'type-electronics',
+      color: '#4F46E5',
+      bg: '#EEF2FF',
+      border: '#C7D2FE'
+    };
+  }
+  if (cat.includes('stat') || cat.includes('book') || cat.includes('print') || cat.includes('study')) {
+    return {
+      label: 'Stationery & Books',
+      icon: '📚',
+      badgeClass: 'type-stationery',
+      color: '#E11D48',
+      bg: '#FFF1F2',
+      border: '#FECDD3'
+    };
+  }
+  if (cat.includes('fash') || cat.includes('cloth') || cat.includes('wear') || cat.includes('apparel')) {
+    return {
+      label: 'Fashion & Apparel',
+      icon: '👕',
+      badgeClass: 'type-fashion',
+      color: '#7C3AED',
+      bg: '#FAF5FF',
+      border: '#E9D5FF'
+    };
+  }
+  if (cat.includes('sport') || cat.includes('fit') || cat.includes('gym')) {
+    return {
+      label: 'Sports & Fitness',
+      icon: '⚽',
+      badgeClass: 'type-sports',
+      color: '#0284C7',
+      bg: '#F0F9FF',
+      border: '#BAE6FD'
+    };
+  }
+  return {
+    label: (category ? category.charAt(0).toUpperCase() + category.slice(1) : 'Campus Store'),
+    icon: '🏪',
+    badgeClass: 'type-default',
+    color: '#2563EB',
+    bg: '#EFF6FF',
+    border: '#BFDBFE'
+  };
+}
+
+/* =========================================================
    STORE CARD
 ========================================================= */
 
 function createStoreCard(store, index = 0) {
   const delay = Math.min(index * 30, 180);
   const rating = store.rating ? Number(store.rating).toFixed(1) : '4.6';
-  const locationText = store.location || `${store.walkingTime || 2} min walk (${store.floor || 'Ground Floor'})`;
+  const typeVisual = getStoreTypeVisual(store.category || store.categories?.[0]);
+  const realLocation = store.location || store.floor || 'Campus Center';
 
   return `
     <button
@@ -114,13 +191,13 @@ function createStoreCard(store, index = 0) {
         </div>
 
         <div class="store-badges-row">
-          <span class="store-badge-pill delivery">
-            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M5 12h14M5 12l4-4M5 12l4 4"/></svg>
-            Hostel Delivery
+          <span class="store-type-badge ${typeVisual.badgeClass}" style="color:${typeVisual.color}; background:${typeVisual.bg}; border-color:${typeVisual.border};">
+            <span class="store-type-icon">${typeVisual.icon}</span>
+            <span class="store-type-label">${typeVisual.label}</span>
           </span>
-          <span class="store-badge-pill floor">
-            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/></svg>
-            ${store.floor || 'Ground Floor'}
+          <span class="store-location-badge" title="${realLocation}">
+            <svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <span>${realLocation}</span>
           </span>
         </div>
 
@@ -130,9 +207,8 @@ function createStoreCard(store, index = 0) {
             <span>${store.openingTime} – ${store.closingTime}</span>
           </div>
 
-          <div class="store-location">
-            ${locationIcon()}
-            <span>${locationText}</span>
+          <div class="store-fulfillment-badge">
+            <span class="fulfillment-dot"></span>${store.deliveryAvailable ? 'Hostel Delivery' : 'Pickup Only'}
           </div>
         </div>
       </div>
@@ -163,6 +239,7 @@ function getFilteredStores() {
       return (
         store.name.toLowerCase().includes(query) ||
         store.categoryLabel.toLowerCase().includes(query) ||
+        (store.location && store.location.toLowerCase().includes(query)) ||
         store.categories.some(category =>
           category.toLowerCase().includes(query)
         )
@@ -170,11 +247,30 @@ function getFilteredStores() {
     });
   }
 
-  /* Category */
-  if (StoreState.category !== "all") {
-    results = results.filter(store =>
-      store.categories.includes(StoreState.category)
-    );
+  /* Category / Admin-defined dynamic filter */
+  if (StoreState.category && StoreState.category !== "all") {
+    const selectedFilterId = StoreState.category.toLowerCase();
+    const selectedFilterName = (StoreState.categoryName || '').toLowerCase();
+    results = results.filter(store => {
+      // 1. Matches store category directly
+      const storeCat = String(store.category || store.categories?.[0] || '').toLowerCase();
+      if (storeCat && (
+        storeCat === selectedFilterId.replace('filter_', '') || 
+        selectedFilterId.includes(storeCat) ||
+        selectedFilterName.includes(storeCat) ||
+        storeCat.includes(selectedFilterName)
+      )) {
+        return true;
+      }
+      // 2. Matches store.filterTags assigned by admin
+      if (Array.isArray(store.filterTags) && store.filterTags.length > 0) {
+        return store.filterTags.some(t => {
+          const cleanT = String(t).toLowerCase();
+          return cleanT === selectedFilterId || cleanT === selectedFilterName || selectedFilterName.includes(cleanT) || cleanT.includes(selectedFilterId.replace('filter_', ''));
+        });
+      }
+      return false;
+    });
   }
 
   /* Status */
@@ -304,28 +400,54 @@ function openStore(storeId) {
 
 
 /* =========================================================
-   CATEGORY FILTER
+   DYNAMIC DATABASE-DRIVEN CATEGORY & FILTER CHIPS
 ========================================================= */
 
-categoryFilters
-  .querySelectorAll(".filter-chip")
-  .forEach(button => {
+async function loadAndRenderFilters() {
+  const container = document.getElementById("categoryFilters");
+  if (!container) return;
+
+  let filters = [];
+  if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStoreFilters === 'function') {
+    try {
+      filters = await window.UniMallDB.getStoreFilters();
+    } catch (e) {
+      console.warn('[stores.js] Error fetching DB store filters:', e);
+    }
+  }
+
+  if (!filters || filters.length === 0) {
+    filters = [
+      { id: 'filter_food', name: 'Food & Dining' },
+      { id: 'filter_groceries', name: 'Groceries & Essentials' },
+      { id: 'filter_electronics', name: 'Electronics & Tech' },
+      { id: 'filter_stationery', name: 'Stationery & Books' },
+      { id: 'filter_fashion', name: 'Fashion & Apparel' },
+      { id: 'filter_services', name: 'Campus Services' }
+    ];
+  }
+
+  container.innerHTML = `
+    <button class="filter-chip ${(!StoreState.category || StoreState.category === 'all') ? 'active' : ''}" data-category="all">All</button>
+    ${filters.map(f => `
+      <button class="filter-chip ${StoreState.category === f.id ? 'active' : ''}" data-category="${f.id}" data-name="${f.name}">
+        ${f.name}
+      </button>
+    `).join('')}
+  `;
+
+  container.querySelectorAll(".filter-chip").forEach(button => {
     button.addEventListener("click", () => {
-      categoryFilters
-        .querySelectorAll(".filter-chip")
-        .forEach(btn =>
-          btn.classList.remove("active")
-        );
-
+      container.querySelectorAll(".filter-chip").forEach(btn => btn.classList.remove("active"));
       button.classList.add("active");
-
-      StoreState.category =
-        button.dataset.category;
-
+      StoreState.category = button.dataset.category;
+      StoreState.categoryName = button.dataset.name || '';
       updateResultsTitle();
       renderStores();
     });
   });
+}
+loadAndRenderFilters();
 
 
 /* =========================================================
@@ -613,16 +735,21 @@ function syncCartBadge() {
 
 function syncSidebarProfile() {
   try {
-    let user = null;
-    const v1 = localStorage.getItem("unimall_v1");
-    if (v1) {
-      const parsed = JSON.parse(v1);
-      if (parsed.currentUser) user = parsed.currentUser;
-    }
-    const auth = localStorage.getItem("unimall_auth");
-    if (auth) {
-      const parsedAuth = JSON.parse(auth);
-      user = { ...(user || {}), ...parsedAuth };
+    let user = (typeof window.UserManager !== 'undefined' && typeof window.UserManager.getActiveUser === 'function')
+      ? window.UserManager.getActiveUser()
+      : null;
+
+    if (!user) {
+      const v1 = localStorage.getItem("unimall_v1");
+      if (v1) {
+        const parsed = JSON.parse(v1);
+        if (parsed.currentUser) user = parsed.currentUser;
+      }
+      const auth = localStorage.getItem("unimall_auth");
+      if (auth) {
+        const parsedAuth = JSON.parse(auth);
+        user = { ...(user || {}), ...parsedAuth };
+      }
     }
     if (!user) return;
 
@@ -710,20 +837,29 @@ function syncStoreStatuses() {
 }
 
 function mapDbStoreToCard(s) {
+  const loc = s.location ? s.location.trim() : (s.floor ? s.floor.trim() : 'Campus Center');
+  const cat = s.category || 'food';
+  const filterTags = s.filter_tags 
+    ? String(s.filter_tags).split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
+    : [];
+
   return {
     id: s.id,
     name: s.name,
-    categories: [s.category || 'food'],
-    categoryLabel: s.description || `${s.category || 'Campus'} Store`,
+    category: cat,
+    categories: [cat],
+    categoryLabel: s.description || `${cat.charAt(0).toUpperCase() + cat.slice(1)} Store`,
+    location: loc,
+    floor: loc,
+    filterTags: filterTags,
     coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
     status: s.is_open ? 'open' : 'closed',
     statusLabel: s.is_open ? 'Open' : 'Closed',
-    isVisible: s.is_visible !== false, // default visible when null
+    isVisible: s.is_visible !== false,
+    deliveryAvailable: s.delivery_available !== false,
+    pickupAvailable: s.pickup_available !== false,
     openingTime: s.opening_time || '8:00 AM',
     closingTime: s.closing_time || '10:00 PM',
-    distance: 2,
-    walkingTime: 3,
-    floor: s.floor || 'Ground Floor',
     rating: Number(s.rating) || 4.5,
     popularity: s.popularity || 85
   };

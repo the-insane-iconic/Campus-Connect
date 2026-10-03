@@ -743,42 +743,72 @@ function renderProductsPanel() {
     banner.remove();
   }
 
-  renderCategoryChips();
   renderProductGrid();
-}
-
-function renderCategoryChips() {
-  const chips = document.getElementById('store-cat-chips');
-  if (!chips) return;
-  const cats = SSD.store.productCategories || ['All'];
-  chips.innerHTML = cats.map(c => `
-    <button class="store-cat-chip ${c === SSD.activeCategory ? 'active' : ''}"
-            data-cat="${c}" aria-pressed="${c === SSD.activeCategory}">${c}</button>
-  `).join('');
-
-  chips.querySelectorAll('.store-cat-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      SSD.activeCategory = btn.dataset.cat;
-      SSD.searchQuery = '';
-      const input = document.getElementById('store-search-input');
-      if (input) input.value = '';
-      chips.querySelectorAll('.store-cat-chip').forEach(b => {
-        b.classList.toggle('active', b.dataset.cat === SSD.activeCategory);
-        b.setAttribute('aria-pressed', b.dataset.cat === SSD.activeCategory);
-      });
-      filterAndRenderProducts();
-    });
-  });
 }
 
 function filterAndRenderProducts() {
   const q = SSD.searchQuery.trim().toLowerCase();
   SSD.filteredProducts = SSD.products.filter(p => {
-    const matchCat = SSD.activeCategory === 'All' || p.subcat === SSD.activeCategory;
-    const matchQ = !q || p.name.toLowerCase().includes(q);
-    return matchCat && matchQ;
+    return !q || p.name.toLowerCase().includes(q) || (p.description && p.description.toLowerCase().includes(q));
   });
   renderProductGrid();
+}
+
+function openProductModal(p) {
+  if (!p) return;
+  const backdrop = document.getElementById('product-detail-modal-backdrop');
+  if (!backdrop) return;
+
+  const imgEl = document.getElementById('modal-prod-img');
+  const nameEl = document.getElementById('modal-prod-name');
+  const priceEl = document.getElementById('modal-prod-price');
+  const storeEl = document.getElementById('modal-prod-store');
+  const descEl = document.getElementById('modal-prod-desc');
+  const badgeEl = document.getElementById('modal-prod-stock-badge');
+  const addBtn = document.getElementById('modal-add-to-cart-btn');
+
+  const avail = p.availability === 'in-stock' ? 'in-stock' : p.availability === 'low-stock' ? 'low-stock' : 'out-stock';
+  const availLabel = p.availability === 'in-stock' ? '● In stock' : p.availability === 'low-stock' ? `● Only ${p.stock} left` : '○ Out of stock';
+  const isOut = p.availability === 'out-of-stock';
+
+  if (imgEl) imgEl.src = p.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
+  if (nameEl) nameEl.textContent = p.name;
+  if (priceEl) priceEl.textContent = `₹${p.price.toLocaleString('en-IN')}`;
+  if (storeEl) storeEl.innerHTML = `🏪 <span>${SSD.store?.name || 'Campus Store'}</span>`;
+  if (descEl) {
+    descEl.textContent = p.description || 'This item is freshly offered by the campus store. Visit store or add to cart for on-campus pickup/delivery.';
+  }
+  if (badgeEl) {
+    badgeEl.className = `product-modal-badge ${avail}`;
+    badgeEl.textContent = availLabel;
+  }
+  if (addBtn) {
+    addBtn.disabled = isOut;
+    addBtn.onclick = () => {
+      if (SSD.store?.status === 'closed') {
+        showSimpleToast(`⚠️ ${SSD.store.name} is offline. Online ordering is paused.`);
+        return;
+      }
+      const added = cartAddProduct(p);
+      if (added) {
+        showYayToast(p.name);
+        closeProductModal();
+      } else {
+        showSimpleToast('Max quantity reached');
+      }
+    };
+  }
+
+  backdrop.classList.add('open');
+  backdrop.setAttribute('aria-hidden', 'false');
+}
+
+function closeProductModal() {
+  const backdrop = document.getElementById('product-detail-modal-backdrop');
+  if (backdrop) {
+    backdrop.classList.remove('open');
+    backdrop.setAttribute('aria-hidden', 'true');
+  }
 }
 
 function renderProductGrid() {
@@ -801,8 +831,8 @@ function renderProductGrid() {
     grid.innerHTML = `
       <div class="store-no-products" style="padding: 48px 20px; text-align: center; width: 100%; grid-column: 1 / -1;">
         <svg viewBox="0 0 24 24" style="width: 36px; height: 36px; stroke: var(--text-muted); fill: none; margin-bottom: 10px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <h4 style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px;">No products found</h4>
-        <p style="font-size: 13.5px; color: var(--text-secondary);">Try a different search or category filter</p>
+        <h4 style="font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px;">No matching products found</h4>
+        <p style="font-size: 13.5px; color: var(--text-secondary);">Try clearing your search query</p>
       </div>`;
     return;
   }
@@ -811,26 +841,50 @@ function renderProductGrid() {
     const avail = p.availability === 'in-stock' ? 'in-stock' : p.availability === 'low-stock' ? 'low-stock' : 'out-stock';
     const availLabel = p.availability === 'in-stock' ? 'In stock' : p.availability === 'low-stock' ? `Only ${p.stock} left` : 'Out of stock';
     const isOut = p.availability === 'out-of-stock';
+    const descText = p.description ? p.description.trim() : '';
 
     return `
-      <div class="store-product-card" data-pid="${p.id}">
+      <div class="store-product-card" data-pid="${p.id}" tabindex="0" role="button" aria-label="${p.name}">
         <div class="store-product-img-wrap">
           <img src="${p.image}" alt="${p.name}" loading="lazy"
-               onerror="this.src='https://images.unsplash.com/photo-1503602642458-232111445657?w=400&auto=format&fit=crop&q=80'">
+               onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80'">
+          <span class="store-product-stock-tag ${avail}">
+            <span class="avdot"></span>${availLabel}
+          </span>
         </div>
         <div class="store-product-body">
-          <div class="store-product-name">${p.name}</div>
-          <div class="store-product-price">₹${p.price.toLocaleString('en-IN')}</div>
-          <div class="store-product-avail ${avail}">
-            <span class="avdot"></span>${availLabel}
+          <div class="store-product-name" title="${p.name}">${p.name}</div>
+          ${descText ? `
+            <div class="store-product-desc" title="${descText}">${descText}</div>
+          ` : `
+            <div class="store-product-desc store-desc-placeholder">Tap to view details & options</div>
+          `}
+          <div class="store-product-footer">
+            <div class="store-product-price-block">
+              <span class="currency-symbol">₹</span>
+              <span class="price-val">${p.price.toLocaleString('en-IN')}</span>
+            </div>
+            <button class="store-add-btn" data-pid="${p.id}" aria-label="Add ${p.name} to cart" ${isOut ? 'disabled' : ''}>
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>Add</span>
+            </button>
           </div>
         </div>
-        <button class="store-add-btn" data-pid="${p.id}" aria-label="Add ${p.name} to cart" ${isOut ? 'disabled' : ''}>
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
       </div>`;
   }).join('');
 
+  // Wire product card click to open product modal
+  grid.querySelectorAll('.store-product-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      // If user clicked the Add button directly, let button handler deal with it
+      if (e.target.closest('.store-add-btn')) return;
+      const pid = card.dataset.pid;
+      const product = SSD.products.find(p => p.id === pid);
+      if (product) openProductModal(product);
+    });
+  });
+
+  // Wire add-to-cart button
   grid.querySelectorAll('.store-add-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -845,13 +899,23 @@ function renderProductGrid() {
       if (added) {
         showYayToast(product.name);
         // Spring animation on the button
-        btn.style.transform = 'scale(0.7)';
+        btn.style.transform = 'scale(0.85)';
         setTimeout(() => { btn.style.transform = ''; }, 180);
       } else {
         showSimpleToast('Max quantity reached');
       }
     });
   });
+
+  // Wire close buttons for the modal if present
+  const closeBtn = document.getElementById('product-modal-close-btn');
+  if (closeBtn) closeBtn.onclick = closeProductModal;
+  const backdrop = document.getElementById('product-detail-modal-backdrop');
+  if (backdrop) {
+    backdrop.onclick = (e) => {
+      if (e.target === backdrop) closeProductModal();
+    };
+  }
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -1221,22 +1285,27 @@ function initEventListeners() {
    ───────────────────────────────────────────────────────── */
 function syncSidebarProfile() {
   try {
-    let user = null;
-    const raw = localStorage.getItem('unimall_v1');
-    if (raw) {
-      const p = JSON.parse(raw);
-      if (p.currentUser) user = p.currentUser;
-    }
-    const auth = localStorage.getItem('unimall_auth');
-    if (auth) {
-      const a = JSON.parse(auth);
-      user = { ...(user || {}), ...a };
+    let user = (typeof window.UserManager !== 'undefined' && typeof window.UserManager.getActiveUser === 'function')
+      ? window.UserManager.getActiveUser()
+      : null;
+
+    if (!user) {
+      const raw = localStorage.getItem('unimall_v1');
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (p.currentUser) user = p.currentUser;
+      }
+      const auth = localStorage.getItem('unimall_auth');
+      if (auth) {
+        const a = JSON.parse(auth);
+        user = { ...(user || {}), ...a };
+      }
     }
     if (!user) return;
 
-    const nameEl = document.getElementById('sidebar-name-el');
-    const roleEl = document.getElementById('sidebar-role-el');
-    const avatarEl = document.getElementById('sidebar-avatar-el');
+    const nameEl = document.getElementById('sidebarProfileName') || document.getElementById('sidebar-name-el') || document.querySelector('.sidebar-profile-name');
+    const roleEl = document.getElementById('sidebarProfileRole') || document.getElementById('sidebar-role-el') || document.querySelector('.sidebar-profile-role');
+    const avatarEl = document.getElementById('sidebarAvatar') || document.getElementById('sidebar-avatar-el') || document.querySelector('.sidebar-avatar');
 
     if (nameEl) nameEl.textContent = user.name || 'Campus Student';
     if (roleEl) {

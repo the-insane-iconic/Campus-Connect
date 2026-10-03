@@ -207,9 +207,164 @@ function getCompleteStoresList() {
 
 // ─── 1. ALL STORES DIRECTORY & LIVE CONTROLS ─────────────────────
 
+let adminStoreFilters = [];
+
+async function renderAdminFilterPills() {
+  const container = document.getElementById('admin-filters-pill-list');
+  if (!container) return;
+
+  if (window.UniMallDB && typeof window.UniMallDB.getStoreFilters === 'function') {
+    try {
+      adminStoreFilters = await window.UniMallDB.getStoreFilters();
+    } catch(e) {
+      console.warn('Error fetching store filters in admin:', e);
+    }
+  }
+  if (!adminStoreFilters || adminStoreFilters.length === 0) {
+    adminStoreFilters = [
+      { id: 'filter_food', name: 'Food & Dining' },
+      { id: 'filter_groceries', name: 'Groceries & Essentials' },
+      { id: 'filter_electronics', name: 'Electronics & Tech' },
+      { id: 'filter_stationery', name: 'Stationery & Books' },
+      { id: 'filter_fashion', name: 'Fashion & Apparel' },
+      { id: 'filter_services', name: 'Campus Services' }
+    ];
+  }
+
+  container.innerHTML = adminStoreFilters.map(f => `
+    <span class="badge-status" style="display:inline-flex; align-items:center; gap:6px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; font-size:12px; padding:4px 10px; border-radius:999px;">
+      <span>🏷️ ${escapeHtml(f.name)}</span>
+      <button type="button" onclick="handleAdminDeleteFilter('${f.id}')" title="Delete filter"
+              style="border:none; background:none; color:#93C5FD; font-size:13px; cursor:pointer; line-height:1; padding:0 2px;">
+        ✕
+      </button>
+    </span>
+  `).join('');
+}
+window.renderAdminFilterPills = renderAdminFilterPills;
+
+async function handleAdminCreateFilter(e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('input-new-filter-name');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+
+  try {
+    if (window.UniMallDB && typeof window.UniMallDB.createStoreFilter === 'function') {
+      await window.UniMallDB.createStoreFilter(val);
+      showToast(`Filter "${val}" saved to database!`, 'success');
+    }
+    input.value = '';
+    await renderAdminFilterPills();
+    loadAllStoresMonitor();
+  } catch (err) {
+    showToast('Failed to create filter: ' + err.message, 'error');
+  }
+}
+window.handleAdminCreateFilter = handleAdminCreateFilter;
+
+async function handleAdminDeleteFilter(filterId) {
+  if (!confirm('Are you sure you want to delete this filter from the database?')) return;
+  try {
+    if (window.UniMallDB && typeof window.UniMallDB.deleteStoreFilter === 'function') {
+      await window.UniMallDB.deleteStoreFilter(filterId);
+      showToast('Filter removed from database.', 'success');
+    }
+    await renderAdminFilterPills();
+    loadAllStoresMonitor();
+  } catch (err) {
+    showToast('Failed to delete filter: ' + err.message, 'error');
+  }
+}
+window.handleAdminDeleteFilter = handleAdminDeleteFilter;
+
+function openStoreFilterModal(storeId) {
+  const allStores = getCompleteStoresList();
+  const store = allStores.find(s => s.id === storeId);
+  if (!store) return;
+
+  const modal = document.getElementById('modal-tag-store-filters');
+  const titleEl = document.getElementById('tag-modal-store-name');
+  const idInput = document.getElementById('tag-modal-store-id');
+  const listEl = document.getElementById('store-filter-checkboxes');
+  if (!modal || !listEl) return;
+
+  if (titleEl) titleEl.textContent = `Assign Filters: ${store.name}`;
+  if (idInput) idInput.value = storeId;
+
+  const currentTags = (store.filter_tags || store.filterTags || '')
+    .toString()
+    .split(',')
+    .map(t => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  listEl.innerHTML = adminStoreFilters.map(f => {
+    const isChecked = currentTags.includes(f.name.toLowerCase()) || 
+                      currentTags.includes(f.id.toLowerCase()) ||
+                      (store.category && store.category.toLowerCase().includes(f.id.replace('filter_', '')));
+    return `
+      <label style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; cursor:pointer;">
+        <input type="checkbox" name="store_filter_tag" value="${escapeHtml(f.name)}" ${isChecked ? 'checked' : ''} style="width:16px; height:16px;" />
+        <span style="font-size:13px; font-weight:600; color:var(--text-main);">🏷️ ${escapeHtml(f.name)}</span>
+      </label>
+    `;
+  }).join('');
+
+  modal.classList.remove('hidden');
+}
+window.openStoreFilterModal = openStoreFilterModal;
+
+function closeStoreFilterModal() {
+  const modal = document.getElementById('modal-tag-store-filters');
+  if (modal) modal.classList.add('hidden');
+}
+window.closeStoreFilterModal = closeStoreFilterModal;
+
+async function saveStoreFiltersFromModal() {
+  const idInput = document.getElementById('tag-modal-store-id');
+  const storeId = idInput?.value;
+  if (!storeId) return;
+
+  const checkboxes = document.querySelectorAll('input[name="store_filter_tag"]:checked');
+  const selectedNames = Array.from(checkboxes).map(cb => cb.value.trim());
+
+  const btn = document.getElementById('btn-save-store-filters');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving to Database...';
+  }
+
+  try {
+    if (window.UniMallDB && typeof window.UniMallDB.updateStoreFilters === 'function') {
+      await window.UniMallDB.updateStoreFilters(storeId, selectedNames);
+    }
+    const allStores = getCompleteStoresList();
+    const st = allStores.find(s => s.id === storeId);
+    if (st) {
+      st.filter_tags = selectedNames.join(',');
+      st.filterTags = selectedNames.join(',');
+    }
+
+    showToast(`Store filters for ${storeId} updated in database!`, 'success');
+    closeStoreFilterModal();
+    loadAllStoresMonitor();
+  } catch (err) {
+    showToast('Failed to save filters: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save to Database';
+    }
+  }
+}
+window.saveStoreFiltersFromModal = saveStoreFiltersFromModal;
+
 function loadAllStoresMonitor() {
   const tbody = document.getElementById('all-stores-tbody');
   if (!tbody) return;
+
+  renderAdminFilterPills();
 
   const allStores = getCompleteStoresList();
   const storeStatuses = JSON.parse(localStorage.getItem('unimall_store_statuses') || '{}');
@@ -219,18 +374,22 @@ function loadAllStoresMonitor() {
   if (elStores) elStores.textContent = allStores.length;
 
   if (allStores.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6" style="color: var(--text-muted);">No campus stores registered.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6" style="color: var(--text-muted);">No campus stores registered.</td></tr>';
     return;
   }
 
   tbody.innerHTML = allStores.map(s => {
     const isOpen = storeStatuses[s.id] !== false; // Default to open
-    // is_visible: default true (visible) if not in localStorage
     const isVisible = storeVisibility[s.id] !== false;
     const statusClass = isOpen ? 'completed' : 'cancelled';
     const statusLabel = isOpen ? '● Online' : '○ Offline';
     const visClass = isVisible ? 'completed' : 'preparing';
     const visLabel = isVisible ? '👁 Visible' : '🚫 Hidden';
+    const tags = (s.filter_tags || s.filterTags || '')
+      .toString()
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
 
     return `
       <tr style="opacity: ${isVisible ? '1' : '0.62'};">
@@ -245,6 +404,19 @@ function loadAllStoresMonitor() {
         </td>
         <td style="font-size: 13px;">${escapeHtml(s.category)}</td>
         <td style="font-size: 13px;">${escapeHtml(s.location)}</td>
+        <td>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px;">
+              ${tags.length > 0 ? tags.map(tag => `
+                <span style="font-size: 10.5px; font-weight: 600; background: #EFF6FF; color: #1D4ED8; padding: 2px 7px; border-radius: 4px; border: 1px solid #DBEAFE;">${escapeHtml(tag)}</span>
+              `).join('') : '<span style="font-size: 11px; color: var(--text-muted);">No tags yet</span>'}
+            </div>
+            <button type="button" class="btn-action secondary" onclick="openStoreFilterModal('${s.id}')"
+                    style="height: 24px; font-size: 11px; padding: 0 8px; align-self: flex-start; margin-top: 3px;">
+              🏷️ Tag Filters
+            </button>
+          </div>
+        </td>
         <td>
           <div style="display: flex; flex-direction: column; gap: 4px;">
             <span class="badge-status ${statusClass}" style="font-size: 11px;">${statusLabel}</span>

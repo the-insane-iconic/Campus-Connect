@@ -40,6 +40,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.currentAdminUser = currentAdminUser;
     window.currentAuthorizedStores = currentAuthorizedStores;
 
+    // Strict Security Guard: Platform Admin only! If a merchant accesses /admin, route to /merchant/
+    const isPlatform = (currentAdminUser && (
+      currentAdminUser.role === 'platform_admin' ||
+      currentAdminUser.role === 'admin' ||
+      currentAdminUser.role === 'superadmin' ||
+      (currentAdminUser.email && currentAdminUser.email.toLowerCase() === 'anupamyadav6477@gmail.com') ||
+      currentAdminUser.name === 'Campus Connect Admin'
+    ));
+
+    if (!isPlatform) {
+      console.info('[Admin Guard] Merchant detected in admin area. Redirecting to /merchant/index.html…');
+      window.location.replace('/merchant/index.html');
+      return;
+    }
+
+    // Force role to platform_admin for consistent downstream behavior
+    currentAdminUser.role = 'platform_admin';
+    window.activeStoreId = 'all';
+    activeStoreId = 'all';
+    sessionStorage.setItem('unimall_admin_active_store', 'all');
+
     window.getCurrentAdminUser = function() {
       if (window.currentAdminUser) return window.currentAdminUser;
       if (typeof currentAdminUser !== 'undefined' && currentAdminUser) return currentAdminUser;
@@ -127,6 +148,25 @@ function setupUserProfile() {
     document.querySelectorAll('.merchant-only').forEach(el => {
       el.style.display = 'none';
     });
+
+    // Configure Platform Admin specific metric labels
+    const lblSales = document.getElementById('lbl-dash-sales');
+    const lblCustomers = document.getElementById('lbl-dash-customers');
+    const lblOrders = document.getElementById('lbl-dash-orders');
+    const lblPayout = document.getElementById('lbl-dash-payout');
+    const subSales = document.getElementById('sub-dash-sales');
+    const subCustomers = document.getElementById('sub-dash-customers');
+    const subOrders = document.getElementById('sub-dash-orders');
+    const subPayout = document.getElementById('sub-dash-payout');
+
+    if (lblSales) lblSales.textContent = "Today's Campus GMV";
+    if (lblCustomers) lblCustomers.textContent = 'Active Customers';
+    if (lblOrders) lblOrders.textContent = 'Total Campus Orders';
+    if (lblPayout) lblPayout.textContent = 'Platform Commission';
+    if (subSales) subSales.textContent = 'Cumulative campus sales today';
+    if (subCustomers) subCustomers.textContent = 'Students ordering across campus';
+    if (subOrders) subOrders.textContent = 'Orders across all stores';
+    if (subPayout) subPayout.textContent = 'Platform commission revenue';
   } else {
     // ── Merchant / Single Store Owner Experience ──
     document.body.classList.remove('role-platform_admin');
@@ -187,49 +227,14 @@ function setupUserProfile() {
 function setupStoreContext() {
   const selectorWrapper = document.getElementById('store-selector-wrapper');
   const platformPill = document.getElementById('platform-control-pill');
-  const selector = document.getElementById('store-selector');
-  const storedActive = sessionStorage.getItem('unimall_admin_active_store');
 
-  if (currentAdminUser && currentAdminUser.role === 'platform_admin') {
-    // Platform Admin is always scoped campus-wide for Platform Overview & Analytics
-    activeStoreId = 'all';
-    window.activeStoreId = 'all';
-    sessionStorage.setItem('unimall_admin_active_store', 'all');
+  activeStoreId = 'all';
+  window.activeStoreId = 'all';
+  sessionStorage.setItem('unimall_admin_active_store', 'all');
 
-    // Hide top-level store dropdown in header; show Platform Control Pill
-    if (selectorWrapper) selectorWrapper.classList.add('hidden');
-    if (platformPill) platformPill.classList.remove('hidden');
-  } else {
-    if (currentAuthorizedStores.length > 0) {
-      const matched = currentAuthorizedStores.find(s => s.store_id === storedActive);
-      activeStoreId = matched ? matched.store_id : currentAuthorizedStores[0].store_id;
-    }
-    window.activeStoreId = activeStoreId;
-    sessionStorage.setItem('unimall_admin_active_store', activeStoreId);
-
-    // If multi-store merchant, show dropdown; otherwise hide
-    if (platformPill) platformPill.classList.add('hidden');
-    if (selectorWrapper) {
-      if (currentAuthorizedStores.length > 1) {
-        selectorWrapper.classList.remove('hidden');
-      } else {
-        selectorWrapper.classList.add('hidden');
-      }
-    }
-  }
-
-  // Populate dropdown if present
-  if (selector && currentAuthorizedStores.length > 0) {
-    selector.innerHTML = currentAuthorizedStores.map(s => `
-      <option value="${s.store_id}" ${s.store_id === activeStoreId ? 'selected' : ''}>
-        ${s.store_name}
-      </option>
-    `).join('');
-
-    selector.addEventListener('change', (e) => {
-      setActiveStore(e.target.value);
-    });
-  }
+  // Permanently remove store switcher in Platform Admin HQ
+  if (selectorWrapper) selectorWrapper.style.display = 'none';
+  if (platformPill) platformPill.classList.remove('hidden');
 
   updateStoreDisplay();
 }

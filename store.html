@@ -53,11 +53,11 @@
       </a>
     </nav>
     <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-profile" id="sb-profile-footer">
-        <div class="sidebar-avatar" id="sidebar-avatar-el">A</div>
+      <a href="profile.html" class="sidebar-profile" id="sb-profile-footer" aria-label="View profile">
+        <div class="sidebar-avatar" id="sidebarAvatar"><span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">S</span></div>
         <div class="sidebar-profile-info">
-          <div class="sidebar-profile-name" id="sidebar-name-el">Campus Student</div>
-          <div class="sidebar-profile-role" id="sidebar-role-el">Student Account</div>
+          <div class="sidebar-profile-name" id="sidebarProfileName">Campus Student</div>
+          <div class="sidebar-profile-role" id="sidebarProfileRole">Campus Account</div>
         </div>
       </a>
     </div>
@@ -121,7 +121,6 @@
             </button>
           </div>
         </div>
-        <div class="store-cat-chips" id="store-cat-chips"></div>
         <div class="store-products-grid" id="store-products-grid"></div>
       </div>
 
@@ -238,6 +237,34 @@
       </div>
     </div>
     <div class="map-info-list" id="map-info-list"></div>
+  </div>
+</div>
+
+<!-- PRODUCT DETAIL QUICK-VIEW MODAL -->
+<div class="product-modal-backdrop" id="product-detail-modal-backdrop" aria-hidden="true">
+  <div class="product-detail-modal" role="dialog" aria-modal="true" aria-labelledby="modal-prod-name">
+    <button class="product-modal-close" id="product-modal-close-btn" aria-label="Close product view">×</button>
+    <div class="product-modal-img-wrap">
+      <img id="modal-prod-img" src="" alt="Product photo" />
+      <span class="product-modal-badge" id="modal-prod-stock-badge"></span>
+    </div>
+    <div class="product-modal-content">
+      <div class="product-modal-header">
+        <h3 class="product-modal-title" id="modal-prod-name"></h3>
+        <div class="product-modal-price" id="modal-prod-price"></div>
+      </div>
+      <div class="product-modal-store" id="modal-prod-store"></div>
+      <div class="product-modal-desc-section">
+        <div class="product-modal-desc-heading">About this item</div>
+        <p class="product-modal-desc" id="modal-prod-desc"></p>
+      </div>
+      <div class="product-modal-actions">
+        <button class="btn-product-add" id="modal-add-to-cart-btn">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add to Cart
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 

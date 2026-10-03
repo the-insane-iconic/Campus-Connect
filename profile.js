@@ -98,13 +98,21 @@ function loadProfileData() {
 
 function saveProfileData() {
   try {
-    let appData = {};
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      appData = JSON.parse(raw);
+    if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.updateProfile === 'function') {
+      window.UserManager.updateProfile(ProfileState.user);
+    } else {
+      let appData = {};
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        appData = JSON.parse(raw);
+      }
+      appData.currentUser = { ...ProfileState.user };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      localStorage.setItem(AUTH_KEY, JSON.stringify(ProfileState.user));
     }
-    appData.currentUser = { ...ProfileState.user };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+      window.UniMallDB.syncUser(ProfileState.user).catch(() => {});
+    }
     showToast('Campus details saved successfully');
   } catch (e) {
     console.error('Error saving profile data:', e);

@@ -30,44 +30,29 @@
         const authRaw = localStorage.getItem(AUTH_KEY);
         if (authRaw) {
           const u = JSON.parse(authRaw);
-          if (u && !u.isGuest && u.name) return u;
+          if (u && u.name) return u;
         }
       } catch (e) {}
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed.currentUser) return parsed.currentUser;
+          if (parsed.currentUser && parsed.currentUser.name) return parsed.currentUser;
         }
       } catch (e) {}
       return null;
     },
 
     async ensureGuestProfileAsync() {
-      // Return existing named guest profile if active in current session
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const u = parsed.currentUser;
-          if (u && u.isGuest && u.name && /^Student \d+$/.test(u.name)) {
-            const num = u.name.split(' ')[1] || '1';
-            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
-            u.id = guestId;
-            u.uid = guestId;
-            u.guestId = guestId;
-            // Consistent student+number+@campus.edu format
-            if (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu') {
-              u.email = `student${num}@campus.edu`;
-            }
-            this._persist(u);
-            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
-              window.UniMallDB.syncUser(u).catch(() => {});
-            }
-            return u;
-          }
+      // Return existing profile if already active in current session
+      const existing = this.getActiveUser();
+      if (existing && existing.name) {
+        this._persist(existing);
+        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+          window.UniMallDB.syncUser(existing).catch(() => {});
         }
-      } catch (e) {}
+        return existing;
+      }
 
       // Query authoritative Neon database for next global sequential student number
       let n = 1;
@@ -106,30 +91,15 @@
     },
 
     ensureGuestProfile() {
-      // Return existing named guest profile
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const u = parsed.currentUser;
-          if (u && u.isGuest && u.name && /^Student \d+$/.test(u.name)) {
-            const num = u.name.split(' ')[1] || '1';
-            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
-            u.id = guestId;
-            u.uid = guestId;
-            u.guestId = guestId;
-            // Consistent student+number+@campus.edu format
-            if (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu') {
-              u.email = `student${num}@campus.edu`;
-            }
-            this._persist(u);
-            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
-              window.UniMallDB.syncUser(u).catch(() => {});
-            }
-            return u;
-          }
+      // Return existing profile if already active
+      const existing = this.getActiveUser();
+      if (existing && existing.name) {
+        this._persist(existing);
+        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+          window.UniMallDB.syncUser(existing).catch(() => {});
         }
-      } catch (e) {}
+        return existing;
+      }
 
       const n = _bumpCounter();
       const guestId = 'usr_guest_' + n;
@@ -281,62 +251,59 @@
       } catch (e) {}
     },
 
+    updateProfile(updatedData) {
+      if (!updatedData) return null;
+      let active = this.getActiveUser() || {};
+      const merged = { ...active, ...updatedData };
+      this._persist(merged);
+      if (typeof AppState !== 'undefined') {
+        AppState.currentUser = Object.assign({}, AppState.currentUser, merged);
+      }
+      if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+        window.UniMallDB.syncUser(merged).catch(() => {});
+      }
+      window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: merged }));
+      return merged;
+    },
+
     boot() {
-      try {
-        const authRaw = localStorage.getItem(AUTH_KEY);
-        if (authRaw) {
-          const u = JSON.parse(authRaw);
-          if (u && !u.isGuest && u.name) {
-            if (typeof AppState !== 'undefined') {
-              AppState.currentUser = Object.assign({}, AppState.currentUser, u);
-            }
-            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
-              window.UniMallDB.syncUser(u).catch(() => {});
-            }
-            return u;
-          }
+      const active = this.getActiveUser();
+      if (active && active.name) {
+        if (typeof AppState !== 'undefined') {
+          AppState.currentUser = Object.assign({}, AppState.currentUser, active);
         }
-      } catch (e) {}
-
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          let u = parsed.currentUser;
-          if (u) {
-            // Fix legacy guest names not matching "Student N"
-            if (u.isGuest && (!u.name || !/^Student \d+$/.test(u.name))) {
-              const n = _bumpCounter();
-              u.name = 'Student ' + n;
-            }
-            const num = (u.name || '').split(' ')[1] || '1';
-            const guestId = u.id || u.uid || u.guestId || ('usr_guest_' + num);
-            u.id = guestId;
-            u.uid = guestId;
-            u.guestId = guestId;
-            if (u.isGuest && (!u.email || u.email.includes('campusconnect.edu') || u.email.startsWith('usr_guest_') || u.email === 'student@campus.edu')) {
-              u.email = `student${num}@campus.edu`;
-            } else if (!u.email) {
-              u.email = `student${num}@campus.edu`;
-            }
-            this._persist(u);
-
-            if (typeof AppState !== 'undefined') {
-              AppState.currentUser = Object.assign({}, AppState.currentUser, u);
-            }
-            if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
-              window.UniMallDB.syncUser(u).catch(() => {});
-            }
-            return u;
-          }
+        if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
+          window.UniMallDB.syncUser(active).catch(() => {});
         }
-      } catch (e) {}
-
+        return active;
+      }
       return null;
     }
   };
 
   window.UserManager = UserManager;
+
+  // Instant Cross-Tab Sync: keeps all tabs and windows synchronized with zero flicker
+  window.addEventListener('storage', function(e) {
+    if (e.key === AUTH_KEY || e.key === STORAGE_KEY) {
+      const user = UserManager.getActiveUser();
+      if (user) {
+        if (typeof AppState !== 'undefined') {
+          AppState.currentUser = Object.assign({}, AppState.currentUser, user);
+        }
+        window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: user }));
+      }
+    }
+  });
+
+  // Re-verify on window focus/tab switch so UI never displays outdated state
+  window.addEventListener('focus', function() {
+    const user = UserManager.getActiveUser();
+    if (user && typeof AppState !== 'undefined' && AppState.currentUser?.name !== user.name) {
+      AppState.currentUser = Object.assign({}, AppState.currentUser, user);
+      window.dispatchEvent(new CustomEvent('unimall:auth_state_changed', { detail: user }));
+    }
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { UserManager.boot(); });

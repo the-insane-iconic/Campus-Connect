@@ -450,39 +450,73 @@ button {
   margin-top: 8px;
 }
 
-.store-badge-pill {
+.store-type-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3.5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+  transition: transform 0.15s ease;
+}
+.store-type-badge:hover {
+  transform: translateY(-1px);
+}
+.store-type-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.store-location-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-
-.store-badge-pill.delivery {
-  background: #EEF2FF;
-  color: #4338CA;
-}
-
-.store-badge-pill.floor {
+  color: #334155;
   background: #F1F5F9;
-  color: #475569;
+  border: 1px solid #E2E8F0;
+  padding: 3.5px 9px;
+  border-radius: 999px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
-.store-badge-pill svg {
-  stroke: currentColor;
+.store-location-badge svg {
+  stroke: #475569;
   fill: none;
   stroke-width: 2;
+  flex-shrink: 0;
 }
 
 .store-meta-footer {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-top: 9px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
   padding-top: 8px;
   border-top: 1px dashed #E2E8F0;
+}
+
+.store-fulfillment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #059669;
+}
+.store-fulfillment-badge .fulfillment-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
 }
 
 .store-hours, .store-location {

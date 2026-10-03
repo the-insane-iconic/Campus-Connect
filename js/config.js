@@ -279,7 +279,8 @@ window.UniMallDB = {
         const rows = await this.neonSql(`
           SELECT id, name, slug, description, category, floor, location, phone, 
                  cover_image, is_open, is_visible, delivery_available, pickup_available, 
-                 opening_time, closing_time, rating, popularity
+                 opening_time, closing_time, rating, popularity,
+                 COALESCE(filter_tags, '') AS filter_tags
           FROM unimall_stores
           WHERE 1=1 ${visibilityClause}
           ORDER BY popularity DESC
@@ -843,6 +844,83 @@ window.UniMallDB = {
     }
   },
 
+  /* ── Get Store Filters (authoritative from Neon DB) ── */
+  async getStoreFilters(forceRefresh = false) {
+    if (forceRefresh) this.invalidateCache('store_filters');
+    return this._swr('store_filters', 60000, async () => {
+      try {
+        const rows = await this.neonSql(`
+          SELECT id, name, created_at
+          FROM unimall_store_filters
+          ORDER BY created_at ASC
+        `);
+        if (Array.isArray(rows) && rows.length > 0) return rows;
+      } catch (e) {
+        console.warn('[UniMallDB] getStoreFilters fallback:', e.message);
+      }
+      return [
+        { id: 'filter_food', name: 'Food & Dining' },
+        { id: 'filter_groceries', name: 'Groceries & Essentials' },
+        { id: 'filter_electronics', name: 'Electronics & Tech' },
+        { id: 'filter_stationery', name: 'Stationery & Books' },
+        { id: 'filter_fashion', name: 'Fashion & Apparel' },
+        { id: 'filter_services', name: 'Campus Services' }
+      ];
+    });
+  },
+
+  /* ── Create Store Filter in Database ── */
+  async createStoreFilter(name) {
+    if (!name || !name.trim()) return null;
+    const cleanName = name.trim();
+    const id = 'flt_' + cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 32);
+    try {
+      await this.neonSql(`
+        INSERT INTO unimall_store_filters (id, name, created_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+      `, [id, cleanName]);
+      this.invalidateCache('store_filters');
+      return { id, name: cleanName };
+    } catch (e) {
+      console.warn('[UniMallDB] createStoreFilter error:', e.message);
+      return null;
+    }
+  },
+
+  /* ── Delete Store Filter from Database ── */
+  async deleteStoreFilter(filterId) {
+    if (!filterId) return false;
+    try {
+      await this.neonSql(`DELETE FROM unimall_store_filters WHERE id = $1`, [filterId]);
+      this.invalidateCache('store_filters');
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] deleteStoreFilter error:', e.message);
+      return false;
+    }
+  },
+
+  /* ── Update Store Assigned Filter Tags in Database ── */
+  async updateStoreFilters(storeId, filterTags) {
+    if (!storeId) return false;
+    const tagsStr = Array.isArray(filterTags) ? filterTags.join(',') : String(filterTags || '');
+    try {
+      await this.neonSql(`
+        UPDATE unimall_stores
+        SET filter_tags = $1, updated_at = NOW()
+        WHERE LOWER(id) = LOWER($2)
+      `, [tagsStr, storeId]);
+      this.invalidateCache('stores');
+      this.invalidateCache('stores:all');
+      this.invalidateCache('store:' + storeId.toLowerCase());
+      return true;
+    } catch (e) {
+      console.warn('[UniMallDB] updateStoreFilters error:', e.message);
+      return false;
+    }
+  },
+
   /* ── Upsert Product into Neon PostgreSQL ── */
   async upsertProduct(prod) {
     try {
@@ -927,7 +1005,8 @@ window.UniMallDB = {
     if (!user) return false;
     try {
       const uid = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
-      const numMatch = (name || '').match(/\d+/);
+      const userName = user.name || 'Campus Student';
+      const numMatch = (userName || '').match(/\d+/);
       const studentNum = numMatch ? numMatch[0] : (String(uid).replace(/\D/g, '') || '1');
       const email = user.email || `student${studentNum}@campus.edu`;
       const phone = user.phone || '';
@@ -939,8 +1018,8 @@ window.UniMallDB = {
           email = EXCLUDED.email,
           phone = EXCLUDED.phone,
           updated_at = NOW();
-      `, [uid, name, email, phone]);
-      console.log(`[UniMallDB] User synced to Neon: ${name} (${uid})`);
+      `, [uid, userName, email, phone]);
+      console.log(`[UniMallDB] User synced to Neon: ${userName} (${uid})`);
       return true;
     } catch (e) {
       console.warn('[UniMallDB] syncUser Neon warning:', e.message);
@@ -1334,13 +1413,32 @@ window.UniMallDB = {
   await new Promise(r => setTimeout(r, 1500));
 
   try {
-    // 1. Stores: add is_visible column (controls whether store & its products appear in user UI)
+    // 1. Stores: add is_visible and filter_tags columns
     await window.UniMallDB.neonSql(`
       ALTER TABLE unimall_stores
-        ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT TRUE;
+        ADD COLUMN IF NOT EXISTS is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS filter_tags TEXT DEFAULT '';
     `).catch(() => {});
 
-    // 2. Products: add home-screen flag columns
+    // 2. Filters: dynamic admin-managed store filters table
+    await window.UniMallDB.neonSql(`
+      CREATE TABLE IF NOT EXISTS unimall_store_filters (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      INSERT INTO unimall_store_filters (id, name)
+      VALUES 
+        ('filter_food', 'Food & Dining'),
+        ('filter_groceries', 'Groceries & Essentials'),
+        ('filter_electronics', 'Electronics & Tech'),
+        ('filter_stationery', 'Stationery & Books'),
+        ('filter_fashion', 'Fashion & Apparel'),
+        ('filter_services', 'Campus Services')
+      ON CONFLICT (id) DO NOTHING;
+    `).catch(() => {});
+
+    // 3. Products: add home-screen flag columns
     await window.UniMallDB.neonSql(`
       ALTER TABLE unimall_products
         ADD COLUMN IF NOT EXISTS is_nearby    BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1348,10 +1446,11 @@ window.UniMallDB = {
         ADD COLUMN IF NOT EXISTS is_restocked BOOLEAN NOT NULL DEFAULT FALSE;
     `).catch(() => {});
 
-    // 3. Invalidate SWR cache so the fresh schema is used on next fetch
+    // 4. Invalidate SWR cache so the fresh schema is used on next fetch
     window.UniMallDB.invalidateCache('stores');
     window.UniMallDB.invalidateCache('stores:all');
     window.UniMallDB.invalidateCache('products:all');
+    window.UniMallDB.invalidateCache('store_filters');
 
     console.log('[UniMall] DB migrations applied ✓');
   } catch (e) {

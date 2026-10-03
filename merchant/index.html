@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en" class="auth-checking">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>UniMall — Merchant Portal</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/admin/admin.css">
+  <link rel="stylesheet" href="/merchant/merchant.css">
+  
+  <style>
+    html.auth-checking body { visibility: hidden; }
+  </style>
+</head>
+<body class="role-merchant">
+
+  <div class="admin-layout">
+
+    <!-- ════════════ SIDEBAR ════════════ -->
+    <aside class="admin-sidebar" id="merchant-sidebar">
+      <!-- BRAND -->
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <span class="brand-dot"></span>
+          <span class="brand-text">Uni<strong>Mall</strong></span>
+        </div>
+        <span class="brand-badge" id="brand-portal-label">Merchant Dashboard</span>
+      </div>
+
+      <!-- STORE IDENTITY CARD (Isolated — No Switcher) -->
+      <div class="store-badge-card" style="margin: 12px 14px 16px; padding: 12px; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+        <div class="store-badge-avatar" id="sidebar-store-avatar" style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px;">S</div>
+        <div style="flex: 1; min-width: 0;">
+          <div id="sidebar-store-name" style="font-weight: 700; font-size: 13.5px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Loading…</div>
+          <div id="sidebar-store-status" style="font-size: 11.5px; font-weight: 600; color: #059669; margin-top: 2px;">● Open</div>
+        </div>
+      </div>
+
+      <!-- NAVIGATION -->
+      <nav class="sidebar-nav">
+        <div class="nav-group-label">MY STORE</div>
+
+        <button type="button" class="nav-item active" data-view="dashboard" id="nav-dashboard">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Store Dashboard</span>
+        </button>
+
+        <button type="button" class="nav-item" data-view="orders" id="nav-orders">
+          <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span>Live Orders</span>
+        </button>
+
+        <button type="button" class="nav-item" data-view="products" id="nav-products">
+          <svg viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <span>Products & Stock</span>
+        </button>
+
+        <div class="nav-group-label">STORE SETTINGS</div>
+
+        <button type="button" class="nav-item" data-view="store" id="nav-store">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Store Profile & Hours</span>
+        </button>
+
+        <button type="button" class="nav-item" data-view="analytics" id="nav-analytics">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Store Analytics</span>
+        </button>
+
+        <button type="button" class="nav-item" data-view="requests" id="nav-requests">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Product Requests</span>
+        </button>
+      </nav>
+
+      <!-- SIDEBAR FOOTER (USER & LOGOUT) -->
+      <div class="sidebar-footer">
+        <div class="user-pill">
+          <div class="user-avatar" id="sidebar-user-avatar">M</div>
+          <div class="user-details">
+            <div class="user-name" id="sidebar-user-name">Store Manager</div>
+            <div class="user-role" id="sidebar-user-role">Store Owner</div>
+          </div>
+          <button type="button" id="btn-logout" class="btn-logout-icon" title="Sign Out" aria-label="Sign Out">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ════════════ MAIN CONTENT ════════════ -->
+    <div class="admin-main">
+
+      <!-- TOP BAR -->
+      <header class="admin-topbar">
+        <div class="topbar-left">
+          <!-- MERCHANT STORE BADGE (ISOLATED) -->
+          <div class="merchant-store-badge">
+            <div class="store-badge-avatar" id="tb-store-avatar">S</div>
+            <span class="store-badge-name" id="tb-store-name">Campus Store</span>
+            <span class="store-badge-category" id="tb-store-category">Retail</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- STORE OPEN/CLOSED TOGGLE -->
+          <button type="button" id="btn-store-status-toggle" class="btn-status-toggle open" title="Click to toggle Open / Closed">
+            <span class="status-dot"></span>
+            <span class="status-label" id="topbar-status-text">Store Open</span>
+          </button>
+
+          <!-- VIEW STOREFRONT IN NEW TAB -->
+          <a href="/stores.html" target="_blank" class="btn-preview-store" id="btn-storefront-link" title="Open Public Storefront">
+            <span>Storefront</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+      </header>
+
+      <!-- ════ VIEW 1: STORE DASHBOARD ════ -->
+      <section class="admin-view" id="view-dashboard">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Store Dashboard</h1>
+            <p class="view-subtitle">Live daily revenue, customer orders, and operations summary.</p>
+          </div>
+          <button type="button" class="btn-action secondary btn-sm" onclick="loadMerchantDashboard()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- 4 KPI CARDS -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon-wrap" style="background:#EFF6FF; color:#2563EB;">💰</div>
+            <div class="kpi-content">
+              <span class="kpi-label">Today's Revenue</span>
+              <div class="kpi-value" id="dash-metric-sales">₹0</div>
+              <span class="kpi-subtext">Sales processed today</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-wrap" style="background:#F0FDF4; color:#059669;">👥</div>
+            <div class="kpi-content">
+              <span class="kpi-label">My Customers</span>
+              <div class="kpi-value" id="dash-metric-customers">0</div>
+              <span class="kpi-subtext">Students served</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-wrap" style="background:#FEF3C7; color:#D97706;">📦</div>
+            <div class="kpi-content">
+              <span class="kpi-label">Orders Received</span>
+              <div class="kpi-value" id="dash-metric-orders">0</div>
+              <span class="kpi-subtext">Total store orders</span>
+            </div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-icon-wrap" style="background:#F3E8FF; color:#7C3AED;">💳</div>
+            <div class="kpi-content">
+              <span class="kpi-label">My Earnings</span>
+              <div class="kpi-value" id="dash-metric-payout">₹0</div>
+              <span class="kpi-subtext">Net earnings (after 5% platform fee)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- QUICK OPERATIONS -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 24px;">
+          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('orders')">
+            <div style="font-size:24px; margin-bottom:8px;">⚡</div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Incoming Orders & Queue</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin:0;">Process orders, start prep timers, and alert students when items are ready.</p>
+          </div>
+
+          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('products')">
+            <div style="font-size:24px; margin-bottom:8px;">📦</div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Products & Inventory</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin:0;">Update pricing, manage stock availability, and edit merchant product descriptions.</p>
+          </div>
+
+          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('store')">
+            <div style="font-size:24px; margin-bottom:8px;">⚙️</div>
+            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Store Hours & Campus Location</h3>
+            <p style="font-size:13px; color:var(--text-muted); margin:0;">Configure campus building location (e.g. Food Court, Cafeteria 34th) and opening hours.</p>
+          </div>
+        </div>
+
+        <!-- RECENT ORDERS SECTION -->
+        <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); margin-top:24px; overflow:hidden; box-shadow:var(--shadow-sm);">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border);">
+            <h3 style="font-size:15px; font-weight:700; margin:0;">Recent Incoming Orders</h3>
+            <button type="button" class="btn-action secondary btn-sm" onclick="switchMerchantView('orders')">View All Orders</button>
+          </div>
+          <div id="dash-recent-orders-list">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ VIEW 2: LIVE ORDERS ════ -->
+      <section class="admin-view hidden" id="view-orders">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Live Orders Queue</h1>
+            <p class="view-subtitle">Process incoming customer orders and update preparation status in real-time.</p>
+          </div>
+          <button type="button" class="btn-action secondary btn-sm" onclick="loadMerchantOrders()">Refresh</button>
+        </div>
+
+        <!-- FILTER CHIPS & SEARCH -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin-bottom:18px;">
+          <div class="order-filter-chips" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="order-filter-tab active" data-status="all">All Orders</button>
+            <button type="button" class="order-filter-tab" data-status="pending">Incoming</button>
+            <button type="button" class="order-filter-tab" data-status="preparing">Preparing</button>
+            <button type="button" class="order-filter-tab" data-status="ready">Ready for Pickup</button>
+            <button type="button" class="order-filter-tab" data-status="delivered">Delivered</button>
+          </div>
+          <div>
+            <input type="text" id="orders-search-input" placeholder="Search by customer or #ID…" class="form-input" style="width:240px; padding:6px 12px; font-size:13px;" />
+          </div>
+        </div>
+
+        <!-- ORDERS TABLE -->
+        <div class="table-responsive" style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm);">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orders-table-body">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+          <div id="orders-empty-state" class="empty-state hidden" style="padding:48px 16px; text-align:center;">
+            <div style="font-size:36px; margin-bottom:8px;">📦</div>
+            <p style="font-weight:700; font-size:15px; margin:0 0 4px;">No matching orders</p>
+            <p style="color:var(--text-muted); font-size:13px; margin:0;">New customer orders will appear here automatically.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ VIEW 3: PRODUCTS & STOCK ════ -->
+      <section class="admin-view hidden" id="view-products">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Products & Inventory</h1>
+            <p class="view-subtitle">Manage store catalog, prices, stock availability, and rich product descriptions.</p>
+          </div>
+          <button type="button" class="btn-action primary" onclick="openAddProductModal()">
+            <span>+ Add Product</span>
+          </button>
+        </div>
+
+        <!-- SEARCH & STOCK FILTERS -->
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin-bottom:20px;">
+          <input type="text" id="products-search-input" placeholder="Search catalog items…" class="form-input" style="width:280px; padding:8px 14px; font-size:13px;" />
+          
+          <select id="products-stock-select" class="form-select" style="padding:8px 14px; font-size:13px;">
+            <option value="all">All Products</option>
+            <option value="in_stock">In Stock Only</option>
+            <option value="out_of_stock">Out of Stock Only</option>
+          </select>
+        </div>
+
+        <!-- PRODUCTS GRID -->
+        <div id="merchant-products-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:20px;">
+          <!-- Populated via JS -->
+        </div>
+
+        <div id="products-empty-state" class="empty-state hidden" style="padding:48px 16px; text-align:center; background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); margin-top:20px;">
+          <div style="font-size:36px; margin-bottom:8px;">🏷️</div>
+          <p style="font-weight:700; font-size:15px; margin:0 0 4px;">No products found</p>
+          <p style="color:var(--text-muted); font-size:13px; margin:0 0 16px;">Add new items with merchant descriptions to show in your store.</p>
+          <button type="button" class="btn-action primary" onclick="openAddProductModal()">Add First Product</button>
+        </div>
+      </section>
+
+      <!-- ════ VIEW 4: STORE PROFILE & SETTINGS ════ -->
+      <section class="admin-view hidden" id="view-store">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Store Profile & Hours</h1>
+            <p class="view-subtitle">Configure your campus building location, operating hours, and contact details.</p>
+          </div>
+        </div>
+
+        <div style="max-width:720px; background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; box-shadow:var(--shadow-sm);">
+          <form id="merchant-settings-form">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;">
+              <div>
+                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Name</label>
+                <input type="text" id="setting-store-name" class="form-input" required />
+              </div>
+              <div>
+                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Category</label>
+                <input type="text" id="setting-store-category" class="form-input" placeholder="e.g. Food & Drinks, Groceries" required />
+              </div>
+            </div>
+
+            <div style="margin-bottom:18px;">
+              <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">
+                Campus Location (Exact Building / Floor)
+              </label>
+              <input type="text" id="setting-store-location" class="form-input" placeholder="e.g. Food Court 1, 2, 3 or Cafeteria in 34building floor 6th" required />
+              <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Students will see this exact location on the store card and details page.</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;">
+              <div>
+                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Phone / WhatsApp</label>
+                <input type="text" id="setting-store-phone" class="form-input" placeholder="+91 98765 43210" />
+              </div>
+              <div>
+                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Status</label>
+                <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:600; font-size:13.5px; cursor:pointer;">
+                  <input type="checkbox" id="setting-store-open-status" style="width:18px; height:18px;" />
+                  <span>Store is currently open for campus orders</span>
+                </label>
+              </div>
+            </div>
+
+            <div style="margin-bottom:24px;">
+              <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Description</label>
+              <textarea id="setting-store-desc" class="form-input" rows="3" placeholder="Brief overview of what your store offers to campus students…"></textarea>
+            </div>
+
+            <button type="submit" id="btn-save-settings" class="btn-action primary" style="padding:10px 24px; font-size:14px; font-weight:700;">
+              Save Store Changes
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <!-- ════ VIEW 5: STORE ANALYTICS ════ -->
+      <section class="admin-view hidden" id="view-analytics">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Store Analytics</h1>
+            <p class="view-subtitle">Performance breakdown and top selling campus items.</p>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <span class="kpi-label">Cumulative Store Revenue</span>
+            <div class="kpi-value" id="analytic-total-revenue">₹0</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Total Completed Orders</span>
+            <div class="kpi-value" id="analytic-total-orders">0</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">Net Store Earnings</span>
+            <div class="kpi-value" id="analytic-net-earnings">₹0</div>
+          </div>
+        </div>
+
+        <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-top:24px; box-shadow:var(--shadow-sm);">
+          <h3 style="font-size:15px; font-weight:700; margin:0 0 14px;">Top Selling Items</h3>
+          <div id="analytic-top-items">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ════ VIEW 6: PRODUCT REQUESTS ════ -->
+      <section class="admin-view hidden" id="view-requests">
+        <div class="view-header">
+          <div>
+            <h1 class="view-title">Student Demand Requests</h1>
+            <p class="view-subtitle">Items students have requested to be stocked in your store.</p>
+          </div>
+        </div>
+        <div id="merchant-requests-list" style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);">
+          <!-- Populated via JS -->
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ════ MODALS ════ -->
+
+  <!-- 1. ORDER DETAIL MODAL -->
+  <div class="modal-backdrop hidden" id="modal-order-detail">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title" id="order-modal-title">Order Details</h2>
+        <button type="button" class="modal-close" onclick="closeOrderDetailModal()">✕</button>
+      </div>
+      <div class="modal-body" id="order-modal-body">
+        <!-- Injected via JS -->
+      </div>
+      <div class="modal-footer" id="order-modal-footer">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ADD / EDIT PRODUCT MODAL (WITH RICH MERCHANT DESCRIPTION) -->
+  <div class="modal-backdrop hidden" id="modal-product-form">
+    <div class="modal-card product-modal-card" style="max-width:560px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="product-modal-title">Add New Product</h2>
+        <button type="button" class="modal-close" onclick="closeProductModal()">✕</button>
+      </div>
+      <form id="product-modal-form">
+        <div class="modal-body" style="padding:20px;">
+          <input type="hidden" id="prod-input-id" value="" />
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Product Name</label>
+            <input type="text" id="prod-input-name" class="form-input" placeholder="e.g. Masala Chai Flask (500ml)" required />
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+            <div>
+              <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Category</label>
+              <select id="prod-input-category" class="form-select" required>
+                <option value="food">Food & Meals</option>
+                <option value="juice">Juice & Drinks</option>
+                <option value="bakery">Bakery & Sweets</option>
+                <option value="stationery">Stationery & Books</option>
+                <option value="electronics">Electronics</option>
+                <option value="essentials">Daily Essentials</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Price (₹)</label>
+              <input type="number" id="prod-input-price" class="form-input" min="1" step="0.5" placeholder="80" required />
+            </div>
+          </div>
+
+          <!-- MERCHANT DESCRIPTION FIELD (AS REQUESTED) -->
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">
+              Merchant Product Description
+            </label>
+            <textarea id="prod-input-desc" class="form-input" rows="3" placeholder="Provide details, ingredients, size/portion, or notes for students…" required></textarea>
+            <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">This description is shown directly on the customer product card and details modal.</p>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Image URL</label>
+            <input type="url" id="prod-input-image" class="form-input" placeholder="https://images.unsplash.com/…" />
+          </div>
+
+          <div style="margin-top:10px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; cursor:pointer;">
+              <input type="checkbox" id="prod-input-avail" checked style="width:18px; height:18px;" />
+              <span>Available in Stock</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="padding:14px 20px; display:flex; justify-content:flex-end; gap:10px; background:#F8FAFC; border-top:1px solid var(--border);">
+          <button type="button" class="btn-action secondary" onclick="closeProductModal()">Cancel</button>
+          <button type="submit" id="btn-save-product" class="btn-action primary">Save to Catalog</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="/js/config.js"></script>
+  <script src="/merchant/js/merchant-auth.js"></script>
+  <script src="/merchant/js/merchant-dashboard.js"></script>
+  <script src="/merchant/js/merchant-orders.js"></script>
+  <script src="/merchant/js/merchant-products.js"></script>
+  <script src="/merchant/js/merchant-settings.js"></script>
+  <script src="/merchant/js/merchant-analytics.js"></script>
+
+</body>
+</html>
