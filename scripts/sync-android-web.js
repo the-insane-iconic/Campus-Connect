@@ -68,16 +68,6 @@ console.log('📱 Syncing web assets to www/ and Android assets...');
 const files = [
   'index.html',
   'store.html',
-  'cart.css',
-  'cart.js',
-  'orders.css',
-  'orders.js',
-  'profile.css',
-  'profile.js',
-  'store.css',
-  'store.js',
-  'stores.css',
-  'stores.js',
   'favicon.png',
   'manifest.json',
   'sw.js'
