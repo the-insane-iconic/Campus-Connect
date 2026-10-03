@@ -487,7 +487,11 @@ function handleReorder(orderId) {
     const orderNumText = order.order_number_display || order.order_number || `#${order.id}`;
     showToast(`Added ${order.items.length} item${order.items.length > 1 ? 's' : ''} from ${orderNumText} to cart! Opening cart...`);
     setTimeout(() => {
-      window.location.href = 'cart.html';
+      if (typeof window.navigate === 'function') {
+        window.navigate('cart');
+      } else {
+        window.location.href = 'index.html?view=cart';
+      }
     }, 700);
   } catch (e) {
     console.error('Reorder error:', e);

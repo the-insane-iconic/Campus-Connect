@@ -17,6 +17,31 @@ const AUTH_KEY    = 'unimall_auth';
 const STORAGE_KEY = 'unimall_v1';
 
 function initLoginPortal() {
+  // If user is already authenticated and did not explicitly pass ?logout=true, route them directly
+  const urlParams = new URLSearchParams(window.location.search);
+  const isExplicitLogout = urlParams.has('logout');
+  if (!isExplicitLogout) {
+    try {
+      const authRaw = localStorage.getItem(AUTH_KEY);
+      const adminToken = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
+      if (adminToken || authRaw) {
+        const user = authRaw ? JSON.parse(authRaw) : null;
+        if (user?.role === 'admin' || sessionStorage.getItem('unimall_admin_user')) {
+          window.location.replace('/admin/index.html');
+          return;
+        }
+        if (user?.role === 'merchant') {
+          window.location.replace('/merchant/index.html');
+          return;
+        }
+        if (user?.role === 'student' || user?.isGuest !== undefined || user?.name) {
+          window.location.replace('/index.html');
+          return;
+        }
+      }
+    } catch(e) {}
+  }
+
   // Elements - Login Modal
   const adminModal        = document.getElementById('adminLoginModal');
   const openModalBtn      = document.getElementById('openAdminModalBtn');
@@ -272,7 +297,7 @@ function initLoginPortal() {
 
             showToast('✓ Welcome, Administrator');
             setTimeout(() => {
-              window.location.replace('../admin/index.html');
+              window.location.replace('/admin/index.html');
             }, 600);
             return;
           }
@@ -318,7 +343,7 @@ function initLoginPortal() {
 
           showToast(`✓ Welcome, ${storeAccount.name}`);
           setTimeout(() => {
-            window.location.replace('../merchant/index.html');
+            window.location.replace('/merchant/index.html');
           }, 600);
           return;
         }
@@ -348,7 +373,7 @@ function initLoginPortal() {
 
           showToast(`✓ Welcome, ${regStore.storeName}`);
           setTimeout(() => {
-            window.location.replace('../merchant/index.html');
+            window.location.replace('/merchant/index.html');
           }, 600);
           return;
         }
@@ -380,11 +405,11 @@ function initLoginPortal() {
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: studentUser }));
           localStorage.setItem(AUTH_KEY, JSON.stringify(studentUser));
-          window.location.replace('../index.html');
+          window.location.replace('/index.html');
         }
       } catch (err) {
         console.warn('Google login fallback:', err);
-        window.location.replace('../index.html');
+        window.location.replace('/index.html');
       }
     });
   }
@@ -405,7 +430,7 @@ function initLoginPortal() {
       localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
       showToast('✓ Continuing as Guest Student');
       setTimeout(() => {
-        window.location.replace('../index.html');
+        window.location.replace('/index.html');
       }, 300);
     });
   }

@@ -472,28 +472,21 @@ loadAndRenderFilters();
    SEARCH
 ========================================================= */
 
-document
-  .getElementById("searchToggle")
-  ?.addEventListener("click", () => {
-    const searchSec = document.getElementById("storeSearchSection") || searchSection;
-    if (searchSec) {
-      searchSec.classList.toggle("hidden");
-      if (!searchSec.classList.contains("hidden") && storeSearch) {
-        storeSearch.focus();
-      }
-    }
-  });
-
-
 storeSearch?.addEventListener("input", event => {
   StoreState.searchQuery = event.target.value;
+  if (clearSearch) {
+    clearSearch.style.display = event.target.value.trim() ? "inline-flex" : "none";
+  }
+  updateResultsTitle();
   renderStores();
 });
 
 
 clearSearch?.addEventListener("click", () => {
   if (storeSearch) storeSearch.value = "";
+  if (clearSearch) clearSearch.style.display = "none";
   StoreState.searchQuery = "";
+  updateResultsTitle();
   renderStores();
   if (storeSearch) storeSearch.focus();
 });
@@ -639,26 +632,58 @@ function syncCategoryChip() {
 
 function updateResultsTitle() {
   const titleEl = document.getElementById("resultsTitle") || resultsTitle;
-  if (!titleEl) return;
-  if (StoreState.searchQuery) {
-    titleEl.textContent = "Search Results";
-    return;
-  }
+  const badge = document.getElementById("activeFilterBadge");
+  const badgeText = document.getElementById("activeFilterBadgeText");
+  const filterBtn = document.getElementById("filterButton");
 
   const categoryNames = {
     all: "All Stores",
-    food: "Food Stores",
-    stationery: "Stationery Stores",
-    fashion: "Fashion Stores",
-    sports: "Sports Stores",
-    electronics: "Electronics Stores",
-    services: "Services"
+    food: "Food & Dining",
+    stationery: "Stationery & Books",
+    fashion: "Fashion & Apparel",
+    sports: "Sports & Fitness",
+    electronics: "Electronics & Tech",
+    services: "Campus Services"
   };
 
-  titleEl.textContent =
-    categoryNames[StoreState.category] ||
-    "All Stores";
+  const isFiltered = (StoreState.category && StoreState.category !== 'all') || (StoreState.status && StoreState.status !== 'all');
+  if (filterBtn) {
+    filterBtn.classList.toggle('active', isFiltered);
+  }
+
+  if (badge && badgeText) {
+    if (isFiltered) {
+      badge.style.display = 'inline-flex';
+      badge.classList.remove('hidden');
+      const catLabel = StoreState.categoryName || categoryNames[StoreState.category] || StoreState.category;
+      badgeText.textContent = StoreState.status !== 'all' ? `${catLabel} (${StoreState.status})` : catLabel;
+    } else {
+      badge.style.display = 'none';
+      badge.classList.add('hidden');
+    }
+  }
+
+  if (titleEl) {
+    if (StoreState.searchQuery) {
+      titleEl.textContent = "Search Results";
+    } else {
+      titleEl.textContent = categoryNames[StoreState.category] || "All Stores";
+    }
+  }
 }
+
+window.clearActiveCategoryFilter = function() {
+  StoreState.category = 'all';
+  StoreState.status = 'all';
+  document.querySelectorAll("[data-sheet-category]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.sheetCategory === 'all');
+  });
+  document.querySelectorAll("[data-status]").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.status === 'all');
+  });
+  updateResultsTitle();
+  renderStores();
+};
 
 
 /* =========================================================

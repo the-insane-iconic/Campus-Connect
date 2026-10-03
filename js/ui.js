@@ -120,7 +120,7 @@ function showYayCartToast(productName = 'Item') {
       <div class="yay-toast-title">Yay! Added to your cart ✨</div>
       <div class="yay-toast-name">${productName}</div>
     </div>
-    <a href="cart.html" class="yay-toast-btn">View Cart →</a>
+    <a href="#" onclick="event.preventDefault(); navigate('cart');" class="yay-toast-btn">View Cart →</a>
   `;
 
   toast.classList.remove('show');

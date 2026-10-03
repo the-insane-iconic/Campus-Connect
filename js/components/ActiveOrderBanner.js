@@ -181,7 +181,7 @@
       } else if (typeof window.navigate === 'function') {
         window.navigate('orders');
       } else {
-        window.location.href = 'orders.html';
+        window.location.href = 'index.html?view=orders';
       }
     };
 

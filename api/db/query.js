@@ -54,10 +54,11 @@ function verifySessionToken(token) {
 
 function setCORSHeaders(req, res) {
   const origin = req.headers.origin || '';
-  const isAllowed = ALLOWED_ORIGINS.some(o => o && o === origin);
-  if (isAllowed || process.env.NODE_ENV === 'development') {
+  const isVercel = origin.endsWith('.vercel.app') || origin.includes('localhost') || origin.includes('127.0.0.1');
+  const isAllowed = isVercel || ALLOWED_ORIGINS.some(o => o && o === origin);
+  if (isAllowed || !origin || process.env.NODE_ENV === 'development') {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  } else if (!origin) {
+  } else {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -87,7 +88,7 @@ export default async function handler(req, res) {
     const isWrite = /^\s*(INSERT|UPDATE|DELETE)\b/i.test(query);
     if (isWrite) {
       // Check if it's a student order insertion, demand request, review, or store registration
-      const isPublicWrite = /^\s*INSERT\s+INTO\s+(unimall_orders|unimall_order_items|unimall_demand_requests|unimall_stores|unimall_reviews)\b/i.test(query);
+      const isPublicWrite = /^\s*INSERT\s+INTO\s+(unimall_orders|unimall_order_items|unimall_order_status_history|unimall_demand_requests|unimall_stores|unimall_reviews|unimall_users)\b/i.test(query);
 
       if (!isPublicWrite) {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();

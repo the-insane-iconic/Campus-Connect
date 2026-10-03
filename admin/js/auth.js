@@ -449,11 +449,11 @@ function setupLogout() {
       } catch {
         // Ignore logout request errors
       } finally {
-        sessionStorage.removeItem('unimall_admin_token');
-        sessionStorage.removeItem('unimall_admin_user');
-        sessionStorage.removeItem('unimall_admin_stores');
-        sessionStorage.removeItem('unimall_admin_active_store');
-        window.location.href = '../login/';
+        sessionStorage.clear();
+        localStorage.removeItem('unimall_auth');
+        localStorage.removeItem('unimall_admin_token');
+        localStorage.removeItem('unimall_admin_user');
+        window.location.replace('/login/?logout=true');
       }
     });
   }

@@ -215,40 +215,42 @@ function hideLogoutModal() {
 async function handleLogout() {
   hideLogoutModal();
 
-  // Use Neon Auth signOut (handles UserManager cleanup internally)
-  if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
-    try {
-      await window.UniMallAuth.signOut();
-      return;
-    } catch (e) {
-      console.warn('[Profile] Neon Auth signOut error:', e);
-    }
-  }
-
-  // Fallback: use UserManager directly
-  if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
-    window.UserManager.clearSession();
-  } else {
-    if (typeof firebaseAuth !== 'undefined' && firebaseAuth) {
-      try { await firebaseAuth.signOut(); } catch (e) {}
-    }
+  try {
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem('unimall_auth');
+    localStorage.removeItem('unimall_admin_token');
     localStorage.removeItem('userMode');
     localStorage.removeItem('unimall_has_visited');
+    sessionStorage.removeItem('unimall_admin_token');
+    sessionStorage.removeItem('unimall_admin_user');
+    sessionStorage.removeItem('unimall_merchant_store');
+
+    if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
+      window.UserManager.clearSession();
+    }
+
     try {
       const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         delete parsed.currentUser;
+        parsed.orders = [];
+        parsed.cart = [];
         localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(parsed));
       }
     } catch (e) {}
+
+    if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
+      window.UniMallAuth.signOut().catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[Profile] Logout error:', err);
   }
 
   showToast('Logged out successfully');
   setTimeout(() => {
-    window.location.href = 'login/';
-  }, 400);
+    window.location.replace('/login/?logout=true');
+  }, 350);
 }
 
 /* ─── CONNECT GOOGLE ACCOUNT (FROM GUEST) ────────────────── */

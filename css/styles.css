@@ -3320,11 +3320,18 @@ body.overlay-open {
   }
 }
 
-/* Universal Sub-view Header Styling */
+/* Universal Solid White Fixed Header Block for Stores, Orders, Cart, Profile */
 .stores-header,
 .orders-header,
 .cart-header,
 .profile-page-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 80 !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03) !important;
+  padding: calc(14px + env(safe-area-inset-top)) 18px 14px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -3342,12 +3349,69 @@ body.overlay-open {
   text-align: left !important;
 }
 
+.stores-header .header-title h1,
+.orders-header .header-title h1,
+.cart-header .header-title h1,
+.profile-page-header .header-title h1 {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.4px !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.stores-header .header-title p,
+.orders-header .header-title p,
+.cart-header .header-title p,
+.profile-page-header .header-title p {
+  margin: 2px 0 0 !important;
+  color: #64748b !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
 .stores-header .icon-button,
 .orders-header .icon-button,
 .cart-header .icon-button,
-.cart-header .clear-cart-btn,
 .profile-page-header .icon-button {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  color: #0f172a !important;
   flex-shrink: 0 !important;
+}
+
+.stores-header .icon-button:hover,
+.orders-header .icon-button:hover,
+.cart-header .icon-button:hover,
+.profile-page-header .icon-button:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.cart-header .clear-cart-btn {
+  flex-shrink: 0 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #ef4444 !important;
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+  padding: 6px 12px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.cart-header .clear-cart-btn:hover {
+  background: #fee2e2 !important;
 }
 
 @media (min-width: 768px) {
@@ -3362,7 +3426,7 @@ body.overlay-open {
   .orders-header,
   .cart-header,
   .profile-page-header {
-    padding: 24px 32px 18px !important;
+    padding: 20px 32px 18px !important;
     gap: 16px !important;
   }
 
@@ -3379,6 +3443,6 @@ body.overlay-open {
   .cart-header .header-title p,
   .profile-page-header .header-title p {
     font-size: 14px !important;
-    margin-top: 4px !important;
+    margin-top: 3px !important;
   }
 }

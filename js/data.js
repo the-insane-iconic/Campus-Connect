@@ -610,9 +610,6 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
-/* ─── STORES ─────────────────────────────────────────────── */
-let STORES = [...DEFAULT_STORES];
-window.STORES = STORES;
 
 /* ─── CATEGORIES ─────────────────────────────────────────── */
 const CATEGORIES = [
@@ -637,18 +634,42 @@ const AVAIL_CHIPS = [
 // Intentionally empty — populated from Neon DB via syncCatalogWithSupabase()
 // Shape reference:
 //   id, name, description, price, emoji, bg, categoryId, storeId,
-//   stock, availability, deliveryAvailable, pickupAvailable,
-//   rating, isNearby, isPopular, isRestocked
-let PRODUCTS = [...DEFAULT_PRODUCTS];
+/* ─── LOCAL STORAGE CACHING & DELTA-SYNC CONSTANTS ───────── */
+const LOCAL_STORES_KEY = 'unimall_local_stores_v2';
+const LOCAL_PRODUCTS_KEY = 'unimall_local_products_v2';
+const LOCAL_CATALOG_META_KEY = 'unimall_catalog_meta_v2';
+
+function getLocalCachedCatalog() {
+  try {
+    const rawStores = localStorage.getItem(LOCAL_STORES_KEY);
+    const rawProds = localStorage.getItem(LOCAL_PRODUCTS_KEY);
+    if (rawStores && rawProds) {
+      const parsedStores = JSON.parse(rawStores);
+      const parsedProds = JSON.parse(rawProds);
+      if (Array.isArray(parsedStores) && parsedStores.length > 0 && Array.isArray(parsedProds) && parsedProds.length > 0) {
+        return { stores: parsedStores, products: parsedProds };
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+const _cachedCatalog = getLocalCachedCatalog();
+
+/* ─── STORES & PRODUCTS (0ms Instant Local Cache Hydration) ─── */
+let STORES = _cachedCatalog ? _cachedCatalog.stores : [...DEFAULT_STORES];
+let PRODUCTS = _cachedCatalog ? _cachedCatalog.products : [...DEFAULT_PRODUCTS];
+window.STORES = STORES;
 window.PRODUCTS = PRODUCTS;
+
 /* ─── CAMPUS OPERATIONAL INFO ────────────────────────────── */
 const CAMPUS_INFO = {
   mallHours:   '8:00 AM – 10:00 PM',
   isOpen:      true,
   delivery:    { available: true,  window: '30–45 min' },
   pickupPoint: 'Ground floor, near main entrance',
-  storesOpen: 7,
-  storesTotal: 7,
+  storesOpen:  STORES.filter(s => s.openNow !== false).length || 7,
+  storesTotal: STORES.length || 7,
 };
 
 /* ─── NOTIFICATIONS ─────────────────────────────────────── */
@@ -666,29 +687,214 @@ const DEFAULT_USER = {
   isGuest: true
 };
 
-/* ─── SUPABASE LIVE SYNC ─────────────────────────────────── */
+/* ─── LOCAL-FIRST DATABASE CATALOG & DELTA SYNC ──────────── */
 async function syncCatalogWithSupabase() {
   if (typeof window.UniMallDB === 'undefined') return false;
+
   try {
-    const [dbStores, dbProducts] = await Promise.all([
-      window.UniMallDB.getStores().catch(() => null),
-      window.UniMallDB.getProducts().catch(() => null)
+    const metaRaw = localStorage.getItem(LOCAL_CATALOG_META_KEY);
+    const meta = metaRaw ? JSON.parse(metaRaw) : null;
+    const hasLocalCache = Boolean(_cachedCatalog || (localStorage.getItem(LOCAL_STORES_KEY) && localStorage.getItem(LOCAL_PRODUCTS_KEY)));
+
+    // 1. FAST DELTA CHECK: If user already has a local cache, check for any changes in a single micro-query
+    if (hasLocalCache && meta && meta.maxStoreUpd && meta.maxProdUpd) {
+      try {
+        const deltaRows = await window.UniMallDB.neonSql(`
+          SELECT 
+            (SELECT MAX(updated_at) FROM unimall_stores) AS max_store_upd, 
+            (SELECT count(*) FROM unimall_stores WHERE is_visible IS NULL OR is_visible = true) AS store_count, 
+            (SELECT MAX(updated_at) FROM unimall_products) AS max_prod_upd, 
+            (SELECT count(*) FROM unimall_products WHERE is_active = true) AS prod_count;
+        `);
+
+        if (Array.isArray(deltaRows) && deltaRows.length > 0) {
+          const stats = deltaRows[0];
+          const storesUpToDate = String(stats.max_store_upd || '') === String(meta.maxStoreUpd || '') && Number(stats.store_count || 0) === Number(meta.storeCount || 0);
+          const prodsUpToDate = String(stats.max_prod_upd || '') === String(meta.maxProdUpd || '') && Number(stats.prod_count || 0) === Number(meta.prodCount || 0);
+
+          // Zero database rows needed! 0ms compute wasted!
+          if (storesUpToDate && prodsUpToDate) {
+            console.log('[UniMall] Local catalog is 100% fresh (Delta check: 0 changes).');
+            syncStoreStatusesFromAdmin();
+            return false;
+          }
+
+          let hasChanges = false;
+
+          // Fetch only new/updated stores if changed
+          if (!storesUpToDate) {
+            const freshStores = await window.UniMallDB.neonSql(`
+              SELECT id, name, slug, description, category, floor, location, phone, 
+                     cover_image, is_open, is_visible, delivery_available, pickup_available, 
+                     opening_time, closing_time, rating, popularity, updated_at
+              FROM unimall_stores
+              WHERE (is_visible IS NULL OR is_visible = true)
+                ${meta.maxStoreUpd ? 'AND updated_at > $1' : ''}
+              ORDER BY popularity DESC
+            `, meta.maxStoreUpd ? [meta.maxStoreUpd] : []).catch(() => null);
+
+            if (freshStores && Array.isArray(freshStores) && freshStores.length > 0) {
+              const mappedFresh = freshStores.map(s => ({
+                id: s.id,
+                name: s.name,
+                floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
+                openNow: s.is_open !== false,
+                isVisible: s.is_visible !== false,
+                hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
+                category: s.category || 'essentials',
+                location: s.location || 'Campus Center',
+                coverImage: s.cover_image || '',
+                rating: Number(s.rating) || 4.5
+              }));
+
+              // Merge into local stores
+              const storeMap = new Map(STORES.map(s => [s.id, s]));
+              mappedFresh.forEach(s => storeMap.set(s.id, s));
+              STORES = Array.from(storeMap.values());
+              window.STORES = STORES;
+              localStorage.setItem(LOCAL_STORES_KEY, JSON.stringify(STORES));
+              hasChanges = true;
+            } else if (Number(stats.store_count) !== STORES.length) {
+              // Store was deleted/archived: full refresh of stores
+              const allStores = await window.UniMallDB.getStores(true);
+              if (Array.isArray(allStores) && allStores.length > 0) {
+                STORES = allStores.map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
+                  openNow: s.is_open !== false,
+                  isVisible: s.is_visible !== false,
+                  hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
+                  category: s.category || 'essentials',
+                  location: s.location || 'Campus Center',
+                  coverImage: s.cover_image || '',
+                  rating: Number(s.rating) || 4.5
+                }));
+                window.STORES = STORES;
+                localStorage.setItem(LOCAL_STORES_KEY, JSON.stringify(STORES));
+                hasChanges = true;
+              }
+            }
+          }
+
+          // Fetch only new/updated products if changed
+          if (!prodsUpToDate) {
+            const freshProds = await window.UniMallDB.neonSql(`
+              SELECT p.id, p.store_id, p.name, p.description, p.price, p.emoji, p.image, p.bg,
+                     p.stock, p.availability, p.delivery_available, p.pickup_available,
+                     p.category_id, p.rating, p.is_nearby, p.is_popular, p.is_restocked, p.updated_at
+              FROM unimall_products p
+              INNER JOIN unimall_stores s ON p.store_id = s.id
+              WHERE p.is_active = true
+                AND (s.is_visible IS NULL OR s.is_visible = true)
+                ${meta.maxProdUpd ? 'AND p.updated_at > $1' : ''}
+              ORDER BY p.name ASC
+            `, meta.maxProdUpd ? [meta.maxProdUpd] : []).catch(() => null);
+
+            if (freshProds && Array.isArray(freshProds) && freshProds.length > 0) {
+              const mappedProds = freshProds.map(p => ({
+                id: p.id,
+                name: p.name,
+                price: parseFloat(p.price) || 0,
+                emoji: p.emoji || '📦',
+                bg: p.bg || '#F8FAFC',
+                image: p.image || '',
+                categoryId: p.category_id,
+                storeId: p.store_id,
+                description: p.description || '',
+                stock: p.stock ?? 20,
+                availability: p.availability || 'in-stock',
+                deliveryAvailable: p.delivery_available !== false,
+                pickupAvailable: p.pickup_available !== false,
+                rating: Number(p.rating) || 4.5,
+                isNearby: Boolean(p.is_nearby),
+                isPopular: Boolean(p.is_popular),
+                isRestocked: Boolean(p.is_restocked)
+              }));
+
+              // Merge into local products
+              const prodMap = new Map(PRODUCTS.map(p => [p.id, p]));
+              mappedProds.forEach(p => prodMap.set(p.id, p));
+              PRODUCTS = Array.from(prodMap.values());
+              window.PRODUCTS = PRODUCTS;
+              localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(PRODUCTS));
+              hasChanges = true;
+            } else if (Number(stats.prod_count) !== PRODUCTS.length) {
+              // Product was deleted/archived: full refresh of products
+              const allProds = await window.UniMallDB.getProducts('all', true);
+              if (Array.isArray(allProds) && allProds.length > 0) {
+                PRODUCTS = allProds.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  price: parseFloat(p.price) || 0,
+                  emoji: p.emoji || '📦',
+                  bg: p.bg || '#F8FAFC',
+                  image: p.image || '',
+                  categoryId: p.category_id,
+                  storeId: p.store_id,
+                  description: p.description || '',
+                  stock: p.stock ?? 20,
+                  availability: p.availability || 'in-stock',
+                  deliveryAvailable: p.delivery_available !== false,
+                  pickupAvailable: p.pickup_available !== false,
+                  rating: Number(p.rating) || 4.5,
+                  isNearby: Boolean(p.is_nearby),
+                  isPopular: Boolean(p.is_popular),
+                  isRestocked: Boolean(p.is_restocked)
+                }));
+                window.PRODUCTS = PRODUCTS;
+                localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(PRODUCTS));
+                hasChanges = true;
+              }
+            }
+          }
+
+          // Update sync metadata
+          localStorage.setItem(LOCAL_CATALOG_META_KEY, JSON.stringify({
+            maxStoreUpd: stats.max_store_upd,
+            storeCount: stats.store_count,
+            maxProdUpd: stats.max_prod_upd,
+            prodCount: stats.prod_count,
+            lastSyncedAt: Date.now()
+          }));
+
+          syncStoreStatusesFromAdmin();
+          if (typeof AppState !== 'undefined') {
+            AppState.stores = STORES;
+            const hiddenStoreIds = new Set(STORES.filter(s => s.isVisible === false).map(s => s.id));
+            AppState.products = PRODUCTS.filter(p => p.isActive !== false && !hiddenStoreIds.has(p.storeId));
+          }
+          if (typeof renderCampusInfo === 'function') renderCampusInfo();
+
+          return hasChanges;
+        }
+      } catch (deltaErr) {
+        console.warn('[UniMall] Delta sync fallback to standard query:', deltaErr.message);
+      }
+    }
+
+    // 2. FIRST-TIME OR FULL COLD FETCH: Retrieve entire catalog from Neon PostgreSQL
+    const [dbStores, dbProducts, deltaStats] = await Promise.all([
+      window.UniMallDB.getStores(true).catch(() => null),
+      window.UniMallDB.getProducts('all', true).catch(() => null),
+      window.UniMallDB.neonSql(`
+        SELECT 
+          (SELECT MAX(updated_at) FROM unimall_stores) AS max_store_upd, 
+          (SELECT count(*) FROM unimall_stores WHERE is_visible IS NULL OR is_visible = true) AS store_count, 
+          (SELECT MAX(updated_at) FROM unimall_products) AS max_prod_upd, 
+          (SELECT count(*) FROM unimall_products WHERE is_active = true) AS prod_count;
+      `).catch(() => [])
     ]);
 
     let hasChanged = false;
 
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
-      const prevIds = STORES.map(s => s.id).sort().join(',');
-      const newIds = dbStores.map(s => s.id).sort().join(',');
-      if (prevIds !== newIds || dbStores.length !== STORES.length || STORES.length === 0) {
-        hasChanged = true;
-      }
       STORES = dbStores.map(s => ({
         id: s.id,
         name: s.name,
         floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
         openNow: s.is_open !== false,
-        isVisible: s.is_visible !== false, // default visible when null (new stores)
+        isVisible: s.is_visible !== false,
         hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
         category: s.category || 'essentials',
         location: s.location || 'Campus Center',
@@ -696,14 +902,11 @@ async function syncCatalogWithSupabase() {
         rating: Number(s.rating) || 4.5
       }));
       window.STORES = STORES;
+      localStorage.setItem(LOCAL_STORES_KEY, JSON.stringify(STORES));
+      hasChanged = true;
     }
 
     if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
-      const prevProdIds = PRODUCTS.map(p => p.id).sort().join(',');
-      const newProdIds = dbProducts.map(p => p.id).sort().join(',');
-      if (prevProdIds !== newProdIds || dbProducts.length !== PRODUCTS.length || PRODUCTS.length === 0) {
-        hasChanged = true;
-      }
       PRODUCTS = dbProducts.map(p => ({
         id: p.id,
         name: p.name,
@@ -724,35 +927,41 @@ async function syncCatalogWithSupabase() {
         isRestocked: Boolean(p.is_restocked)
       }));
       window.PRODUCTS = PRODUCTS;
+      localStorage.setItem(LOCAL_PRODUCTS_KEY, JSON.stringify(PRODUCTS));
+      hasChanged = true;
+    }
+
+    // Persist metadata for instant future delta syncs
+    if (Array.isArray(deltaStats) && deltaStats.length > 0) {
+      localStorage.setItem(LOCAL_CATALOG_META_KEY, JSON.stringify({
+        maxStoreUpd: deltaStats[0].max_store_upd,
+        storeCount: deltaStats[0].store_count,
+        maxProdUpd: deltaStats[0].max_prod_upd,
+        prodCount: deltaStats[0].prod_count,
+        lastSyncedAt: Date.now()
+      }));
     }
 
     // Apply visibility and store status overrides
     syncStoreStatusesFromAdmin();
 
-    // Authoritatively calculate active campus operational store counts
     const visibleStores = STORES.filter(s => s.isVisible !== false);
     CAMPUS_INFO.storesTotal = visibleStores.length;
     CAMPUS_INFO.storesOpen = visibleStores.filter(s => s.openNow).length;
 
-    // Always keep AppState synchronized
     if (typeof AppState !== 'undefined') {
       AppState.stores = STORES;
-      const hiddenStoreIds = new Set(
-        STORES.filter(s => s.isVisible === false).map(s => s.id)
-      );
-      AppState.products = PRODUCTS.filter(p =>
-        p.isActive !== false && !hiddenStoreIds.has(p.storeId)
-      );
+      const hiddenStoreIds = new Set(STORES.filter(s => s.isVisible === false).map(s => s.id));
+      AppState.products = PRODUCTS.filter(p => p.isActive !== false && !hiddenStoreIds.has(p.storeId));
     }
 
-    // Immediately reflect store count in the campus operational info bar
     if (typeof renderCampusInfo === 'function') {
       renderCampusInfo();
     }
 
     return hasChanged || (typeof AppState !== 'undefined' && AppState.products.length > 0);
   } catch (err) {
-    console.warn('[UniMall] Supabase catalog sync note:', err.message);
+    console.warn('[UniMall] Catalog sync notice:', err.message);
     return false;
   }
 }

@@ -343,7 +343,10 @@ function setupLogout() {
     btn.addEventListener('click', () => {
       if (confirm('Are you sure you want to sign out of your merchant portal?')) {
         sessionStorage.clear();
-        window.location.replace('../login/');
+        localStorage.removeItem('unimall_auth');
+        localStorage.removeItem('unimall_admin_token');
+        localStorage.removeItem('unimall_admin_user');
+        window.location.replace('/login/?logout=true');
       }
     });
   }

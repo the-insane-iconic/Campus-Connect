@@ -632,7 +632,15 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     }
     if (trackBtn) {
       trackBtn.onclick = () => {
-        window.location.href = `orders.html#${primaryOrder.id}`;
+        if (modal) {
+          modal.classList.remove('show');
+          modal.style.display = 'none';
+        }
+        if (typeof window.navigate === 'function') {
+          window.navigate('orders');
+        } else {
+          window.location.href = 'index.html?view=orders';
+        }
       };
     }
 
@@ -641,14 +649,13 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
       requestAnimationFrame(() => modal.classList.add('show'));
     } else {
       setTimeout(() => {
-        window.location.href = 'index.html';
+        if (typeof window.navigate === 'function') {
+          window.navigate('orders');
+        } else {
+          window.location.href = 'index.html?view=orders';
+        }
       }, 1200);
     }
-
-    // Auto redirect to home after 5s so user can track order from banner
-    setTimeout(() => {
-      window.location.href = 'index.html';
-    }, 5000);
   } catch (e) {
     console.error('Order placement error:', e);
     if (placeBtn) {
