@@ -3,21 +3,25 @@
 
 /* ═══════════════════════════════════════════════════════════
    UNIMALL — ORDERS CONTROLLER (orders.js)
-   Full functional frontend + mock backend state engine
+   Matches reference Orders design:
+     - Dynamic Live Active Order Card with 4-Step Stepper & OTP
+     - Compact Order History Cards with Product Preview Chips
+     - Real Authenticated Backend Data from Neon PostgreSQL / Supabase
+     - Dynamic Filter Counts & Interactive Sorting & Search
    ═══════════════════════════════════════════════════════════ */
 
-/* ─── CONSTANTS & SEED DATA ──────────────────────────────── */
+/* ─── CONSTANTS & STATE ──────────────────────────────────── */
 var ORDERS_STORAGE_KEY = window.ORDERS_STORAGE_KEY || 'unimall_v1';
 
-const INITIAL_DEMO_ORDERS = [];
-
-/* ─── ORDERS STATE ───────────────────────────────────────── */
 const OrdersState = {
   orders: [],
   currentTab: 'all', // 'all' | 'active' | 'delivered' | 'cancelled'
   searchQuery: '',
+  currentSort: 'latest', // 'latest' | 'oldest' | 'amount_high' | 'amount_low'
   selectedOrderId: null
 };
+
+let isOrdersLoading = true;
 
 /* ─── STORAGE SYNC ───────────────────────────────────────── */
 function loadStateFromStorage() {
@@ -25,6 +29,12 @@ function loadStateFromStorage() {
     let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
       ? window.UserManager.getActiveUser()
       : null;
+    if (!activeUser) {
+      const auth = localStorage.getItem('unimall_auth');
+      if (auth) {
+        try { activeUser = JSON.parse(auth); } catch (e) {}
+      }
+    }
     const currentUid = activeUser?.userId || activeUser?.uid || activeUser?.id || activeUser?.guestId;
 
     const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
@@ -56,6 +66,12 @@ function saveOrdersToStorage() {
     let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
       ? window.UserManager.getActiveUser()
       : null;
+    if (!activeUser) {
+      const auth = localStorage.getItem('unimall_auth');
+      if (auth) {
+        try { activeUser = JSON.parse(auth); } catch (e) {}
+      }
+    }
     const currentUid = activeUser?.userId || activeUser?.uid || activeUser?.id || activeUser?.guestId;
     if (currentUid) {
       const otherUsersOrders = existingOrders.filter(o => o.user_id && o.user_id !== currentUid);
@@ -69,16 +85,17 @@ function saveOrdersToStorage() {
   }
 }
 
-/* ─── LIVE STATUS SIMULATION ENGINE ──────────────────────── */
-/**
- * Status transitions are driven exclusively by authentic database & store owner actions.
- * Fake client-side simulation is disabled to prevent inconsistent order state resets.
- */
-function startLiveStatusSimulator() {
-  // Intentionally disabled. Realtime status comes from Neon DB & BroadcastChannel.
+/* ─── FORMATTERS & UTILITIES ─────────────────────────────── */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-/* ─── FORMATTERS ─────────────────────────────────────────── */
 function fmtPrice(amount) {
   return Number(amount || 0).toLocaleString('en-IN');
 }
@@ -97,7 +114,16 @@ function fmtRelativeTime(isoString) {
     const hrs = Math.floor(diffSec / 3600);
     return `${hrs}h ago`;
   }
+  const days = Math.floor(diffSec / 86400);
+  if (days === 1) return '1 day ago';
+  if (days < 30) return `${days} days ago`;
   return fmtDate(isoString);
+}
+
+function fmtTime(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function fmtDate(isoString) {
@@ -116,48 +142,126 @@ function fmtDate(isoString) {
   return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function fmtTime(isoString) {
+/**
+ * Formats time string for compact order card:
+ * Examples:
+ *   "2m ago · 00:48"
+ *   "1 day ago · 12 Oct, 2:30 PM"
+ */
+function fmtOrderCardTime(isoString) {
   if (!isoString) return '';
-  return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const date = new Date(isoString);
+  const now = new Date();
+  const rel = fmtRelativeTime(isoString);
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${rel} · ${timeStr}`;
+  }
+
+  const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${rel} · ${dateStr}, ${timeStr}`;
 }
 
+/* ─── CATALOG LOOKUP HELPERS ─────────────────────────────── */
+function getStoreInfo(storeId) {
+  let store = null;
+  if (typeof STORES !== 'undefined' && Array.isArray(STORES)) {
+    store = STORES.find(s => s.id === storeId);
+  }
+  if (!store && typeof DEFAULT_STORES !== 'undefined' && Array.isArray(DEFAULT_STORES)) {
+    store = DEFAULT_STORES.find(s => s.id === storeId);
+  }
+  return store;
+}
+
+function getStoreCoverImage(storeId) {
+  const store = getStoreInfo(storeId);
+  return store?.coverImage || null;
+}
+
+function getProductImage(item) {
+  if (item.image && typeof item.image === 'string' && item.image.startsWith('http')) {
+    return item.image;
+  }
+  if (item.image_url && typeof item.image_url === 'string' && item.image_url.startsWith('http')) {
+    return item.image_url;
+  }
+  const pid = item.productId || item.product_id || item.id;
+  if (pid) {
+    let p = null;
+    if (typeof PRODUCTS !== 'undefined' && Array.isArray(PRODUCTS)) {
+      p = PRODUCTS.find(x => x.id === pid);
+    }
+    if (!p && typeof DEFAULT_PRODUCTS !== 'undefined' && Array.isArray(DEFAULT_PRODUCTS)) {
+      p = DEFAULT_PRODUCTS.find(x => x.id === pid);
+    }
+    if (p && p.image) return p.image;
+  }
+  if (item.name) {
+    const cleanName = item.name.trim().toLowerCase();
+    const catalog = (typeof PRODUCTS !== 'undefined' && Array.isArray(PRODUCTS))
+      ? PRODUCTS
+      : (typeof DEFAULT_PRODUCTS !== 'undefined' ? DEFAULT_PRODUCTS : []);
+    const match = catalog.find(x => x.name && x.name.toLowerCase() === cleanName);
+    if (match && match.image) return match.image;
+  }
+  return null;
+}
 
 /* ─── FILTERING & GETTERS ────────────────────────────────── */
+function getActiveOrders() {
+  return OrdersState.orders.filter(o => ['placed', 'preparing', 'ready', 'confirmed'].includes(o.status));
+}
+
 function getFilteredOrders() {
   let list = [...OrdersState.orders];
   const tab = OrdersState.currentTab;
   const q = OrdersState.searchQuery.trim().toLowerCase();
 
-  // Tab filter
+  // 1. Tab filter
   if (tab === 'active') {
-    list = list.filter(o => o.status === 'placed' || o.status === 'preparing' || o.status === 'ready');
+    list = list.filter(o => ['placed', 'preparing', 'ready', 'confirmed'].includes(o.status));
   } else if (tab === 'delivered') {
-    list = list.filter(o => o.status === 'delivered');
+    list = list.filter(o => ['delivered', 'completed'].includes(o.status));
   } else if (tab === 'cancelled') {
     list = list.filter(o => o.status === 'cancelled');
   }
 
-  // Search filter
+  // 2. Search query filter
   if (q) {
     list = list.filter(o => {
-      const idMatch = o.id.toLowerCase().includes(q);
+      const idMatch = (o.id || '').toLowerCase().includes(q);
+      const numMatch = (o.order_number_display || '').toLowerCase().includes(q);
       const storeMatch = (o.storeName || '').toLowerCase().includes(q);
-      const itemsMatch = o.items.some(item => item.name.toLowerCase().includes(q));
-      return idMatch || storeMatch || itemsMatch;
+      const itemsMatch = Array.isArray(o.items) && o.items.some(item =>
+        ((item.name || item.product_name || '')).toLowerCase().includes(q)
+      );
+      return idMatch || numMatch || storeMatch || itemsMatch;
     });
+  }
+
+  // 3. Sorting
+  const sort = OrdersState.currentSort || 'latest';
+  if (sort === 'latest') {
+    list.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  } else if (sort === 'oldest') {
+    list.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+  } else if (sort === 'amount_high') {
+    list.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+  } else if (sort === 'amount_low') {
+    list.sort((a, b) => Number(a.total || 0) - Number(b.total || 0));
   }
 
   return list;
 }
 
-function getActiveOrders() {
-  return OrdersState.orders.filter(o => o.status === 'placed' || o.status === 'preparing' || o.status === 'ready');
-}
-
 function updateTabCounts() {
   const allCount = OrdersState.orders.length;
   const activeCount = getActiveOrders().length;
-  const deliveredCount = OrdersState.orders.filter(o => o.status === 'delivered').length;
+  const deliveredCount = OrdersState.orders.filter(o => ['delivered', 'completed'].includes(o.status)).length;
   const cancelledCount = OrdersState.orders.filter(o => o.status === 'cancelled').length;
 
   const countAllEl = document.getElementById('countAll');
@@ -174,11 +278,11 @@ function updateTabCounts() {
   if (ordersSubtitle) {
     ordersSubtitle.textContent = activeCount > 0
       ? `${activeCount} active order${activeCount > 1 ? 's' : ''} in progress`
-      : 'Track & manage your orders';
+      : 'Track and manage your orders';
   }
 }
 
-/* ─── LIVE TRACKER COMPONENT ─────────────────────────────── */
+/* ─── LIVE TRACKER COMPONENT (Hero Card) ─────────────────── */
 function renderLiveTracker() {
   const container = document.getElementById('liveTrackerSection');
   const card = document.getElementById('liveTrackerCard');
@@ -191,61 +295,182 @@ function renderLiveTracker() {
   }
 
   container.classList.remove('hidden');
-  const order = activeOrders[0]; // Highlight the newest active order
+  const order = activeOrders[0]; // Most recent active order
 
-  const statusMap = {
-    placed: { title: 'Order Placed', desc: 'Store has received your order and is confirming items.', stepIdx: 0, eta: '15–20 mins' },
-    preparing: { title: 'Preparing Order', desc: `${order.storeName || 'Store'} is preparing and packing your items.`, stepIdx: 1, eta: '10–12 mins' },
-    ready: {
-      title: order.fulfillmentType === 'delivery' ? 'Out for Delivery' : 'Ready for Pickup',
-      desc: order.fulfillmentType === 'delivery' ? `Delivery partner is heading to ${order.deliveryInfo?.room || 'your room'}.` : `Available for collection at ${order.pickupLocation || 'Main Entrance'}.`,
-      stepIdx: 2,
-      eta: 'Arriving soon'
-    }
-  };
+  const storeInfo = getStoreInfo(order.storeId || order.store_id);
+  const storeName = order.storeName || storeInfo?.name || 'Campus Store';
+  const storeCover = getStoreCoverImage(order.storeId || order.store_id) || (order.items?.[0] ? getProductImage(order.items[0]) : null);
+  const orderNum = order.order_number_display || (order.id ? (String(order.id).startsWith('#') ? order.id : '#' + order.id) : '#ORD-01');
+  const timeAgo = fmtRelativeTime(order.createdAt);
+  const placedTime = fmtTime(order.createdAt) || '00:00';
 
-  const currentInfo = statusMap[order.status] || statusMap.placed;
-  const progressPercent = (currentInfo.stepIdx / 2) * 100;
+  // Dynamic ETA
+  let etaText = '15–20 mins';
+  if (order.eta) {
+    etaText = order.eta;
+  } else if (order.status === 'placed') {
+    etaText = '15–20 mins';
+  } else if (order.status === 'preparing') {
+    etaText = '10–12 mins';
+  } else if (order.status === 'ready') {
+    etaText = order.fulfillmentType === 'delivery' ? 'Arriving soon' : 'Ready now';
+  }
+
+  // 4-Step Stepper states
+  let fillWidth = 0;
+  let step1Class = 'completed';
+  let step2Class = '';
+  let step3Class = '';
+  let step4Class = '';
+
+  let step1Icon = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  let step2Icon = '2';
+  let step3Icon = '3';
+  let step4Icon = '4';
+
+  let step2Sub = 'Waiting';
+  let step3Sub = '';
+  let step4Sub = '';
+
+  const checkSvg = `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+  if (order.status === 'placed') {
+    fillWidth = 0;
+    step1Class = 'completed current';
+    step2Sub = '';
+  } else if (order.status === 'preparing') {
+    fillWidth = 33.3;
+    step1Class = 'completed';
+    step2Class = 'completed current';
+    step2Sub = 'Your order is being prepared';
+  } else if (order.status === 'ready') {
+    fillWidth = 66.6;
+    step1Class = 'completed';
+    step2Class = 'completed';
+    step3Class = 'completed current';
+    step2Icon = checkSvg;
+    step2Sub = 'Prepared';
+    step3Sub = order.fulfillmentType === 'delivery' ? 'Out for delivery' : 'Ready for pickup';
+  } else if (order.status === 'delivered' || order.status === 'completed') {
+    fillWidth = 100;
+    step1Class = 'completed';
+    step2Class = 'completed';
+    step3Class = 'completed';
+    step4Class = 'completed current';
+    step2Icon = checkSvg;
+    step3Icon = checkSvg;
+    step4Icon = checkSvg;
+  }
+
+  const step4Label = order.fulfillmentType === 'delivery' ? 'Delivered' : 'Picked Up';
+  const otpCode = order.otp || (order.id ? (String(order.id).replace(/\D/g, '').slice(-4) || '4016') : '4016');
 
   card.innerHTML = `
-    <div class="live-card-top">
-      <div class="live-badge">
-        <span class="pulse-dot"></span> Live Order ${order.order_number_display || '#' + order.id}
+    <!-- TOP ROW: LIVE PILL & ETA -->
+    <div class="live-top-row">
+      <div class="live-order-pill">
+        <span class="live-dot"></span> LIVE ORDER
       </div>
-      <div class="live-eta">ETA: <strong>${currentInfo.eta}</strong></div>
-    </div>
-
-    <div class="live-status-title">${currentInfo.title}</div>
-    <div class="live-status-desc">${currentInfo.desc}</div>
-
-    <div class="live-stepper">
-      <div class="stepper-track"></div>
-      <div class="stepper-progress" style="width: ${progressPercent}%;"></div>
-
-      <div class="stepper-node ${currentInfo.stepIdx >= 0 ? (currentInfo.stepIdx === 0 ? 'current' : 'completed') : ''}">
-        <div class="stepper-circle">1</div>
-        <div class="stepper-label">Placed</div>
-      </div>
-
-      <div class="stepper-node ${currentInfo.stepIdx >= 1 ? (currentInfo.stepIdx === 1 ? 'current' : 'completed') : ''}">
-        <div class="stepper-circle">2</div>
-        <div class="stepper-label">Preparing</div>
-      </div>
-
-      <div class="stepper-node ${currentInfo.stepIdx >= 2 ? (currentInfo.stepIdx === 2 ? 'current' : 'completed') : ''}">
-        <div class="stepper-circle">3</div>
-        <div class="stepper-label">${order.fulfillmentType === 'delivery' ? 'On Way' : 'Ready'}</div>
+      <div class="live-eta-pill">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>ETA: ${etaText}</span>
       </div>
     </div>
 
-    <div class="live-footer">
-      <div class="live-otp-wrap" role="button" title="Click to copy" style="cursor: pointer;" onclick="copyOrderText('${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || order.user_room || 'Room') : (order.otp || '4829')}', '${order.fulfillmentType === 'delivery' ? 'Room' : 'OTP'}')">
-        <span class="live-otp-label">${order.fulfillmentType === 'delivery' ? 'Room:' : 'Pickup OTP:'}</span>
-        <span class="live-otp-code">${order.fulfillmentType === 'delivery' ? (order.deliveryInfo?.room || order.user_room || 'Assigned') : (order.otp || '4829')} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;vertical-align:middle;opacity:0.75;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+    <!-- STORE ROW -->
+    <div class="live-store-row" id="liveStoreRow" role="button" tabindex="0">
+      <div class="live-store-thumb">
+        ${storeCover ? `<img src="${storeCover}" alt="${escapeHtml(storeName)}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">` : `<span style="font-size:24px;">${order.storeIcon || '☕'}</span>`}
       </div>
-      <button class="live-action-btn" id="liveViewDetailsBtn" data-oid="${order.id}">View Details</button>
+      <div class="live-store-meta">
+        <h3 class="live-store-name">${escapeHtml(storeName)}</h3>
+        <div class="live-order-subtitle">${orderNum} · ${timeAgo}</div>
+      </div>
+      <svg class="live-chevron" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </div>
+
+    <!-- 4-STEP STEPPER -->
+    <div class="live-stepper-wrap">
+      <div class="live-stepper-track">
+        <div class="live-stepper-fill" style="width: ${fillWidth}%;"></div>
+      </div>
+      <div class="live-stepper-nodes">
+        <!-- Node 1: Placed -->
+        <div class="live-stepper-node ${step1Class}">
+          <div class="live-node-circle">${step1Icon}</div>
+          <div class="live-node-title">Order Placed</div>
+          <div class="live-node-sub">${placedTime}</div>
+        </div>
+
+        <!-- Node 2: Preparing -->
+        <div class="live-stepper-node ${step2Class}">
+          <div class="live-node-circle">${step2Icon}</div>
+          <div class="live-node-title">Preparing</div>
+          <div class="live-node-sub">${step2Sub}</div>
+        </div>
+
+        <!-- Node 3: Ready -->
+        <div class="live-stepper-node ${step3Class}">
+          <div class="live-node-circle">${step3Icon}</div>
+          <div class="live-node-title">Ready</div>
+          <div class="live-node-sub">${step3Sub}</div>
+        </div>
+
+        <!-- Node 4: Picked Up -->
+        <div class="live-stepper-node ${step4Class}">
+          <div class="live-node-circle">${step4Icon}</div>
+          <div class="live-node-title">${step4Label}</div>
+          <div class="live-node-sub">${step4Sub}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM ROW: OTP & VIEW DETAILS -->
+    <div class="live-bottom-row">
+      <div class="live-otp-wrap" id="liveOtpBox" title="Click to copy pickup code" role="button" tabindex="0">
+        <div class="live-otp-icon-wrap">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+        </div>
+        <div class="live-otp-meta">
+          <span class="live-otp-label">${order.fulfillmentType === 'delivery' ? 'DELIVERY OTP' : 'PICKUP OTP'}</span>
+          <span class="live-otp-number">${otpCode}</span>
+        </div>
+        <div class="live-otp-copy-icon">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </div>
+      </div>
+
+      <button type="button" class="live-view-details-btn" id="liveViewDetailsBtn">
+        View Details
+        <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
     </div>
   `;
+
+  // Attach event handlers
+  document.getElementById('liveStoreRow')?.addEventListener('click', () => {
+    openOrderModal(order.id);
+  });
+
+  document.getElementById('liveOtpBox')?.addEventListener('click', () => {
+    copyOrderText(otpCode, 'Pickup OTP');
+  });
 
   document.getElementById('liveViewDetailsBtn')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -253,42 +478,59 @@ function renderLiveTracker() {
   });
 }
 
-let isOrdersLoading = true;
-
 /* ─── ORDER SKELETON SHIMMER ──────────────────────────────── */
 function renderOrderSkeletons(count = 3) {
   const listEl = document.getElementById('ordersList');
-  const emptyEl = document.getElementById('ordersEmptyState') || document.getElementById('emptyState');
+  const emptyEl = document.getElementById('ordersEmptyState');
   if (!listEl) return;
   listEl.classList.remove('hidden');
   if (emptyEl) emptyEl.classList.add('hidden');
 
   listEl.innerHTML = Array(count).fill(0).map(() => `
-    <div class="order-card-skeleton" aria-hidden="true">
-      <div class="sk-header">
-        <div class="sk-icon skeleton-shimmer"></div>
-        <div class="sk-store-meta">
-          <div class="skeleton-shimmer" style="width: 140px; height: 16px; border-radius: 4px;"></div>
-          <div class="skeleton-shimmer" style="width: 90px; height: 12px; border-radius: 4px; margin-top: 4px;"></div>
+    <div class="order-card" style="opacity:0.75; pointer-events:none;">
+      <div class="order-top-row">
+        <div class="order-thumb-wrap skeleton-shimmer" style="background:#e2e8f0;"></div>
+        <div class="order-main-meta">
+          <div class="skeleton-shimmer" style="width: 100px; height: 16px; border-radius: 4px; background:#e2e8f0; margin-bottom: 6px;"></div>
+          <div class="skeleton-shimmer" style="width: 130px; height: 12px; border-radius: 4px; background:#e2e8f0;"></div>
         </div>
-        <div class="sk-badge skeleton-shimmer"></div>
+        <div class="skeleton-shimmer" style="width: 90px; height: 24px; border-radius: 99px; background:#e2e8f0;"></div>
       </div>
-      <div class="sk-items">
-        <div class="skeleton-shimmer" style="width: 75%; height: 14px; border-radius: 4px;"></div>
-        <div class="skeleton-shimmer" style="width: 50%; height: 14px; border-radius: 4px; margin-top: 6px;"></div>
+      <div style="display:flex; gap:8px; margin: 12px 0;">
+        <div class="skeleton-shimmer" style="width: 140px; height: 32px; border-radius: 8px; background:#e2e8f0;"></div>
+        <div class="skeleton-shimmer" style="width: 120px; height: 32px; border-radius: 8px; background:#e2e8f0;"></div>
       </div>
-      <div class="sk-footer">
-        <div class="skeleton-shimmer" style="width: 80px; height: 18px; border-radius: 4px;"></div>
-        <div class="skeleton-shimmer" style="width: 90px; height: 28px; border-radius: 8px;"></div>
+      <div class="order-bottom-row">
+        <div class="skeleton-shimmer" style="width: 80px; height: 20px; border-radius: 4px; background:#e2e8f0;"></div>
+        <div class="skeleton-shimmer" style="width: 110px; height: 32px; border-radius: 8px; background:#e2e8f0;"></div>
       </div>
     </div>
   `).join('');
 }
 
+/* ─── STATUS BADGE GENERATOR ─────────────────────────────── */
+function getStatusBadgeHtml(status) {
+  switch (status) {
+    case 'placed':
+      return `<span class="order-status-badge status-placed"><span class="live-dot" style="width:6px;height:6px;margin-right:2px;display:inline-block;"></span> Order placed</span>`;
+    case 'preparing':
+      return `<span class="order-status-badge status-preparing">⏳ Preparing</span>`;
+    case 'ready':
+      return `<span class="order-status-badge status-ready">📦 Ready</span>`;
+    case 'delivered':
+    case 'completed':
+      return `<span class="order-status-badge status-delivered"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Completed</span>`;
+    case 'cancelled':
+      return `<span class="order-status-badge status-cancelled"><span style="font-size:11px;font-weight:900;margin-right:3px;">✕</span> Cancelled</span>`;
+    default:
+      return `<span class="order-status-badge status-placed">${escapeHtml(status)}</span>`;
+  }
+}
+
 /* ─── ORDERS LIST COMPONENT ──────────────────────────────── */
 function renderOrdersList() {
   const listEl = document.getElementById('ordersList');
-  const emptyEl = document.getElementById('ordersEmptyState') || document.getElementById('emptyState');
+  const emptyEl = document.getElementById('ordersEmptyState');
   const sectionTitle = document.getElementById('ordersSectionTitle');
   const sectionCount = document.getElementById('ordersSectionCount');
   if (!listEl || !emptyEl) return;
@@ -300,31 +542,42 @@ function renderOrdersList() {
 
   const orders = getFilteredOrders();
 
+  // Section Header Titles & Count
   if (sectionTitle && sectionCount) {
     const tabTitles = {
       all: 'All Orders',
-      active: 'Active Orders',
-      delivered: 'Completed Orders',
-      cancelled: 'Cancelled Orders'
+      active: 'Active',
+      delivered: 'Completed',
+      cancelled: 'Cancelled'
     };
     sectionTitle.textContent = tabTitles[OrdersState.currentTab] || 'Orders';
     sectionCount.textContent = `${orders.length} order${orders.length === 1 ? '' : 's'}`;
   }
 
+  // Handle Empty State
   if (orders.length === 0) {
     listEl.innerHTML = '';
     listEl.classList.add('hidden');
     emptyEl.classList.remove('hidden');
 
-    const emptyTitle = document.getElementById('ordersEmptyTitle') || document.getElementById('emptyTitle');
-    const emptySub = document.getElementById('ordersEmptySub') || document.getElementById('emptySub');
+    const emptyTitle = document.getElementById('ordersEmptyTitle');
+    const emptySub = document.getElementById('ordersEmptySub');
     if (emptyTitle && emptySub) {
       if (OrdersState.searchQuery) {
         emptyTitle.textContent = 'No matching orders';
-        emptySub.textContent = `No orders found for "${OrdersState.searchQuery}". Try a different keyword.`;
+        emptySub.textContent = `No orders found matching "${OrdersState.searchQuery}". Try searching by order ID, store, or item name.`;
+      } else if (OrdersState.currentTab === 'active') {
+        emptyTitle.textContent = 'No active orders';
+        emptySub.textContent = 'You have no orders currently in progress. Place an order to track it live here!';
+      } else if (OrdersState.currentTab === 'delivered') {
+        emptyTitle.textContent = 'No completed orders';
+        emptySub.textContent = 'Completed and picked-up orders will appear in this history list.';
+      } else if (OrdersState.currentTab === 'cancelled') {
+        emptyTitle.textContent = 'No cancelled orders';
+        emptySub.textContent = 'You have no cancelled orders on your account.';
       } else {
-        emptyTitle.textContent = OrdersState.currentTab === 'all' ? 'No orders placed yet' : `No ${OrdersState.currentTab} orders`;
-        emptySub.textContent = 'Place an order from campus stores to track and manage them here.';
+        emptyTitle.textContent = 'No orders placed yet';
+        emptySub.textContent = 'Browse our vibrant campus stores to order fresh meals, snacks, stationery, and dorm essentials.';
       }
     }
     return;
@@ -333,67 +586,97 @@ function renderOrdersList() {
   listEl.classList.remove('hidden');
   emptyEl.classList.add('hidden');
 
-  const statusLabel = {
-    placed: 'Order placed',
-    preparing: 'Preparing',
-    ready: 'Ready for pickup',
-    delivered: 'Delivered',
-    cancelled: 'Cancelled'
-  };
-
   listEl.innerHTML = orders.map((order, idx) => {
-    const delay = Math.min(idx * 30, 180);
-    const firstItems = order.items.slice(0, 3);
-    const hasMore = order.items.length > 3;
+    const delay = Math.min(idx * 35, 180);
+    const orderNum = order.order_number_display || (order.id ? (String(order.id).startsWith('#') ? order.id : '#' + order.id) : '#ORD-01');
+    const storeName = order.storeName || 'Campus Store';
+    const timeFormatted = fmtOrderCardTime(order.createdAt);
+    const items = Array.isArray(order.items) ? order.items : [];
+
+    // Thumbnail: first item's image, or store cover image, or emoji
+    const firstItem = items[0];
+    const firstImg = firstItem ? getProductImage(firstItem) : null;
+    const storeCover = getStoreCoverImage(order.storeId || order.store_id);
+    const displayThumb = firstImg || storeCover;
+    const firstEmoji = firstItem ? (firstItem.emoji || '🛍️') : (order.storeIcon || '🛍️');
+    const extraCount = items.length > 1 ? items.length - 1 : 0;
+
+    // Product Preview Chips (e.g. Collegiate Varsity Jacket ×1)
+    const maxChips = 2;
+    const previewChips = items.slice(0, maxChips);
+    const remainingItemsCount = items.length - maxChips;
+
+    const chipsHtml = previewChips.map(it => {
+      const itImg = getProductImage(it);
+      const itName = it.name || it.product_name || 'Item';
+      const itQty = it.qty !== undefined ? it.qty : (it.quantity || 1);
+      const itEmoji = it.emoji || '📦';
+
+      return `
+        <div class="order-product-chip">
+          <div class="chip-thumb">
+            ${itImg ? `<img src="${itImg}" alt="${escapeHtml(itName)}" style="width:100%;height:100%;object-fit:cover;border-radius:4px;">` : `<span>${itEmoji}</span>`}
+          </div>
+          <span class="chip-name" title="${escapeHtml(itName)}">${escapeHtml(itName)}</span>
+          <span class="chip-qty">×${itQty}</span>
+        </div>
+      `;
+    }).join('') + (remainingItemsCount > 0 ? `
+      <div class="order-product-chip" style="background:#eff6ff; border-color:#dbeafe; color:#2563eb; font-weight:700;">
+        +${remainingItemsCount} more
+      </div>
+    ` : '');
 
     return `
       <div class="order-card fade-up" style="animation-delay: ${delay}ms;" data-oid="${order.id}">
-        <div class="order-card-header">
-          <div class="order-store-meta">
-            <div class="order-store-icon">${order.storeIcon || '🛍️'}</div>
-            <div class="order-id-block">
-              <div class="order-number" onclick="event.stopPropagation(); copyOrderText('${order.order_number_display ? order.order_number_display.replace(/^#/, '') : order.id}', 'Order ID')" title="Click to copy ${order.order_number_display || '#' + order.id}" style="cursor: pointer;">
-                ${order.order_number_display || '#' + order.id} · ${order.storeName || 'UniMall Store'}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:4px;vertical-align:middle;opacity:0.6;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              </div>
-              <div class="order-time-text" data-timestamp="${order.createdAt || ''}"><span class="rel-time">${fmtRelativeTime(order.createdAt)}</span> · ${fmtTime(order.createdAt)}</div>
-            </div>
+        <!-- TOP ROW -->
+        <div class="order-top-row">
+          <div class="order-thumb-wrap">
+            ${displayThumb ? `<img src="${displayThumb}" alt="${escapeHtml(storeName)}" class="order-thumb-img">` : `<span class="order-thumb-emoji">${firstEmoji}</span>`}
+            ${extraCount > 0 ? `<span class="more-items-badge">+${extraCount}</span>` : ''}
           </div>
-          <span class="status-pill status-${order.status}">
-            ${statusLabel[order.status] || order.status}
-          </span>
+
+          <div class="order-main-meta">
+            <h3 class="order-num-title">${orderNum}</h3>
+            <div class="order-store-sub">${escapeHtml(storeName)}</div>
+            <div class="order-date-sub" data-timestamp="${order.createdAt || ''}">${timeFormatted}</div>
+          </div>
+
+          ${getStatusBadgeHtml(order.status)}
+
+          <div class="order-top-chevron">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
         </div>
 
-        <div class="order-items-box">
-          ${firstItems.map(item => `
-            <div class="order-item-row">
-              <span class="order-item-title">${item.emoji || '📦'} ${item.name || item.product_name || 'Item'}</span>
-              <span class="order-item-qty">×${item.qty !== undefined ? item.qty : (item.quantity || 1)}</span>
-            </div>
-          `).join('')}
-          ${hasMore ? `<div class="order-item-row"><span class="order-item-qty" style="color:var(--blue);">+ ${order.items.length - 3} more items</span></div>` : ''}
+        <!-- PRODUCT PREVIEW CHIPS -->
+        <div class="order-products-chips">
+          ${chipsHtml}
         </div>
 
-        <div class="order-card-footer">
-          <div class="order-total-block">
-            <span class="order-total-label">Total Amount</span>
-            <span class="order-total-amount">₹${fmtPrice(order.total)}</span>
+        <!-- BOTTOM ROW -->
+        <div class="order-bottom-row">
+          <div class="order-amount-wrap">
+            <span class="order-amount-label">Total Amount</span>
+            <span class="order-amount-value">₹${fmtPrice(order.total)}</span>
           </div>
 
           <div class="order-card-actions">
-            ${(order.fulfillmentType === 'pickup' && order.status !== 'cancelled') ? `
-              <button class="counter-pass-btn" data-oid="${order.id}" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; border: none; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.3);">
-                <span>🎟️</span> Show at Counter
-              </button>
-            ` : ''}
-            <button class="reorder-btn" data-oid="${order.id}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="order-again-btn" data-oid="${order.id}">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="1 4 1 10 7 10"></polyline>
                 <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
               </svg>
               Order Again
             </button>
-            <button class="details-btn" data-oid="${order.id}">Details</button>
+            <button type="button" class="order-details-btn" data-oid="${order.id}">
+              Details
+              <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -403,23 +686,14 @@ function renderOrdersList() {
   // Attach card click handlers
   listEl.querySelectorAll('.order-card').forEach(card => {
     card.addEventListener('click', (e) => {
-      if (e.target.closest('.reorder-btn') || e.target.closest('.counter-pass-btn')) return;
+      if (e.target.closest('.order-again-btn')) return;
       const orderId = card.dataset.oid;
       openOrderModal(orderId);
     });
   });
 
-  // Attach Counter Pass buttons
-  listEl.querySelectorAll('.counter-pass-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const orderId = btn.dataset.oid;
-      openOrderModal(orderId);
-    });
-  });
-
   // Attach Reorder buttons
-  listEl.querySelectorAll('.reorder-btn').forEach(btn => {
+  listEl.querySelectorAll('.order-again-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const orderId = btn.dataset.oid;
@@ -428,7 +702,7 @@ function renderOrdersList() {
   });
 
   // Attach Details buttons
-  listEl.querySelectorAll('.details-btn').forEach(btn => {
+  listEl.querySelectorAll('.order-details-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const orderId = btn.dataset.oid;
@@ -448,12 +722,11 @@ function handleReorder(orderId) {
     if (raw) {
       appData = JSON.parse(raw);
     }
-    // Set cart to ONLY the items of this reordered order to eliminate mixing with previous sessions
+    // Fresh cart with reordered items
     appData.cart = [];
 
     const targetStoreId = order.storeId || order.store_id || 'campus-cafe';
 
-    // Populate fresh cart from this order
     order.items.forEach(item => {
       const pId = item.productId || item.product_id || item.id;
       const pName = item.name || item.product_name || 'Campus Item';
@@ -462,7 +735,7 @@ function handleReorder(orderId) {
       const pImage = item.image || item.image_url || '';
       const pEmoji = item.emoji || '🛍️';
 
-      const itemObj = {
+      appData.cart.push({
         productId: pId,
         qty: pQty,
         name: pName,
@@ -478,21 +751,20 @@ function handleReorder(orderId) {
           emoji: pEmoji,
           storeId: item.storeId || item.store_id || targetStoreId
         }
-      };
-      appData.cart.push(itemObj);
+      });
     });
 
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(appData));
     syncCartBadge();
     const orderNumText = order.order_number_display || order.order_number || `#${order.id}`;
-    showToast(`Added ${order.items.length} item${order.items.length > 1 ? 's' : ''} from ${orderNumText} to cart! Opening cart...`);
+    showOrderToast(`Added items from ${orderNumText} to cart! Opening cart...`);
     setTimeout(() => {
       if (typeof window.navigate === 'function') {
         window.navigate('cart');
       } else {
         window.location.href = 'index.html?view=cart';
       }
-    }, 700);
+    }, 600);
   } catch (e) {
     console.error('Reorder error:', e);
   }
@@ -503,12 +775,13 @@ function handleCancelOrder(orderId) {
   const order = OrdersState.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  if (order.status === 'delivered' || order.status === 'cancelled') {
-    showToast('This order cannot be cancelled.');
+  if (order.status === 'delivered' || order.status === 'completed' || order.status === 'cancelled') {
+    showOrderToast('This order cannot be cancelled.');
     return;
   }
 
   order.status = 'cancelled';
+  order.statusHistory = order.statusHistory || [];
   order.statusHistory.push({
     status: 'cancelled',
     time: new Date().toISOString(),
@@ -520,7 +793,7 @@ function handleCancelOrder(orderId) {
   renderLiveTracker();
   renderOrdersList();
   closeOrderModal();
-  showToast(`Order #${order.id} has been cancelled.`);
+  showOrderToast(`Order #${order.id} has been cancelled.`);
 }
 
 /* ─── ORDER DETAIL MODAL ─────────────────────────────────── */
@@ -533,6 +806,7 @@ function openOrderModal(orderId) {
   backdrop.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
+window.openOrderModal = openOrderModal;
 
 function closeOrderModal() {
   OrdersState.selectedOrderId = null;
@@ -540,6 +814,7 @@ function closeOrderModal() {
   if (backdrop) backdrop.classList.add('hidden');
   document.body.style.overflow = '';
 }
+window.closeOrderModal = closeOrderModal;
 
 function renderModalContent(orderId) {
   const order = OrdersState.orders.find(o => o.id === orderId);
@@ -549,8 +824,12 @@ function renderModalContent(orderId) {
   const modalOrderDate = document.getElementById('modalOrderDate');
   const modalBody = document.getElementById('modalBody');
 
-  if (modalOrderId) modalOrderId.textContent = `${order.order_number_display || '#' + order.id} · ${order.storeName || 'UniMall Store'}`;
-  if (modalOrderDate) modalOrderDate.textContent = fmtDate(order.createdAt);
+  if (modalOrderId) {
+    modalOrderId.textContent = `${order.order_number_display || '#' + order.id} · ${order.storeName || 'UniMall Store'}`;
+  }
+  if (modalOrderDate) {
+    modalOrderDate.textContent = fmtDate(order.createdAt);
+  }
 
   const steps = [
     { key: 'placed', label: 'Order Placed' },
@@ -576,92 +855,96 @@ function renderModalContent(orderId) {
       const historyEntry = (order.statusHistory || []).find(h => h.status === s.key);
 
       return `
-          <div class="modal-timeline-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
-            <div class="modal-timeline-dot"></div>
-            <div class="modal-timeline-info">
-              <div class="modal-timeline-name">${s.label}</div>
-              ${historyEntry ? `<div class="modal-timeline-time">${fmtTime(historyEntry.time)}</div>` : ''}
-            </div>
+        <div class="modal-timeline-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
+          <div class="modal-timeline-dot"></div>
+          <div class="modal-timeline-info">
+            <div class="modal-timeline-name">${s.label}</div>
+            ${historyEntry ? `<div class="modal-timeline-time">${fmtTime(historyEntry.time)}</div>` : ''}
           </div>
-        `;
+        </div>
+      `;
     }).join('');
 
-  modalBody.innerHTML = `
-    ${order.fulfillmentType === 'pickup' ? `
-    <!-- COUNTER PICKUP PASS CARD -->
-    <div class="modal-pass-card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 18px 20px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px -5px rgba(15,23,42,0.25);">
-      <div>
-        <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: #94a3b8; text-transform: uppercase;">COUNTER PICKUP PASS</div>
-        <div style="font-size: 17px; font-weight: 800; margin-top: 4px; color: #f8fafc;">${order.customerName || order.user_name || 'STUDENT'}</div>
-        <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Flash at ${order.storeName || 'Store'} counter</div>
-      </div>
-      <div style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 8px 14px; text-align: center;">
-        <div style="font-size: 9px; font-weight: 700; color: #93c5fd; letter-spacing: 0.08em;">PICKUP OTP</div>
-        <div style="font-size: 20px; font-weight: 900; font-family: monospace; color: #ffffff; letter-spacing: 2px;">${order.otp || 'Ready'}</div>
-      </div>
-    </div>
-    ` : ''}
+  const otpCode = order.otp || (order.id ? (String(order.id).replace(/\D/g, '').slice(-4) || '4016') : '4016');
 
-    <!-- STATUS & TRACKING -->
-    <div class="modal-section">
-      <div class="modal-section-title">Order Status</div>
-      <div class="modal-timeline">${timelineHtml}</div>
-    </div>
-
-    <!-- FULFILLMENT DESTINATION -->
-    <div class="modal-section">
-      <div class="modal-section-title">${order.fulfillmentType === 'delivery' ? 'Delivery Destination' : 'Pickup Location'}</div>
-      <div class="modal-info-row">
-        📍 ${order.fulfillmentType === 'delivery' ? `${order.deliveryInfo?.hostel || order.user_hostel || 'Campus Hostel'}, ${order.deliveryInfo?.room || order.user_room || 'Room'}` : (order.pickupLocation || 'Ground floor, near main entrance')}
+  if (modalBody) {
+    modalBody.innerHTML = `
+      ${order.fulfillmentType !== 'delivery' ? `
+      <!-- COUNTER PICKUP PASS CARD -->
+      <div class="modal-pass-card" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 18px 20px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 25px -5px rgba(15,23,42,0.25);">
+        <div>
+          <div style="font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: #94a3b8; text-transform: uppercase;">COUNTER PICKUP PASS</div>
+          <div style="font-size: 17px; font-weight: 800; margin-top: 4px; color: #f8fafc;">${escapeHtml(order.customerName || order.user_name || 'CAMPUS STUDENT')}</div>
+          <div style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">Flash at ${escapeHtml(order.storeName || 'Store')} counter</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 8px 14px; text-align: center; cursor:pointer;" onclick="copyOrderText('${otpCode}', 'Pickup OTP')">
+          <div style="font-size: 9px; font-weight: 700; color: #93c5fd; letter-spacing: 0.08em;">PICKUP OTP</div>
+          <div style="font-size: 20px; font-weight: 900; font-family: monospace; color: #ffffff; letter-spacing: 2px;">${otpCode}</div>
+        </div>
       </div>
-      ${order.otp ? `<div class="modal-info-sub">Show verification code to pickup: <strong style="color:var(--blue); font-family:monospace; font-size:14px;">${order.otp}</strong></div>` : ''}
-    </div>
+      ` : ''}
 
-    <!-- ITEMS BREAKDOWN -->
-    <div class="modal-section">
-      <div class="modal-section-title">Order Items (${order.items.length})</div>
-      <div class="modal-items-list">
-        ${order.items.map(i => {
-          const qty = i.qty !== undefined ? i.qty : (i.quantity || 1);
-          const name = i.name || i.product_name || 'Item';
-          const price = Number(i.price || 0);
-          return `
-          <div class="modal-item-row">
-            <span>${i.emoji || '📦'} ${name} <strong>×${qty}</strong></span>
-            <span>₹${fmtPrice(price * qty)}</span>
+      <!-- STATUS & TRACKING -->
+      <div class="modal-section">
+        <div class="modal-section-title">Order Status</div>
+        <div class="modal-timeline">${timelineHtml}</div>
+      </div>
+
+      <!-- FULFILLMENT DESTINATION -->
+      <div class="modal-section">
+        <div class="modal-section-title">${order.fulfillmentType === 'delivery' ? 'Delivery Destination' : 'Pickup Location'}</div>
+        <div class="modal-info-row">
+          📍 ${order.fulfillmentType === 'delivery' ? `${escapeHtml(order.deliveryInfo?.hostel || order.user_hostel || 'Campus Hostel')}, ${escapeHtml(order.deliveryInfo?.room || order.user_room || 'Room')}` : escapeHtml(order.pickupLocation || 'Ground floor, near main entrance')}
+        </div>
+        ${otpCode ? `<div class="modal-info-sub">Show verification code to pickup: <strong style="color:var(--blue); font-family:monospace; font-size:14px;">${otpCode}</strong></div>` : ''}
+      </div>
+
+      <!-- ITEMS BREAKDOWN -->
+      <div class="modal-section">
+        <div class="modal-section-title">Order Items (${order.items.length})</div>
+        <div class="modal-items-list">
+          ${order.items.map(i => {
+            const qty = i.qty !== undefined ? i.qty : (i.quantity || 1);
+            const name = i.name || i.product_name || 'Item';
+            const price = Number(i.price || 0);
+            return `
+            <div class="modal-item-row">
+              <span>${i.emoji || '📦'} ${escapeHtml(name)} <strong>×${qty}</strong></span>
+              <span>₹${fmtPrice(price * qty)}</span>
+            </div>
+          `}).join('')}
+        </div>
+
+        <div class="modal-price-breakdown">
+          <div class="modal-price-row">
+            <span>Item Subtotal</span>
+            <span>₹${fmtPrice(order.subtotal || order.total)}</span>
           </div>
-        `}).join('')}
-      </div>
-
-      <div class="modal-price-breakdown">
-        <div class="modal-price-row">
-          <span>Item Subtotal</span>
-          <span>₹${fmtPrice(order.subtotal)}</span>
-        </div>
-        <div class="modal-price-row">
-          <span>Delivery Fee</span>
-          <span>${order.deliveryFee > 0 ? `₹${fmtPrice(order.deliveryFee)}` : 'FREE'}</span>
-        </div>
-        <div class="modal-price-row grand-total">
-          <span>Total Paid</span>
-          <span>₹${fmtPrice(order.total)}</span>
+          <div class="modal-price-row">
+            <span>Delivery Fee</span>
+            <span>${order.deliveryFee > 0 ? `₹${fmtPrice(order.deliveryFee)}` : 'FREE'}</span>
+          </div>
+          <div class="modal-price-row grand-total">
+            <span>Total Paid</span>
+            <span>₹${fmtPrice(order.total)}</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- PAYMENT & ACTIONS -->
-    <div class="modal-section">
-      <div class="modal-section-title">Payment Method</div>
-      <div class="modal-info-row">
-        💳 UPI / Online Payment <span class="status-pill status-delivered" style="margin-left:auto;">PAID</span>
+      <!-- PAYMENT & ACTIONS -->
+      <div class="modal-section">
+        <div class="modal-section-title">Payment Method</div>
+        <div class="modal-info-row">
+          💳 UPI / Online Payment <span class="order-status-badge status-delivered" style="margin-left:auto;">PAID</span>
+        </div>
       </div>
-    </div>
 
-    <div class="modal-actions-wrap">
-      <button class="modal-btn-primary" id="modalReorderBtn">Order Again</button>
-      ${(order.status === 'placed' || order.status === 'preparing') ? `<button class="modal-btn-danger" id="modalCancelBtn">Cancel Order</button>` : ''}
-    </div>
-  `;
+      <div class="modal-actions-wrap">
+        <button type="button" class="modal-btn-primary" id="modalReorderBtn">Order Again</button>
+        ${(order.status === 'placed' || order.status === 'preparing') ? `<button type="button" class="modal-btn-danger" id="modalCancelBtn">Cancel Order</button>` : ''}
+      </div>
+    `;
+  }
 
   document.getElementById('modalReorderBtn')?.addEventListener('click', () => {
     handleReorder(order.id);
@@ -673,23 +956,85 @@ function renderModalContent(orderId) {
   });
 }
 
-/* ─── TOAST ──────────────────────────────────────────────── */
-let toastTimeout = null;
-function showToast(message) {
-  const toast = document.getElementById('orderToast');
-  const msgEl = document.getElementById('toastMessage');
-  if (!toast || !msgEl) return;
+/* ─── SEARCH & SORT CONTROLLERS ──────────────────────────── */
+function toggleOrdersSearch() {
+  const searchSection = document.getElementById('orderSearchSection');
+  const searchInput = document.getElementById('orderSearch');
+  if (!searchSection) return;
+  const isHidden = searchSection.classList.toggle('hidden');
+  if (!isHidden && searchInput) {
+    searchInput.focus();
+  }
+}
+window.toggleOrdersSearch = toggleOrdersSearch;
 
-  msgEl.textContent = message;
-  toast.classList.remove('hidden');
+function toggleOrdersSortMenu() {
+  const menu = document.getElementById('ordersSortMenu');
+  if (menu) menu.classList.toggle('hidden');
+}
+window.toggleOrdersSortMenu = toggleOrdersSortMenu;
 
-  if (toastTimeout) clearTimeout(toastTimeout);
-  toastTimeout = setTimeout(() => {
-    toast.classList.add('hidden');
-  }, 3200);
+function setOrdersSort(sortType) {
+  OrdersState.currentSort = sortType;
+  const labels = {
+    latest: 'Latest First',
+    oldest: 'Oldest First',
+    amount_high: 'Highest Total',
+    amount_low: 'Lowest Total'
+  };
+  const labelEl = document.getElementById('ordersSortLabel');
+  if (labelEl) labelEl.textContent = labels[sortType] || 'Sort';
+
+  document.querySelectorAll('#ordersSortMenu .sort-opt').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.sort === sortType);
+  });
+
+  const menu = document.getElementById('ordersSortMenu');
+  if (menu) menu.classList.add('hidden');
+
+  renderOrdersList();
+}
+window.setOrdersSort = setOrdersSort;
+
+function selectOrdersTab(tab) {
+  OrdersState.currentTab = tab;
+  document.querySelectorAll('#ordersFilterPills .order-filter-pill').forEach(pill => {
+    pill.classList.toggle('active', pill.dataset.tab === tab);
+  });
+  renderOrdersList();
+}
+window.selectOrdersTab = selectOrdersTab;
+
+/* ─── 1-TAP COPY HELPER ──────────────────────────────────── */
+function copyOrderText(text, label = 'Code') {
+  if (!text) return;
+  navigator.clipboard?.writeText(text).then(() => {
+    if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('pop');
+    showOrderToast(`Copied ${label}: ${text} ✓`);
+  }).catch(() => {
+    showOrderToast(`Copied ${label}: ${text}`);
+  });
+}
+window.copyOrderText = copyOrderText;
+
+function showOrderToast(msg) {
+  let toast = document.getElementById('orderCopyToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'orderCopyToast';
+    toast.style.cssText = 'position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(10px);background:#0F172A;color:#fff;padding:9px 18px;border-radius:999px;font-size:12.5px;font-weight:600;z-index:99999;box-shadow:0 4px 18px rgba(15,23,42,0.3);transition:all 0.22s cubic-bezier(0.16,1,0.3,1);opacity:0;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(8px)';
+  }, 2200);
 }
 
-/* ─── CART BADGE SYNC ────────────────────────────────────── */
+/* ─── CART BADGE & PROFILE SYNC ──────────────────────────── */
 function syncCartBadge() {
   try {
     let items = [];
@@ -752,26 +1097,19 @@ function syncSidebarProfile() {
 /* ─── EVENT LISTENERS ────────────────────────────────────── */
 function initEvents() {
   // Back button
-  document.getElementById('backButton')?.addEventListener('click', () => {
-    if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
+  document.getElementById('ordersBackButton')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') {
+      window.navigate('home');
+    } else if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
       window.history.back();
     } else {
       window.location.href = 'index.html';
     }
   });
 
-  // Search Toggle
-  const searchToggle = document.getElementById('searchToggle');
-  const searchSection = document.getElementById('searchSection');
+  // Search input and clear
   const orderSearch = document.getElementById('orderSearch');
   const clearSearch = document.getElementById('clearSearch');
-
-  searchToggle?.addEventListener('click', () => {
-    searchSection?.classList.toggle('hidden');
-    if (!searchSection?.classList.contains('hidden')) {
-      orderSearch?.focus();
-    }
-  });
 
   orderSearch?.addEventListener('input', (e) => {
     OrdersState.searchQuery = e.target.value;
@@ -784,14 +1122,13 @@ function initEvents() {
     renderOrdersList();
   });
 
-  // Status Tab Chips
-  document.querySelectorAll('.tab-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('.tab-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      OrdersState.currentTab = chip.dataset.tab;
-      renderOrdersList();
-    });
+  // Close sort menu on click outside
+  document.addEventListener('click', (e) => {
+    const sortWrap = document.querySelector('.orders-sort-wrap');
+    const sortMenu = document.getElementById('ordersSortMenu');
+    if (sortMenu && !sortMenu.classList.contains('hidden') && sortWrap && !sortWrap.contains(e.target)) {
+      sortMenu.classList.add('hidden');
+    }
   });
 
   // Modal Close
@@ -801,9 +1138,16 @@ function initEvents() {
       closeOrderModal();
     }
   });
+
+  // Close modal on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && OrdersState.selectedOrderId) {
+      closeOrderModal();
+    }
+  });
 }
 
-/* ─── SUPABASE LIVE SYNC ─────────────────────────────────── */
+/* ─── REAL BACKEND (NEON POSTGRESQL / SUPABASE) LIVE SYNC ─── */
 async function syncOrdersWithSupabase() {
   if (typeof window.UniMallDB === 'undefined') return;
   try {
@@ -835,12 +1179,12 @@ async function syncOrdersWithSupabase() {
     isOrdersLoading = false;
 
     const storeNamesMap = {
-      'campus-cafe': 'Campus Café',
-      'book-corner': 'Book Corner',
-      'techstop': 'TechStop',
-      'campus-mart': 'Campus Mart',
-      'campus-wear': 'Campus Wear',
-      'health-hub': 'Health Hub'
+      'campus-cafe': 'Campus Bakery & Café',
+      'book-corner': 'Stationery Hub & Book Corner',
+      'techstop': 'TechStop Electronics',
+      'campus-mart': 'Campus Mart & Groceries',
+      'campus-wear': 'Campus Wear & Style Square',
+      'health-hub': 'Health Hub & Care'
     };
 
     const formattedOrders = (dbOrders || []).map((remote, idx) => {
@@ -863,7 +1207,7 @@ async function syncOrdersWithSupabase() {
           productId: it.product_id || it.productId || it.id,
           name: it.product_name || it.name || 'Campus Item',
           price: Number(it.price || 0),
-          qty: it.qty || it.quantity || 1,
+          qty: it.qty !== undefined ? it.qty : (it.quantity || 1),
           emoji: it.emoji || '📦',
           image: it.image || it.image_url || '',
           storeId: remote.store_id || 'campus-cafe'
@@ -879,7 +1223,9 @@ async function syncOrdersWithSupabase() {
           time: h.created_at || h.time,
           label: h.notes || h.label || h.status
         })),
-        createdAt: remote.created_at || new Date().toISOString()
+        createdAt: remote.created_at || new Date().toISOString(),
+        otp: remote.otp || null,
+        eta: remote.eta || null
       };
     });
 
@@ -887,7 +1233,7 @@ async function syncOrdersWithSupabase() {
     const dbMap = new Map(formattedOrders.map(o => [o.id, o]));
     const merged = [...formattedOrders];
 
-    // Retain any local order for this user that hasn't synced yet
+    // Retain any local order for this user that hasn't synced to server yet
     OrdersState.orders.forEach(loc => {
       if (loc.user_id === userId && !dbMap.has(loc.id)) {
         merged.push(loc);
@@ -924,58 +1270,32 @@ if (document.readyState === 'loading') {
   initOrders();
 }
 
-  // Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
-  setInterval(() => {
-    document.querySelectorAll('.order-time-text[data-timestamp]').forEach(el => {
-      const ts = el.getAttribute('data-timestamp');
-      const rel = el.querySelector('.rel-time');
-      if (ts && rel) {
-        rel.textContent = fmtRelativeTime(ts);
-      }
-    });
-  }, 30000);
-
-  // Check URL hash for direct order view (e.g., orders.html#UM1024)
-  const hash = window.location.hash.replace('#', '');
-  if (hash && OrdersState.orders.some(o => o.id === hash)) {
-    openOrderModal(hash);
-  }
-
-  // Live SWR revalidation listener
-  window.addEventListener('unimall:dataRevalidated', (e) => {
-    if (e.detail && e.detail.key && e.detail.key.startsWith('user_orders:')) {
-      syncOrdersWithSupabase();
+// Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
+setInterval(() => {
+  document.querySelectorAll('.order-date-sub[data-timestamp]').forEach(el => {
+    const ts = el.getAttribute('data-timestamp');
+    if (ts) {
+      el.textContent = fmtOrderCardTime(ts);
     }
   });
+}, 30000);
 
-/* ─── 1-TAP COPY HELPER ──────────────────────────────────── */
-function copyOrderText(text, label = 'Code') {
-  if (!text) return;
-  navigator.clipboard?.writeText(text).then(() => {
-    if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('pop');
-    showOrderToast(`Copied ${label}: ${text} ✓`);
-  }).catch(() => {
-    showOrderToast(`Copied ${label}: ${text}`);
-  });
-}
-window.copyOrderText = copyOrderText;
-
-function showOrderToast(msg) {
-  let toast = document.getElementById('orderCopyToast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'orderCopyToast';
-    toast.style.cssText = 'position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(10px);background:#0F172A;color:#fff;padding:9px 18px;border-radius:999px;font-size:12.5px;font-weight:600;z-index:99999;box-shadow:0 4px 18px rgba(15,23,42,0.3);transition:all 0.22s cubic-bezier(0.16,1,0.3,1);opacity:0;pointer-events:none;';
-    document.body.appendChild(toast);
+// Live SWR revalidation listener
+window.addEventListener('unimall:dataRevalidated', (e) => {
+  if (e.detail && e.detail.key && e.detail.key.startsWith('user_orders:')) {
+    syncOrdersWithSupabase();
   }
-  toast.textContent = msg;
-  toast.style.opacity = '1';
-  toast.style.transform = 'translateX(-50%) translateY(0)';
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(-50%) translateY(8px)';
-  }, 2200);
-}
+});
+
+// BroadcastChannel for cross-tab or cross-device real-time updates
+try {
+  const ordersChannel = new BroadcastChannel('unimall_orders_sync');
+  ordersChannel.onmessage = (event) => {
+    if (event.data && event.data.type === 'ORDER_UPDATED') {
+      syncOrdersWithSupabase();
+    }
+  };
+} catch (e) {}
 
 window.renderOrdersView = function() {
   loadStateFromStorage();
