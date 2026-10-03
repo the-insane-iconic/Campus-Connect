@@ -4,14 +4,20 @@
   "description": "Campus Connect — Your Campus Mall, Closer",
   "scripts": {
     "sync": "node scripts/sync-android-web.js",
-    "cap:sync": "node scripts/sync-android-web.js && npx cap sync android",
+    "clean:android": "rm -rf android/app/build node_modules/@capacitor/android/capacitor/build",
+    "cap:sync": "npm run clean:android && node scripts/sync-android-web.js && npx cap sync android",
     "android": "npx cap open android",
-    "build:apk": "node scripts/sync-android-web.js && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "build:apk": "npm run clean:android && node scripts/sync-android-web.js && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "build:aab": "npm run clean:android && node scripts/sync-android-web.js && npx cap sync android && cd android && ./gradlew bundleRelease",
     "install:apk": "/Users/ansh/Library/Android/sdk/platform-tools/adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@neon/config": "^1.8.3",
     "@neon/env": "^1.4.8",
     "@neondatabase/auth": "^0.5.0-beta",

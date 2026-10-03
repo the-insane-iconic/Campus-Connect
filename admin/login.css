@@ -411,7 +411,7 @@ body.register-page {
   .popular-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
     min-width: 0;
   }
@@ -424,80 +424,75 @@ body.register-page {
   }
 
   .popular-title {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #0F172A;
   }
 
-  .view-all-link {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--primary);
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    transition: transform 0.15s ease, color 0.15s ease;
-  }
-
-  .view-all-link:hover {
-    color: var(--primary-hover);
-    transform: translateX(2px);
+  .popular-subtitle {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
   }
 
   .popular-cards-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
     width: 100%;
   }
 
   .store-card {
-    border-radius: var(--radius-md);
+    border-radius: 12px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
-    cursor: pointer;
+    cursor: default;
     outline: none;
-    height: 98px;
+    height: 80px;
     min-width: 0;
     width: 100%;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
     user-select: none;
   }
 
-  .store-card:hover,
-  .store-card:focus-visible {
+  .store-card:hover {
     transform: translateY(-2px);
   }
 
   .card-orange {
     background: linear-gradient(145deg, #FF9533 0%, #FF5A1F 100%);
-    box-shadow: 0 6px 16px rgba(255, 90, 31, 0.22);
+    box-shadow: 0 4px 12px rgba(255, 90, 31, 0.22);
   }
 
   .card-purple {
     background: linear-gradient(145deg, #8B5CF6 0%, #6366F1 100%);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.22);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.22);
   }
 
   .card-cyan {
     background: linear-gradient(145deg, #06B6D4 0%, #0284C7 100%);
-    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.22);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.22);
   }
 
   .card-green {
     background: linear-gradient(145deg, #10B981 0%, #059669 100%);
-    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.22);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.22);
+  }
+
+  .card-indigo {
+    background: linear-gradient(145deg, #818CF8 0%, #4F46E5 100%);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.22);
   }
 
   .card-img-wrap {
-    height: 58px;
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 6px 2px;
+    padding: 4px 4px 2px;
     overflow: hidden;
   }
 
@@ -505,19 +500,19 @@ body.register-page {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.16));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.16));
     transition: transform 0.25s ease;
   }
 
   .store-card:hover .card-img {
-    transform: scale(1.08);
+    transform: scale(1.06);
   }
 
   .card-bottom {
-    padding: 4px 8px 6px;
+    padding: 2px 6px 5px;
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
+    justify-content: flex-start;
     min-width: 0;
     overflow: hidden;
   }
@@ -529,7 +524,7 @@ body.register-page {
   }
 
   .card-name {
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 700;
     color: #FFFFFF;
     line-height: 1.15;
@@ -539,7 +534,7 @@ body.register-page {
   }
 
   .card-category {
-    font-size: 8.5px;
+    font-size: 7.5px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.88);
     line-height: 1.15;
@@ -549,37 +544,22 @@ body.register-page {
     text-overflow: ellipsis;
   }
 
-  .card-circle-btn {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(4px);
+  /* Auth section */
+  .auth-section {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #FFFFFF;
-    font-size: 9px;
-    flex-shrink: 0;
-    margin-left: 4px;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 2px;
+    width: 100%;
+    min-width: 0;
   }
 
   .pagination-dots {
     display: none;
   }
 
-  /* Auth Group */
-  .auth-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 4px;
-    width: 100%;
-    min-width: 0;
-  }
-
   .auth-subtitle {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--text-muted);
     line-height: 1.4;
@@ -588,7 +568,7 @@ body.register-page {
   .auth-buttons-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
   }
 
   .btn-google,
@@ -1031,7 +1011,7 @@ body.register-page {
     display: flex;
     flex-direction: column;
     width: 100%;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
   }
 
   .popular-header {
@@ -1039,28 +1019,20 @@ body.register-page {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .popular-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     letter-spacing: -0.02em;
     color: #0F172A;
   }
 
-  .view-all-link {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--primary);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    transition: transform 0.15s ease;
-  }
-
-  .view-all-link:hover {
-    transform: translateX(2px);
+  .popular-subtitle {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
   }
 
   /* Horizontal Scroll Carousel for Store Cards */
@@ -1081,29 +1053,23 @@ body.register-page {
   }
 
   .store-card {
-    flex: 0 0 142px;
-    height: 152px;
-    border-radius: 20px;
+    flex: 0 0 128px;
+    height: 136px;
+    border-radius: 18px;
     scroll-snap-align: start;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
-    cursor: pointer;
+    cursor: default;
     outline: none;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease;
     user-select: none;
   }
 
-  .store-card:hover,
-  .store-card:focus-visible {
+  .store-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
-  }
-
-  .store-card:active {
-    transform: scale(0.98);
   }
 
   .card-orange {
@@ -1122,8 +1088,12 @@ body.register-page {
     background: linear-gradient(145deg, #10B981 0%, #059669 100%);
   }
 
+  .card-indigo {
+    background: linear-gradient(145deg, #818CF8 0%, #4F46E5 100%);
+  }
+
   .card-img-wrap {
-    height: 86px;
+    height: 76px;
     display: flex;
     align-items: center;
     justify-content: center;

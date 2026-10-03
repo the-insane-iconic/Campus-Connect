@@ -1,3 +1,5 @@
+@import url('css/fonts.css');
+
 /* ═══════════════════════════════════════════════════════════
    UNIMALL — CART & CHECKOUT
    ═══════════════════════════════════════════════════════════ */
@@ -43,13 +45,35 @@
 
 html, body {
   min-height: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  background-color: #0F172A;
 }
 
 body {
-  font-family: "DM Sans", sans-serif;
+  font-family: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--background);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+button, a, [role="button"], input, textarea, select, .cart-item-card, .btn-checkout {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:active:not(:disabled),
+.btn-checkout:active,
+.btn-qty:active,
+.nav-item:active {
+  transform: scale(0.965);
+  opacity: 0.9;
+  transition: transform 60ms ease, opacity 60ms ease;
 }
 
 button, input, textarea {
