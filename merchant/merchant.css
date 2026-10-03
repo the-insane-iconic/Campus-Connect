@@ -26,6 +26,14 @@ body.role-merchant {
   display: none !important;
 }
 
+/* Ensure active admin view is visible */
+.admin-view {
+  display: none;
+}
+.admin-view.active {
+  display: block !important;
+}
+
 /* Isolated Store Identity Badge in Topbar */
 .merchant-store-badge {
   display: inline-flex;

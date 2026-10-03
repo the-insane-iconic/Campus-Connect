@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en" class="auth-checking">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>UniMall — Merchant Portal</title>
-  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="icon" type="image/png" href="/favicon.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="/admin/admin.css">
   <link rel="stylesheet" href="/merchant/merchant.css">
-  
+
   <style>
     html.auth-checking body { visibility: hidden; }
   </style>
@@ -21,46 +21,47 @@
 
   <div class="admin-layout">
 
-    <!-- ════════════ SIDEBAR ════════════ -->
+    <!-- ════════════ DESKTOP SIDEBAR / MOBILE DRAWER ════════════ -->
     <aside class="admin-sidebar" id="merchant-sidebar">
-      <!-- BRAND -->
-      <div class="sidebar-brand">
-        <div class="brand-logo">
-          <span class="brand-dot"></span>
-          <span class="brand-text">Uni<strong>Mall</strong></span>
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <div class="brand-wordmark">Uni<span>Mall</span></div>
+          <div class="brand-portal-label" id="brand-portal-label">Merchant Dashboard</div>
         </div>
-        <span class="brand-badge" id="brand-portal-label">Merchant Dashboard</span>
+        <button type="button" id="btn-close-drawer" class="btn-close-drawer" aria-label="Close menu">✕</button>
       </div>
 
-      <!-- STORE IDENTITY CARD (Isolated — No Switcher) -->
-      <div class="store-badge-card" style="margin: 12px 14px 16px; padding: 12px; background: #FFFFFF; border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-        <div class="store-badge-avatar" id="sidebar-store-avatar" style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, #2563EB, #1D4ED8); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px;">S</div>
-        <div style="flex: 1; min-width: 0;">
-          <div id="sidebar-store-name" style="font-weight: 700; font-size: 13.5px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Loading…</div>
-          <div id="sidebar-store-status" style="font-size: 11.5px; font-weight: 600; color: #059669; margin-top: 2px;">● Open</div>
+      <!-- ACTIVE STORE CARD (ISOLATED — NO STORE SWITCHER) -->
+      <div class="active-store-card" id="active-store-card">
+        <div class="store-avatar" id="sidebar-store-avatar">🏪</div>
+        <div class="store-meta">
+          <div class="store-title" id="sidebar-store-name">Campus Store</div>
+          <div class="store-badge-status" id="sidebar-store-status">● Open</div>
         </div>
       </div>
 
-      <!-- NAVIGATION -->
-      <nav class="sidebar-nav">
-        <div class="nav-group-label">MY STORE</div>
+      <!-- NAVIGATION LINKS -->
+      <nav class="sidebar-nav" aria-label="Merchant Navigation">
+        <div class="nav-group-label" id="label-ops-group">MY STORE</div>
 
         <button type="button" class="nav-item active" data-view="dashboard" id="nav-dashboard">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          <span>Store Dashboard</span>
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span id="nav-dash-label">Store Dashboard</span>
         </button>
 
         <button type="button" class="nav-item" data-view="orders" id="nav-orders">
-          <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-          <span>Live Orders</span>
+          <svg viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span id="nav-orders-label">Live Orders</span>
+          <span class="nav-counter alert" id="counter-orders">0</span>
         </button>
 
         <button type="button" class="nav-item" data-view="products" id="nav-products">
-          <svg viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           <span>Products & Stock</span>
+          <span class="nav-counter warn" id="counter-low-stock">0</span>
         </button>
 
-        <div class="nav-group-label">STORE SETTINGS</div>
+        <div class="nav-group-label" id="label-settings-group">STORE SETTINGS</div>
 
         <button type="button" class="nav-item" data-view="store" id="nav-store">
           <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -69,12 +70,12 @@
 
         <button type="button" class="nav-item" data-view="analytics" id="nav-analytics">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span>Store Analytics</span>
+          <span id="nav-analytics-label">Store Analytics</span>
         </button>
 
         <button type="button" class="nav-item" data-view="requests" id="nav-requests">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Product Requests</span>
+          <span id="nav-requests-label">Product Requests</span>
         </button>
       </nav>
 
@@ -93,13 +94,20 @@
       </div>
     </aside>
 
-    <!-- ════════════ MAIN CONTENT ════════════ -->
+    <!-- BACKDROP FOR MOBILE DRAWER -->
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+    <!-- ════════════ MAIN CONTENT CANVAS ════════════ -->
     <div class="admin-main">
 
       <!-- TOP BAR -->
       <header class="admin-topbar">
         <div class="topbar-left">
-          <!-- MERCHANT STORE BADGE (ISOLATED) -->
+          <button type="button" id="btn-mobile-menu" class="btn-mobile-menu" aria-label="Open menu">
+            <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+
+          <!-- ISOLATED STORE IDENTITY BADGE (NO STORE SWITCHER DROPDOWN) -->
           <div class="merchant-store-badge">
             <div class="store-badge-avatar" id="tb-store-avatar">S</div>
             <span class="store-badge-name" id="tb-store-name">Campus Store</span>
@@ -108,10 +116,16 @@
         </div>
 
         <div class="topbar-right">
-          <!-- STORE OPEN/CLOSED TOGGLE -->
+          <!-- QUICK STORE OPEN / CLOSED TOGGLE -->
           <button type="button" id="btn-store-status-toggle" class="btn-status-toggle open" title="Click to toggle Open / Closed">
             <span class="status-dot"></span>
             <span class="status-label" id="topbar-status-text">Store Open</span>
+          </button>
+
+          <!-- ORDER SOUND & NOTIFICATION CHIME TOGGLE -->
+          <button type="button" id="btn-sound-toggle" class="btn-icon-topbar sound-on" title="Order Alert Chime: ON (Click to toggle sound)" aria-label="Toggle Sound Alert">
+            <svg class="icon-sound-on" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <svg class="icon-sound-off hidden" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
           </button>
 
           <!-- VIEW STOREFRONT IN NEW TAB -->
@@ -122,371 +136,763 @@
         </div>
       </header>
 
-      <!-- ════ VIEW 1: STORE DASHBOARD ════ -->
-      <section class="admin-view" id="view-dashboard">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Store Dashboard</h1>
-            <p class="view-subtitle">Live daily revenue, customer orders, and operations summary.</p>
-          </div>
-          <button type="button" class="btn-action secondary btn-sm" onclick="loadMerchantDashboard()">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            Refresh
-          </button>
-        </div>
+      <!-- VIEW CONTAINER -->
+      <main class="admin-content-area" id="admin-content-area">
 
-        <!-- 4 KPI CARDS -->
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-icon-wrap" style="background:#EFF6FF; color:#2563EB;">💰</div>
-            <div class="kpi-content">
-              <span class="kpi-label">Today's Revenue</span>
-              <div class="kpi-value" id="dash-metric-sales">₹0</div>
-              <span class="kpi-subtext">Sales processed today</span>
+        <!-- ════ 1. STORE DASHBOARD VIEW ════ -->
+        <section class="admin-view active" id="view-dashboard">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title" id="dash-greeting">Store Dashboard</h1>
+              <p class="view-subtitle" id="dash-store-sub">
+                <span class="live-pulse-dot"></span>
+                <span>Your store's live orders, daily revenue &amp; stock overview</span>
+              </p>
+            </div>
+            <div class="view-actions" id="dash-header-actions">
+              <button type="button" class="btn-action secondary" onclick="window.refreshDashboardMetrics && window.refreshDashboardMetrics()">
+                ↻ Refresh
+              </button>
             </div>
           </div>
 
-          <div class="kpi-card">
-            <div class="kpi-icon-wrap" style="background:#F0FDF4; color:#059669;">👥</div>
-            <div class="kpi-content">
-              <span class="kpi-label">My Customers</span>
-              <div class="kpi-value" id="dash-metric-customers">0</div>
-              <span class="kpi-subtext">Students served</span>
-            </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-icon-wrap" style="background:#FEF3C7; color:#D97706;">📦</div>
-            <div class="kpi-content">
-              <span class="kpi-label">Orders Received</span>
-              <div class="kpi-value" id="dash-metric-orders">0</div>
-              <span class="kpi-subtext">Total store orders</span>
-            </div>
-          </div>
-
-          <div class="kpi-card">
-            <div class="kpi-icon-wrap" style="background:#F3E8FF; color:#7C3AED;">💳</div>
-            <div class="kpi-content">
-              <span class="kpi-label">My Earnings</span>
-              <div class="kpi-value" id="dash-metric-payout">₹0</div>
-              <span class="kpi-subtext">Net earnings (after 5% platform fee)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- QUICK OPERATIONS -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 24px;">
-          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('orders')">
-            <div style="font-size:24px; margin-bottom:8px;">⚡</div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Incoming Orders & Queue</h3>
-            <p style="font-size:13px; color:var(--text-muted); margin:0;">Process orders, start prep timers, and alert students when items are ready.</p>
-          </div>
-
-          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('products')">
-            <div style="font-size:24px; margin-bottom:8px;">📦</div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Products & Inventory</h3>
-            <p style="font-size:13px; color:var(--text-muted); margin:0;">Update pricing, manage stock availability, and edit merchant product descriptions.</p>
-          </div>
-
-          <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); cursor:pointer;" onclick="switchMerchantView('store')">
-            <div style="font-size:24px; margin-bottom:8px;">⚙️</div>
-            <h3 style="font-size:16px; font-weight:700; margin:0 0 6px;">Store Hours & Campus Location</h3>
-            <p style="font-size:13px; color:var(--text-muted); margin:0;">Configure campus building location (e.g. Food Court, Cafeteria 34th) and opening hours.</p>
-          </div>
-        </div>
-
-        <!-- RECENT ORDERS SECTION -->
-        <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); margin-top:24px; overflow:hidden; box-shadow:var(--shadow-sm);">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border);">
-            <h3 style="font-size:15px; font-weight:700; margin:0;">Recent Incoming Orders</h3>
-            <button type="button" class="btn-action secondary btn-sm" onclick="switchMerchantView('orders')">View All Orders</button>
-          </div>
-          <div id="dash-recent-orders-list">
-            <!-- Populated via JS -->
-          </div>
-        </div>
-      </section>
-
-      <!-- ════ VIEW 2: LIVE ORDERS ════ -->
-      <section class="admin-view hidden" id="view-orders">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Live Orders Queue</h1>
-            <p class="view-subtitle">Process incoming customer orders and update preparation status in real-time.</p>
-          </div>
-          <button type="button" class="btn-action secondary btn-sm" onclick="loadMerchantOrders()">Refresh</button>
-        </div>
-
-        <!-- FILTER CHIPS & SEARCH -->
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin-bottom:18px;">
-          <div class="order-filter-chips" style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button type="button" class="order-filter-tab active" data-status="all">All Orders</button>
-            <button type="button" class="order-filter-tab" data-status="pending">Incoming</button>
-            <button type="button" class="order-filter-tab" data-status="preparing">Preparing</button>
-            <button type="button" class="order-filter-tab" data-status="ready">Ready for Pickup</button>
-            <button type="button" class="order-filter-tab" data-status="delivered">Delivered</button>
-          </div>
-          <div>
-            <input type="text" id="orders-search-input" placeholder="Search by customer or #ID…" class="form-input" style="width:240px; padding:6px 12px; font-size:13px;" />
-          </div>
-        </div>
-
-        <!-- ORDERS TABLE -->
-        <div class="table-responsive" style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm);">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Items</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Time</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="orders-table-body">
-              <!-- Populated via JS -->
-            </tbody>
-          </table>
-          <div id="orders-empty-state" class="empty-state hidden" style="padding:48px 16px; text-align:center;">
-            <div style="font-size:36px; margin-bottom:8px;">📦</div>
-            <p style="font-weight:700; font-size:15px; margin:0 0 4px;">No matching orders</p>
-            <p style="color:var(--text-muted); font-size:13px; margin:0;">New customer orders will appear here automatically.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ════ VIEW 3: PRODUCTS & STOCK ════ -->
-      <section class="admin-view hidden" id="view-products">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Products & Inventory</h1>
-            <p class="view-subtitle">Manage store catalog, prices, stock availability, and rich product descriptions.</p>
-          </div>
-          <button type="button" class="btn-action primary" onclick="openAddProductModal()">
-            <span>+ Add Product</span>
-          </button>
-        </div>
-
-        <!-- SEARCH & STOCK FILTERS -->
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin-bottom:20px;">
-          <input type="text" id="products-search-input" placeholder="Search catalog items…" class="form-input" style="width:280px; padding:8px 14px; font-size:13px;" />
-          
-          <select id="products-stock-select" class="form-select" style="padding:8px 14px; font-size:13px;">
-            <option value="all">All Products</option>
-            <option value="in_stock">In Stock Only</option>
-            <option value="out_of_stock">Out of Stock Only</option>
-          </select>
-        </div>
-
-        <!-- PRODUCTS GRID -->
-        <div id="merchant-products-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:20px;">
-          <!-- Populated via JS -->
-        </div>
-
-        <div id="products-empty-state" class="empty-state hidden" style="padding:48px 16px; text-align:center; background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); margin-top:20px;">
-          <div style="font-size:36px; margin-bottom:8px;">🏷️</div>
-          <p style="font-weight:700; font-size:15px; margin:0 0 4px;">No products found</p>
-          <p style="color:var(--text-muted); font-size:13px; margin:0 0 16px;">Add new items with merchant descriptions to show in your store.</p>
-          <button type="button" class="btn-action primary" onclick="openAddProductModal()">Add First Product</button>
-        </div>
-      </section>
-
-      <!-- ════ VIEW 4: STORE PROFILE & SETTINGS ════ -->
-      <section class="admin-view hidden" id="view-store">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Store Profile & Hours</h1>
-            <p class="view-subtitle">Configure your campus building location, operating hours, and contact details.</p>
-          </div>
-        </div>
-
-        <div style="max-width:720px; background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px; box-shadow:var(--shadow-sm);">
-          <form id="merchant-settings-form">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;">
-              <div>
-                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Name</label>
-                <input type="text" id="setting-store-name" class="form-input" required />
-              </div>
-              <div>
-                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Category</label>
-                <input type="text" id="setting-store-category" class="form-input" placeholder="e.g. Food & Drinks, Groceries" required />
+          <!-- OPERATIONAL METRIC RIBBON (4 KPI CARDS) -->
+          <div class="metrics-grid">
+            <div class="metric-card" id="card-metric-sales">
+              <div class="metric-icon purple">💰</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-sales">Today's Revenue</div>
+                <div class="metric-value" id="dash-today-sales">₹0</div>
+                <div class="metric-trend text-muted" id="sub-dash-sales">Your store sales today</div>
               </div>
             </div>
 
-            <div style="margin-bottom:18px;">
-              <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">
-                Campus Location (Exact Building / Floor)
-              </label>
-              <input type="text" id="setting-store-location" class="form-input" placeholder="e.g. Food Court 1, 2, 3 or Cafeteria in 34building floor 6th" required />
-              <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Students will see this exact location on the store card and details page.</p>
-            </div>
-
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;">
-              <div>
-                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Phone / WhatsApp</label>
-                <input type="text" id="setting-store-phone" class="form-input" placeholder="+91 98765 43210" />
-              </div>
-              <div>
-                <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Status</label>
-                <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-weight:600; font-size:13.5px; cursor:pointer;">
-                  <input type="checkbox" id="setting-store-open-status" style="width:18px; height:18px;" />
-                  <span>Store is currently open for campus orders</span>
-                </label>
+            <div class="metric-card" id="card-metric-customers">
+              <div class="metric-icon blue">👥</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-customers">My Customers</div>
+                <div class="metric-value" id="dash-today-customers">0</div>
+                <div class="metric-trend text-muted" id="sub-dash-customers">Students who ordered from you</div>
               </div>
             </div>
 
-            <div style="margin-bottom:24px;">
-              <label class="form-label" style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">Store Description</label>
-              <textarea id="setting-store-desc" class="form-input" rows="3" placeholder="Brief overview of what your store offers to campus students…"></textarea>
+            <div class="metric-card" id="card-metric-orders">
+              <div class="metric-icon green">📦</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-orders">Orders Received</div>
+                <div class="metric-value" id="dash-today-orders">0</div>
+                <div class="metric-trend text-muted" id="sub-dash-orders">Orders placed at your store</div>
+              </div>
             </div>
 
-            <button type="submit" id="btn-save-settings" class="btn-action primary" style="padding:10px 24px; font-size:14px; font-weight:700;">
-              Save Store Changes
-            </button>
-          </form>
-        </div>
-      </section>
+            <div class="metric-card" id="card-metric-payout">
+              <div class="metric-icon amber">🤝</div>
+              <div class="metric-info">
+                <div class="metric-label" id="lbl-dash-payout">My Earnings</div>
+                <div class="metric-value" id="dash-today-payout">₹0</div>
+                <div class="metric-trend text-muted" id="sub-dash-payout">Net earnings after platform fee</div>
+              </div>
+            </div>
+          </div>
 
-      <!-- ════ VIEW 5: STORE ANALYTICS ════ -->
-      <section class="admin-view hidden" id="view-analytics">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Store Analytics</h1>
-            <p class="view-subtitle">Performance breakdown and top selling campus items.</p>
+          <!-- STORE OPERATIONS & LIVE ORDERS HUB -->
+          <div class="card-panel mt-6" id="merchant-quick-actions-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🏪</span>
+                  <span>Store Operations & Live Orders Hub</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:2px;">
+                  Real-time incoming student orders, preparation workflow, and inventory management.
+                </p>
+              </div>
+            </div>
+            <div class="panel-body" style="padding: 24px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                <div class="merchant-hub-card" onclick="window.switchView('orders')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">⚡</span>
+                    <span class="badge-status accepted">Live Queue</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Incoming Orders & Queue</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Process orders, start preparation timers, and notify students when items are ready for pickup.</p>
+                </div>
+                <div class="merchant-hub-card" onclick="window.switchView('products')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">📦</span>
+                    <span class="badge-status completed">Catalog & Stock</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Products & Inventory</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Edit pricing, manage stock availability, toggle low-stock alerts, and add new campus items.</p>
+                </div>
+                <div class="merchant-hub-card" onclick="window.switchView('store')" style="cursor:pointer; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--surface-alt); transition:all 0.2s ease;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:24px;">⚙️</span>
+                    <span class="badge-status ready">Configuration</span>
+                  </div>
+                  <strong style="display:block; font-size:15px; color:var(--text-main); margin-bottom:4px;">Store Hours & Profile</strong>
+                  <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Configure operating hours, campus building location, contact details, and banner branding.</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <span class="kpi-label">Cumulative Store Revenue</span>
-            <div class="kpi-value" id="analytic-total-revenue">₹0</div>
+        <!-- ════ 2. LIVE ORDERS VIEW ════ -->
+        <section class="admin-view" id="view-orders">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title" id="orders-view-title">Live Orders &amp; Fulfillment</h1>
+              <p class="view-subtitle" id="orders-view-subtitle">Live order processing, preparation timers, status advancement, and complete order history</p>
+            </div>
+            <div class="view-actions" style="display:flex; align-items:center; gap:10px;">
+              <button type="button" class="btn-action secondary" id="btn-refresh-orders" onclick="window.loadOrders && window.loadOrders(window.activeStoreId)">
+                ↻ Refresh Orders
+              </button>
+            </div>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Total Completed Orders</span>
-            <div class="kpi-value" id="analytic-total-orders">0</div>
-          </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Net Store Earnings</span>
-            <div class="kpi-value" id="analytic-net-earnings">₹0</div>
-          </div>
-        </div>
 
-        <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; margin-top:24px; box-shadow:var(--shadow-sm);">
-          <h3 style="font-size:15px; font-weight:700; margin:0 0 14px;">Top Selling Items</h3>
-          <div id="analytic-top-items">
-            <!-- Populated via JS -->
-          </div>
-        </div>
-      </section>
+          <!-- ACTIVE ORDERS LIVE QUEUE -->
+          <div class="card-panel mt-6" id="dashboard-active-orders-section">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span class="shortcut-pulse-dot"></span>
+                  <span>⚡ Live Active Orders Queue</span>
+                  <span class="badge-status accepted" id="dash-active-count-badge" style="font-size:11px; padding:3px 10px; margin-left:4px;">0 Active</span>
+                </div>
+                <p style="font-size:12.5px; color:var(--text-muted); margin-top:3px;">
+                  Real-time incoming student orders requiring preparation, ready notification, or counter pickup.
+                </p>
+              </div>
+            </div>
 
-      <!-- ════ VIEW 6: PRODUCT REQUESTS ════ -->
-      <section class="admin-view hidden" id="view-requests">
-        <div class="view-header">
-          <div>
-            <h1 class="view-title">Student Demand Requests</h1>
-            <p class="view-subtitle">Items students have requested to be stocked in your store.</p>
-          </div>
-        </div>
-        <div id="merchant-requests-list" style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);">
-          <!-- Populated via JS -->
-        </div>
-      </section>
+            <div id="mobile-notif-banner" class="mobile-notif-banner hidden" style="margin: 16px 20px 0;">
+              <div class="notif-banner-icon">🔔</div>
+              <div class="notif-banner-text">
+                <strong>Enable Instant Order Alerts:</strong> Get notified on lock screen when students place new orders.
+              </div>
+              <button type="button" id="btn-enable-mobile-notifs" class="btn-action primary btn-sm">Enable Alerts</button>
+            </div>
 
+            <div class="panel-body" style="padding: 16px 20px;">
+              <div id="dashboard-active-orders-grid" class="active-orders-live-grid">
+                <div class="empty-state-sm">Loading active orders...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HISTORICAL / ALL ORDERS LOG -->
+          <div class="card-panel mt-6">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <div class="panel-title">Orders Log</div>
+                <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 2px;">Search by customer, status, or order ID.</p>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="orders-search-input" placeholder="Search customer or #..." class="search-input-field" style="padding: 6px 12px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm);" />
+              </div>
+            </div>
+
+            <div class="orders-filter-bar">
+              <div class="order-status-tabs" id="orders-status-tabs">
+                <button type="button" class="tab-btn active" data-status="ALL">All</button>
+                <button type="button" class="tab-btn" data-status="ACCEPTED">Accepted / Preparing</button>
+                <button type="button" class="tab-btn" data-status="READY">Ready</button>
+                <button type="button" class="tab-btn" data-status="DELIVERED">Delivered</button>
+                <button type="button" class="tab-btn" data-status="CANCELLED">Cancelled</button>
+              </div>
+            </div>
+
+            <!-- ALL ORDERS TABLE -->
+            <div id="all-orders-table-wrapper" style="padding: 0;">
+              <div class="table-responsive" style="overflow-x:auto;">
+                <table class="data-table" id="orders-table" style="width:100%; border-collapse:collapse;">
+                  <thead>
+                    <tr>
+                      <th>Order #</th>
+                      <th>Customer</th>
+                      <th>Fulfillment</th>
+                      <th>Items</th>
+                      <th>Total</th>
+                      <th>Placed</th>
+                      <th>Status</th>
+                      <th>Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-tbody">
+                    <tr><td colspan="8" class="text-center py-6">Loading orders...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════ 3. PRODUCTS & STOCK VIEW ════ -->
+        <section class="admin-view" id="view-products">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Products &amp; Stock</h1>
+              <p class="view-subtitle">Manage your catalog, prices, stock levels, and merchant descriptions</p>
+            </div>
+            <div class="view-actions">
+              <button type="button" class="btn-action secondary" id="btn-open-quick-add">⚡ Quick Add</button>
+              <button type="button" class="btn-action primary" id="btn-open-add-product">+ Add Product</button>
+            </div>
+          </div>
+
+          <!-- LOW STOCK ALERTS & TOP PRODUCTS TODAY -->
+          <div class="dashboard-two-col mb-6" id="products-insights-panels">
+            <div class="card-panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>⚠️</span>
+                  <span>Low Stock Alerts</span>
+                </div>
+                <span class="badge-status cancelled" id="products-low-stock-badge" style="font-size:11px;">0 items</span>
+              </div>
+              <div class="panel-body" id="products-low-stock-list" style="padding:12px 16px; max-height:220px; overflow-y:auto;">
+                <div class="empty-state-sm">Checking stock levels...</div>
+              </div>
+            </div>
+
+            <div class="card-panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+                  <span>🔥</span>
+                  <span>Top Products Today</span>
+                </div>
+                <span class="badge-status accepted" id="products-top-items-badge" style="font-size:11px;">Live Sales</span>
+              </div>
+              <div class="panel-body" id="products-top-products-list" style="padding:12px 16px; max-height:220px; overflow-y:auto;">
+                <div class="empty-state-sm">Loading top items...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STOCK HEALTH SUMMARY STRIP -->
+          <div class="catalog-controls-bar" style="flex-wrap: wrap;">
+            <div class="search-input-wrap">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="product-search-input" placeholder="Search by product name, SKU, or category..." />
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div class="inventory-summary-chips">
+                <span class="inv-chip alert" id="inv-chip-out">0 Out of Stock</span>
+                <span class="inv-chip warn" id="inv-chip-low">0 Low Stock</span>
+              </div>
+              <div class="stock-filter-pills">
+                <button type="button" class="pill-btn active" data-filter="all">All</button>
+                <button type="button" class="pill-btn" data-filter="in_stock">In Stock</button>
+                <button type="button" class="pill-btn" data-filter="low_stock">Low Stock</button>
+                <button type="button" class="pill-btn" data-filter="out_of_stock">Out of Stock</button>
+                <button type="button" class="pill-btn" data-filter="inactive">Inactive</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- MERGED PRODUCTS + STOCK TABLE -->
+          <div class="card-panel">
+            <div class="table-responsive">
+              <table class="data-table" id="products-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>SKU</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Quick Adjust</th>
+                    <th>Low Threshold</th>
+                    <th>Availability</th>
+                    <th>Active</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="products-tbody">
+                  <tr><td colspan="10" class="text-center py-6">Loading products & stock...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════ 4. STORE SETTINGS & HOURS VIEW ════ -->
+        <section class="admin-view" id="view-store">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Store Profile &amp; Hours</h1>
+              <p class="view-subtitle">Store information, campus location, hours, and fulfillment toggles</p>
+            </div>
+            <div class="view-actions">
+              <button type="submit" form="store-settings-form" class="btn-action primary" id="btn-save-store">Save Changes</button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <!-- LIVE STORE STATUS BANNER -->
+            <div class="card-panel store-live-status-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;">
+                <div>
+                  <div style="font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                    <span id="settings-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #16A34A;"></span>
+                    <span id="settings-status-heading">Store is Online & Accepting Orders</span>
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;">
+                    Too many in-person customers at the counter? Turn this off to temporarily pause online student orders.
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button type="button" id="btn-settings-toggle-open" class="btn-action secondary" style="font-size: 12.5px; font-weight: 600; padding: 7px 16px;">
+                    ⏸ Pause Store (Go Offline)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- GENERAL STORE INFO -->
+            <div class="card-panel">
+              <div class="panel-header"><div class="panel-title">Store Information</div></div>
+              <form id="store-settings-form" class="settings-form">
+                <div class="form-group">
+                  <label for="setting-store-name">Store Name</label>
+                  <input type="text" id="setting-store-name" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="setting-store-cat">Category</label>
+                  <input type="text" id="setting-store-cat" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="setting-store-location">Campus Location (Building / Floor / Food Court)</label>
+                  <input type="text" id="setting-store-location" placeholder="e.g. Food Court 1, 2, 3 or Cafeteria in 34building floor 6th" required />
+                  <p style="font-size:11.5px; color:var(--text-muted); margin-top:3px;">Students see this exact registered campus location on your store page.</p>
+                </div>
+
+                <div class="form-group">
+                  <label for="setting-store-phone">Contact Phone</label>
+                  <input type="text" id="setting-store-phone" placeholder="+91 98765 00000" />
+                </div>
+
+                <div class="form-group">
+                  <label for="setting-store-desc">Store Description</label>
+                  <textarea id="setting-store-desc" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Store Front Cover Banner</span>
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">Shown on customer stores directory & hero</span>
+                  </label>
+                  <div class="cover-image-picker-box">
+                    <div class="cover-selected-preview-banner">
+                      <div class="cover-selected-thumb">
+                        <img id="settings-cover-preview" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80" alt="Store Cover Preview" />
+                      </div>
+                      <div class="cover-selected-meta">
+                        <div class="cover-selected-label" id="settings-cover-name">Campus Banner Photo</div>
+                        <div class="cover-selected-hint">Select a photo below, upload from device, or paste a link</div>
+                      </div>
+                    </div>
+                    <input type="hidden" id="setting-store-banner" value="" />
+                    <div class="picker-source-tabs" style="margin-top: 6px;">
+                      <button type="button" class="picker-tab-btn active" id="tab-cover-presets" data-tab="presets">Preset Gallery</button>
+                      <button type="button" class="picker-tab-btn" id="tab-cover-upload" data-tab="upload">Upload Photo</button>
+                      <button type="button" class="picker-tab-btn" id="tab-cover-url" data-tab="url">Image Link</button>
+                    </div>
+                    <div id="cover-section-presets">
+                      <div class="cover-gallery-grid" id="cover-gallery-grid"></div>
+                    </div>
+                    <div class="drag-drop-zone hidden" id="cover-section-upload">
+                      <input type="file" id="cover-file-input" accept="image/*" style="display: none;" />
+                      <div class="drag-drop-icon">📷</div>
+                      <div class="drag-drop-title">Click to upload store cover from your device</div>
+                      <button type="button" class="btn-action secondary" id="btn-browse-cover" style="margin-top: 4px; font-size: 12px; padding: 5px 14px;">Browse Files</button>
+                    </div>
+                    <div class="form-group hidden" id="cover-section-url">
+                      <input type="url" id="cover-manual-url" placeholder="https://images.unsplash.com/photo-..." />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group-toggle">
+                  <div>
+                    <div class="toggle-title">Accept Hostel Delivery</div>
+                    <div class="toggle-subtitle">Students can request delivery directly to their hostel room</div>
+                  </div>
+                  <input type="checkbox" id="setting-accepts-delivery" class="ios-switch" />
+                </div>
+
+                <div class="form-group-toggle">
+                  <div>
+                    <div class="toggle-title">Accept Counter Pickup</div>
+                    <div class="toggle-subtitle">Students can place order and pick up at counter</div>
+                  </div>
+                  <input type="checkbox" id="setting-accepts-pickup" class="ios-switch" />
+                </div>
+              </form>
+            </div>
+
+            <!-- OPERATING HOURS -->
+            <div class="card-panel">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div class="panel-title">Weekly Operating Hours</div>
+                <div class="hours-quick-bar">
+                  <button type="button" class="btn-quick-hours" id="btn-hours-standard">Standard: 9 AM – 9 PM</button>
+                  <button type="button" class="btn-quick-hours" id="btn-hours-extended">Extended: 8 AM – 10 PM</button>
+                </div>
+              </div>
+              <div class="hours-editor" id="hours-editor-container"></div>
+            </div>
+          </div>
+
+          <div class="settings-sticky-save-bar">
+            <span class="save-hint">💾 Remember to save changes after updating your store profile & hours</span>
+            <button type="submit" form="store-settings-form" class="btn-action primary" style="background:#2563EB; color:#FFF; font-weight:700; padding:8px 22px;">Save Changes</button>
+          </div>
+        </section>
+
+        <!-- ════ 5. STORE ANALYTICS VIEW ════ -->
+        <section class="admin-view" id="view-analytics">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title" id="analytics-page-title">Store Sales Analytics</h1>
+              <p class="view-subtitle" id="analytics-page-sub">Performance breakdown, peak rush curves, and student buying trends</p>
+            </div>
+            <div class="period-tabs">
+              <button type="button" class="tab-btn active" data-period="today">Today</button>
+              <button type="button" class="tab-btn" data-period="week">This Week</button>
+              <button type="button" class="tab-btn" data-period="month">This Month</button>
+              <button type="button" class="tab-btn" data-period="all">All Time</button>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-icon blue">💰</div>
+              <div class="metric-info">
+                <div class="metric-label">Gross Revenue</div>
+                <div class="metric-value" id="analytics-revenue">₹0</div>
+                <div class="metric-trend text-muted">Store GMV</div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon green">📦</div>
+              <div class="metric-info">
+                <div class="metric-label">Orders Count</div>
+                <div class="metric-value" id="analytics-orders">0</div>
+                <div class="metric-trend text-muted">Completed orders</div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon purple">🛍️</div>
+              <div class="metric-info">
+                <div class="metric-label">Units Sold</div>
+                <div class="metric-value" id="analytics-units">0</div>
+                <div class="metric-trend text-muted">Items fulfilled</div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon amber">📊</div>
+              <div class="metric-info">
+                <div class="metric-label">Average Order Value</div>
+                <div class="metric-value" id="analytics-aov">₹0</div>
+                <div class="metric-trend text-muted">Basket size</div>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon teal">👥</div>
+              <div class="metric-info">
+                <div class="metric-label">Campus Buyers</div>
+                <div class="metric-value" id="analytics-customers">0</div>
+                <div class="metric-trend text-muted">Students served</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-panel mt-6">
+            <div class="panel-header">
+              <div class="panel-title"><span>⏰</span> <span>Peak Rush Hours</span></div>
+            </div>
+            <div class="panel-body" style="padding: 20px 16px;">
+              <div class="rush-time-badges" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">
+                <div class="rush-badge-card" id="rush-breakfast">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">☕ Breakfast Rush</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">08:00 - 10:00 AM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-breakfast-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-lunch">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🍱 Lunch Rush</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">12:00 - 02:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-lunch-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-evening">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🧋 Evening Snacks</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">04:00 - 06:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-evening-stat">Calculating...</div>
+                </div>
+                <div class="rush-badge-card" id="rush-night">
+                  <div style="font-size:11px; text-transform:uppercase; font-weight:700; color:var(--text-muted);">🌙 Late Night</div>
+                  <div style="font-size:14px; font-weight:700; margin-top:3px;">08:00 - 11:00 PM</div>
+                  <div style="font-size:12px; color:var(--primary);" id="rush-night-stat">Calculating...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════ 6. PRODUCT REQUESTS VIEW ════ -->
+        <section class="admin-view" id="view-requests">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Product Requests &amp; Student Demand</h1>
+              <p class="view-subtitle">Items students have asked to be added to your campus catalog</p>
+            </div>
+          </div>
+          <div class="card-panel">
+            <div id="requests-list-container" style="padding: 24px; text-align:center; color:var(--text-muted);">
+              <p style="font-size:14px; font-weight:600;">No pending product requests</p>
+              <p style="font-size:12px;">When students request items on your store page, they will show up here.</p>
+            </div>
+          </div>
+        </section>
+
+      </main>
     </div>
   </div>
 
-  <!-- ════ MODALS ════ -->
+  <!-- ════════════ MODALS ════════════ -->
 
-  <!-- 1. ORDER DETAIL MODAL -->
+  <!-- 1. ORDER DETAIL & TRANSITION MODAL -->
   <div class="modal-backdrop hidden" id="modal-order-detail">
     <div class="modal-card">
       <div class="modal-header">
         <h2 class="modal-title" id="order-modal-title">Order Details</h2>
-        <button type="button" class="modal-close" onclick="closeOrderDetailModal()">✕</button>
+        <button type="button" class="modal-close" data-close="modal-order-detail">✕</button>
       </div>
-      <div class="modal-body" id="order-modal-body">
-        <!-- Injected via JS -->
-      </div>
-      <div class="modal-footer" id="order-modal-footer">
-        <!-- Injected via JS -->
-      </div>
+      <div class="modal-body" id="order-modal-body"></div>
+      <div class="modal-footer" id="order-modal-footer"></div>
     </div>
   </div>
 
   <!-- 2. ADD / EDIT PRODUCT MODAL (WITH RICH MERCHANT DESCRIPTION) -->
   <div class="modal-backdrop hidden" id="modal-product-form">
-    <div class="modal-card product-modal-card" style="max-width:560px;">
+    <div class="modal-card product-modal-card">
       <div class="modal-header">
         <h2 class="modal-title" id="product-modal-title">Add New Product</h2>
-        <button type="button" class="modal-close" onclick="closeProductModal()">✕</button>
+        <button type="button" class="modal-close" data-close="modal-product-form">✕</button>
       </div>
       <form id="product-modal-form">
-        <div class="modal-body" style="padding:20px;">
-          <input type="hidden" id="prod-input-id" value="" />
+        <div class="modal-body">
+          <input type="hidden" id="pm-product-id" />
 
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Product Name</label>
-            <input type="text" id="prod-input-name" class="form-input" placeholder="e.g. Masala Chai Flask (500ml)" required />
+          <div class="form-group">
+            <label for="pm-name">Product Name *</label>
+            <input type="text" id="pm-name" placeholder="Product title (e.g. Fresh Mango Shake, Sandwich...)" required />
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
-            <div>
-              <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Category</label>
-              <select id="prod-input-category" class="form-select" required>
-                <option value="food">Food & Meals</option>
-                <option value="juice">Juice & Drinks</option>
-                <option value="bakery">Bakery & Sweets</option>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="pm-category">Category *</label>
+              <select id="pm-category" required>
+                <option value="food">Food & Drinks</option>
                 <option value="stationery">Stationery & Books</option>
-                <option value="electronics">Electronics</option>
+                <option value="electronics">Electronics & Tech</option>
                 <option value="essentials">Daily Essentials</option>
+                <option value="fashion">Fashion & Apparel</option>
+                <option value="health">Health & Care</option>
+                <option value="services">Services</option>
               </select>
             </div>
-            <div>
-              <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Price (₹)</label>
-              <input type="number" id="prod-input-price" class="form-input" min="1" step="0.5" placeholder="80" required />
+            <div class="form-group">
+              <label for="pm-price">Selling Price (₹) *</label>
+              <input type="number" id="pm-price" min="1" step="0.5" placeholder="0.00" required />
             </div>
           </div>
 
-          <!-- MERCHANT DESCRIPTION FIELD (AS REQUESTED) -->
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">
-              Merchant Product Description
-            </label>
-            <textarea id="prod-input-desc" class="form-input" rows="3" placeholder="Provide details, ingredients, size/portion, or notes for students…" required></textarea>
-            <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">This description is shown directly on the customer product card and details modal.</p>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="pm-stock">Initial Stock Quantity *</label>
+              <input type="number" id="pm-stock" min="0" step="1" placeholder="Units in stock (e.g. 20)" required />
+            </div>
+            <div class="form-group">
+              <label for="pm-threshold">Low Stock Threshold</label>
+              <input type="number" id="pm-threshold" min="1" value="5" placeholder="5" />
+            </div>
           </div>
 
-          <div style="margin-bottom:14px;">
-            <label style="display:block; font-size:13px; font-weight:700; margin-bottom:5px;">Image URL</label>
-            <input type="url" id="prod-input-image" class="form-input" placeholder="https://images.unsplash.com/…" />
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="pm-sku">SKU / Item Code</label>
+              <input type="text" id="pm-sku" placeholder="Auto-generated or custom code" />
+            </div>
+            <div class="form-group">
+              <label for="pm-unit">Unit</label>
+              <input type="text" id="pm-unit" placeholder="glass, piece, pack, cup" value="item" />
+              <div class="unit-pill-group" id="unit-pill-group">
+                <button type="button" class="unit-pill active" data-unit="item">item</button>
+                <button type="button" class="unit-pill" data-unit="glass">glass</button>
+                <button type="button" class="unit-pill" data-unit="cup">cup</button>
+                <button type="button" class="unit-pill" data-unit="bottle">bottle</button>
+                <button type="button" class="unit-pill" data-unit="pack">pack</button>
+                <button type="button" class="unit-pill" data-unit="plate">plate</button>
+              </div>
+            </div>
           </div>
 
-          <div style="margin-top:10px;">
-            <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; cursor:pointer;">
-              <input type="checkbox" id="prod-input-avail" checked style="width:18px; height:18px;" />
-              <span>Available in Stock</span>
+          <!-- MERCHANT PRODUCT DESCRIPTION -->
+          <div class="form-group">
+            <label for="pm-desc">Merchant Product Description</label>
+            <textarea id="pm-desc" rows="3" placeholder="Provide details, ingredients, size/portion, or notes for students…"></textarea>
+            <p style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Shown directly on the student product card and quick-view modal.</p>
+          </div>
+
+          <!-- PRODUCT IMAGE PICKER -->
+          <div class="form-group" style="margin-top: 10px; margin-bottom: 8px;">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Product Image *</span>
+              <span id="pm-category-sync-hint" style="font-size: 11px; color: var(--text-muted); font-weight: normal;">Suggestions match your chosen Category</span>
             </label>
+
+            <div class="prod-img-picker-box">
+              <div class="prod-selected-preview-banner">
+                <div class="prod-selected-thumb">
+                  <img id="pm-active-img-preview" src="https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80" alt="Product thumbnail" />
+                </div>
+                <div class="prod-selected-meta">
+                  <div class="prod-selected-label" id="pm-active-img-name">Suggested Photo</div>
+                  <div class="prod-selected-hint" id="pm-active-img-hint">Select a photo below, upload from device, or paste a link</div>
+                </div>
+                <span class="badge-status completed" id="pm-selected-source-tag" style="font-size: 10.5px; padding: 2px 8px;">Suggested</span>
+              </div>
+
+              <input type="hidden" id="pm-image" value="" />
+
+              <div class="picker-source-tabs" style="margin-top: 2px;">
+                <button type="button" class="picker-tab-btn active" id="tab-prod-gallery" data-tab="gallery">📸 Suggested Gallery</button>
+                <button type="button" class="picker-tab-btn" id="tab-prod-upload" data-tab="upload">📱 Upload Photo / Camera</button>
+                <button type="button" class="picker-tab-btn" id="tab-prod-url" data-tab="url">🔗 Image Link</button>
+              </div>
+
+              <div id="prod-picker-gallery-panel">
+                <div class="cover-cat-filters" id="prod-cat-filters" style="margin-bottom: 6px;">
+                  <button type="button" class="cover-filter-chip active" data-prod-cat="all">All Items</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="food">🍔 Food & Snacks</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="juice">🧃 Juices & Drinks</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="bakery">🥐 Cafe & Bakery</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="stationery">📚 Stationery</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="electronics">⚡ Electronics</button>
+                  <button type="button" class="cover-filter-chip" data-prod-cat="essentials">🧴 Essentials</button>
+                </div>
+                <div class="prod-image-grid" id="prod-preset-grid"></div>
+              </div>
+
+              <div class="drag-drop-zone hidden" id="prod-picker-upload-panel">
+                <input type="file" id="prod-file-input" accept="image/*" style="display: none;" />
+                <div class="drag-drop-icon">📷</div>
+                <div class="drag-drop-title">Click to upload from phone or computer</div>
+                <div class="drag-drop-sub">PNG, JPG, WEBP · Auto-compressed for fast load</div>
+                <button type="button" class="btn-action secondary" id="btn-browse-prod-file" style="margin-top: 4px; font-size: 11.5px; padding: 4px 12px;">Choose Image</button>
+              </div>
+
+              <div class="form-group hidden" id="prod-picker-url-panel" style="margin-top: 4px;">
+                <input type="url" id="pm-manual-image-url" placeholder="https://images.unsplash.com/photo-..." style="height: 36px; font-size: 12.5px;" />
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="modal-footer" style="padding:14px 20px; display:flex; justify-content:flex-end; gap:10px; background:#F8FAFC; border-top:1px solid var(--border);">
-          <button type="button" class="btn-action secondary" onclick="closeProductModal()">Cancel</button>
-          <button type="submit" id="btn-save-product" class="btn-action primary">Save to Catalog</button>
+        <div class="modal-footer">
+          <button type="button" class="btn-action secondary" data-close="modal-product-form">Cancel</button>
+          <button type="submit" class="btn-action primary" id="btn-save-product">Save Product</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- SCRIPTS -->
+  <!-- 3. FAST QUICK ADD & CSV IMPORT MODAL -->
+  <div class="modal-backdrop hidden" id="modal-quick-add">
+    <div class="modal-card wide">
+      <div class="modal-header">
+        <h2 class="modal-title">⚡ Fast Product Onboarding</h2>
+        <button type="button" class="modal-close" data-close="modal-quick-add">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="quick-add-tabs">
+          <button type="button" class="tab-btn active" id="tab-quick-grid">Interactive Multi-Row Entry</button>
+          <button type="button" class="tab-btn" id="tab-quick-csv">CSV Import</button>
+        </div>
+
+        <div id="quick-grid-section">
+          <p class="section-hint">Enter products row-by-row quickly. Press Tab or Enter to jump between fields.</p>
+          <div class="quick-table-wrap">
+            <table class="data-table" id="quick-entry-table">
+              <thead>
+                <tr>
+                  <th>Product Name *</th>
+                  <th>Price (₹) *</th>
+                  <th>Stock *</th>
+                  <th>Category</th>
+                  <th>SKU</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="quick-entry-tbody"></tbody>
+            </table>
+          </div>
+          <div class="quick-grid-actions">
+            <button type="button" class="btn-action secondary" id="btn-add-quick-row">+ Add Row</button>
+            <button type="button" class="btn-action primary" id="btn-save-all-quick">Save All Products</button>
+          </div>
+        </div>
+
+        <div id="quick-csv-section" class="hidden">
+          <div class="csv-upload-box" id="csv-drop-zone">
+            <input type="file" id="csv-file-input" accept=".csv, text/csv" style="display: none;" />
+            <div class="csv-upload-icon">📄</div>
+            <div class="csv-upload-title">Drop your CSV file here, or click to browse</div>
+            <div class="csv-upload-sub">Supports: name, price, stock, category, sku</div>
+            <button type="button" class="btn-action secondary" id="btn-browse-csv" style="margin-top: 8px;">Select CSV File</button>
+          </div>
+          <div id="csv-preview-container" class="hidden" style="margin-top: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong>Preview Data:</strong>
+              <span id="csv-row-count-badge" class="badge-status accepted">0 rows</span>
+            </div>
+            <div class="quick-table-wrap">
+              <table class="data-table" id="csv-preview-table">
+                <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Category</th><th>SKU</th></tr></thead>
+                <tbody id="csv-preview-tbody"></tbody>
+              </table>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+              <button type="button" class="btn-action secondary" id="btn-cancel-csv">Cancel</button>
+              <button type="button" class="btn-action primary" id="btn-import-csv">Import All to Database</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ SCRIPTS ════════════ -->
   <script src="/js/config.js"></script>
-  <script src="/merchant/js/merchant-auth.js"></script>
-  <script src="/merchant/js/merchant-dashboard.js"></script>
-  <script src="/merchant/js/merchant-orders.js"></script>
-  <script src="/merchant/js/merchant-products.js"></script>
-  <script src="/merchant/js/merchant-settings.js"></script>
-  <script src="/merchant/js/merchant-analytics.js"></script>
+  <script src="/merchant/js/api.js"></script>
+  <script src="/merchant/js/auth.js"></script>
+  <script src="/merchant/js/dashboard.js"></script>
+  <script src="/merchant/js/orders.js"></script>
+  <script src="/merchant/js/products.js"></script>
+  <script src="/merchant/js/store_settings.js"></script>
+  <script src="/merchant/js/analytics.js"></script>
+  <script src="/merchant/js/inventory.js"></script>
+  <script src="/merchant/js/quick_add.js"></script>
 
 </body>
 </html>
