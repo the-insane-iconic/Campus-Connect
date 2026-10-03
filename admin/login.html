@@ -25,70 +25,54 @@
 
       <!-- ── LEFT PANEL (Hero, Character, How it Works) ── -->
       <div class="portal-left-panel">
-        
-        <!-- Header: Badge & Logo -->
-        <header class="hero-header">
-          <div class="campus-badge">
-            <span class="badge-dot"></span>
-            <span class="badge-text">CAMPUS MARKETPLACE</span>
-          </div>
 
-          <div class="brand-block" style="display: flex; align-items: center; gap: 12px;">
-            <img src="/favicon.png" alt="Campus Connect" style="width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12);" />
-            <div>
-              <h1 class="brand-name">Campus<span>Connect</span></h1>
-              <p class="brand-tagline">Your Campus, Closer.</p>
-            </div>
-          </div>
-        </header>
-
-        <!-- Hero Content & 3D Character -->
-        <div class="hero-main">
+        <!-- HERO: Full-width image panel with text overlay on left -->
+        <div class="hero-image-panel">
+          <!-- Ambient background glow -->
           <div class="hero-ambient-glow" aria-hidden="true"></div>
 
-          <!-- Headline & Pitch -->
-          <div class="hero-copy">
-            <h2 class="hero-headline">
-              Hungry in<br />
-              <span class="highlight-blue">class?</span>
-              <span class="hero-sparkles" aria-hidden="true">
-                <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
-                  <path d="M16 2 L17.8 11.2 L27 13 L17.8 14.8 L16 24 L14.2 14.8 L5 13 L14.2 11.2 Z" fill="#1D68FE"/>
-                  <path d="M25 21 L26.2 25.8 L31 27 L26.2 28.2 L25 33 L23.8 28.2 L19 27 L23.8 25.8 Z" fill="#60A5FA"/>
-                </svg>
-              </span>
-            </h2>
-            <p class="hero-description">
-              Order from your favourite campus shops and pick it up easily between classes.
-            </p>
+          <!-- LEFT overlay: branding + copy -->
+          <div class="hero-overlay-left">
+            <!-- Badge -->
+            <div class="campus-badge">
+              <span class="badge-dot"></span>
+              <span class="badge-text">Everything We Love About Campus,&nbsp;It's here.</span>
+            </div>
+
+            <!-- Brand name (text only, no icon) -->
+            <header class="hero-header">
+              <h1 class="brand-name">Campus<span>Connect</span></h1>
+            </header>
+
+            <!-- Headline & Pitch -->
+            <div class="hero-copy">
+              <h2 class="hero-headline">
+                Hungry in<br />
+                <span class="highlight-blue">classes?</span>
+                <span class="hero-sparkles" aria-hidden="true">
+                  <svg viewBox="0 0 32 32" width="26" height="26" fill="none">
+                    <path d="M16 2 L17.8 11.2 L27 13 L17.8 14.8 L16 24 L14.2 14.8 L5 13 L14.2 11.2 Z" fill="#1D68FE"/>
+                    <path d="M25 21 L26.2 25.8 L31 27 L26.2 28.2 L25 33 L23.8 28.2 L19 27 L23.8 25.8 Z" fill="#60A5FA"/>
+                  </svg>
+                </span>
+              </h2>
+              <p class="hero-description">
+                Order ahead. Skip the queue.<br />Get back to what matters.
+              </p>
+            </div>
           </div>
 
-          <!-- Character Visual & Speech Bubble -->
+          <!-- RIGHT: Girl image -->
           <div class="hero-visual">
-            <!-- Playful Cloud Speech Bubble -->
+            <!-- Speech Bubble -->
             <div class="speech-cloud" aria-hidden="true">
               <svg class="cloud-svg" viewBox="0 0 150 115" width="124" height="95" fill="none">
                 <filter id="cloudShadow" x="-10%" y="-10%" width="125%" height="130%">
                   <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.08" />
                 </filter>
                 <path d="M 105 85 C 115 95, 125 108, 128 112 C 122 105, 118 95, 114 85 Z" fill="#FBF8EE" />
-                <path d="
-                  M 36 32
-                  C 24 30, 14 40, 16 52
-                  C 8 58, 8 72, 16 80
-                  C 14 90, 26 98, 38 96
-                  C 46 102, 62 104, 74 98
-                  C 84 102, 102 100, 108 92
-                  C 120 94, 134 84, 132 72
-                  C 140 62, 138 48, 128 40
-                  C 126 28, 112 24, 100 28
-                  C 90 20, 74 20, 64 26
-                  C 52 20, 42 24, 36 32 Z"
-                  fill="#FBF8EE"
-                  stroke="rgba(215, 205, 180, 0.7)"
-                  stroke-width="1.2"
-                  filter="url(#cloudShadow)"
-                />
+                <path d="M 36 32 C 24 30, 14 40, 16 52 C 8 58, 8 72, 16 80 C 14 90, 26 98, 38 96 C 46 102, 62 104, 74 98 C 84 102, 102 100, 108 92 C 120 94, 134 84, 132 72 C 140 62, 138 48, 128 40 C 126 28, 112 24, 100 28 C 90 20, 74 20, 64 26 C 52 20, 42 24, 36 32 Z"
+                  fill="#FBF8EE" stroke="rgba(215, 205, 180, 0.7)" stroke-width="1.2" filter="url(#cloudShadow)" />
               </svg>
               <div class="cloud-content">
                 <span class="bubble-text">Good food<br />brighter days<br />at uni! :)</span>
@@ -97,11 +81,7 @@
 
             <!-- Student Girl Image -->
             <div class="girl-image-wrap">
-              <img
-                src="/admin/girl.png"
-                alt="Campus Connect Student holding smartphone"
-                class="girl-img"
-              />
+              <img src="/admin/girl.png" alt="Student holding smartphone on campus" class="girl-img" />
             </div>
           </div>
         </div>

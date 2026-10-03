@@ -126,29 +126,42 @@ body.register-page {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 26px 30px 22px;
+    padding: 22px 24px 18px;
     position: relative;
     background: linear-gradient(165deg, #FFFFFF 0%, #F8FAFC 100%);
     overflow: hidden;
     min-width: 0;
   }
 
-  .hero-ambient-glow {
-    position: absolute;
-    top: -30px;
-    right: -20px;
-    width: 360px;
-    height: 360px;
-    background: radial-gradient(circle at 70% 30%, rgba(219, 234, 254, 0.75) 0%, rgba(254, 240, 199, 0.45) 50%, transparent 75%);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 0;
+  /* Hero Image Panel (full-width row: overlay-left + girl-right) */
+  .hero-image-panel {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-height: 240px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #F0F5FF 0%, #FFF7ED 100%);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
   }
 
   .hero-header {
     position: relative;
     z-index: 2;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+  }
+
+  .hero-overlay-left {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 18px 16px 18px 20px;
+    flex: 0 0 52%;
+    max-width: 52%;
+    gap: 6px;
   }
 
   .campus-badge {
@@ -158,14 +171,16 @@ body.register-page {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: var(--radius-pill);
-    padding: 5px 12px;
+    padding: 4px 10px;
     box-shadow: var(--shadow-sm);
-    margin-bottom: 8px;
+    margin-bottom: 2px;
+    max-width: 100%;
   }
 
   .badge-dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
     background-color: #10B981;
     border-radius: 50%;
     display: inline-block;
@@ -173,22 +188,16 @@ body.register-page {
   }
 
   .badge-text {
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.03em;
     color: #475569;
-    text-transform: uppercase;
-  }
-
-  .brand-block {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
+    white-space: normal;
+    line-height: 1.2;
   }
 
   .brand-name {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 900;
     letter-spacing: -0.04em;
     line-height: 1;
@@ -199,37 +208,21 @@ body.register-page {
     color: var(--primary);
   }
 
-  .brand-tagline {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-muted);
-  }
-
   /* Hero Content + 3D Visual */
-  .hero-main {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex: 1;
-    min-height: 240px;
-    min-width: 0;
-  }
-
   .hero-copy {
     position: relative;
     z-index: 2;
-    max-width: 250px;
+    max-width: 100%;
     min-width: 0;
   }
 
   .hero-headline {
-    font-size: 40px;
+    font-size: 34px;
     font-weight: 900;
-    line-height: 1.04;
+    line-height: 1.05;
     letter-spacing: -0.035em;
     color: #0F172A;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     position: relative;
   }
 
@@ -245,23 +238,32 @@ body.register-page {
   }
 
   .hero-description {
-    font-size: 13.5px;
-    line-height: 1.48;
+    font-size: 12.5px;
+    line-height: 1.5;
     color: #475569;
     font-weight: 500;
   }
 
+  /* Hero right column: girl image */
   .hero-visual {
+    flex: 0 0 48%;
+    max-width: 48%;
     position: relative;
-    width: 320px;
-    height: 100%;
-    max-height: 330px;
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;
     z-index: 2;
-    min-width: 0;
+    overflow: visible;
   }
+
+  .hero-ambient-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 50%, rgba(219, 234, 254, 0.6) 0%, rgba(254, 240, 199, 0.35) 50%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
 
   .speech-cloud {
     position: absolute;
@@ -300,9 +302,9 @@ body.register-page {
 
   .girl-img {
     width: 100%;
-    max-width: 320px;
+    max-width: 260px;
     height: auto;
-    max-height: 320px;
+    max-height: 270px;
     object-fit: contain;
     object-position: right bottom;
     filter: drop-shadow(0 10px 20px rgba(15, 23, 42, 0.12));
@@ -765,51 +767,43 @@ body.register-page {
     position: relative;
     z-index: 8;
     margin-bottom: 0;
-    width: 100%;
   }
 
   .campus-badge {
     display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 6px;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    border-radius: var(--radius-pill);
-    padding: 6px 14px;
+    border-radius: 12px;
+    padding: 6px 10px;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+    max-width: 100%;
   }
 
   .badge-dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
+    margin-top: 3px;
+    flex-shrink: 0;
     background-color: #10B981;
     border-radius: 50%;
     display: inline-block;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
   }
 
   .badge-text {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.01em;
     color: #475569;
-    text-transform: uppercase;
-  }
-
-  .brand-block {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    width: 100%;
-    position: relative;
-    z-index: 10;
-    margin-bottom: -18px;
+    white-space: normal;
+    line-height: 1.3;
   }
 
   .brand-name {
-    font-size: 38px;
+    font-size: 34px;
     font-weight: 900;
     letter-spacing: -0.045em;
     line-height: 1;
@@ -820,43 +814,47 @@ body.register-page {
     color: var(--primary);
   }
 
-  .brand-tagline {
-    font-size: 15px;
-    font-weight: 600;
-    color: #64748B;
-    margin-top: 5px;
-  }
-
-  /* Hero Content + 3D Girl */
-  .hero-main {
+  /* Hero Image Panel: full-width, girl on right, text left */
+  .hero-image-panel {
     position: relative;
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    min-height: 230px;
-    margin-top: 0;
-    margin-bottom: 18px;
+    align-items: stretch;
     width: 100%;
-    overflow: visible;
-    z-index: 2;
+    min-height: 220px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #F0F5FF 0%, #FFF7ED 100%);
+    border-radius: 20px;
+    margin-bottom: 20px;
+  }
+
+  .hero-overlay-left {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 16px 12px 16px 16px;
+    flex: 0 0 55%;
+    max-width: 55%;
+    gap: 8px;
   }
 
   .hero-copy {
-    width: 54%;
-    max-width: 54%;
-    flex: 0 0 54%;
-    padding-bottom: 8px;
+    width: 100%;
+    max-width: 100%;
+    flex: unset;
+    padding-bottom: 0;
     position: relative;
     z-index: 2;
   }
 
   .hero-headline {
-    font-size: 38px;
+    font-size: 34px;
     font-weight: 900;
     line-height: 1.05;
     letter-spacing: -0.04em;
     color: #0F172A;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .hero-headline .highlight-blue {
@@ -871,17 +869,17 @@ body.register-page {
   }
 
   .hero-description {
-    font-size: 13.5px;
+    font-size: 12.5px;
     line-height: 1.5;
     color: #475569;
     font-weight: 500;
   }
 
   .hero-visual {
-    width: 46%;
-    max-width: 46%;
-    flex: 0 0 46%;
-    height: 230px;
+    flex: 0 0 45%;
+    max-width: 45%;
+    height: auto;
+    min-height: 220px;
     position: relative;
     display: flex;
     align-items: flex-end;
