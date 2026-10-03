@@ -160,9 +160,11 @@
     const displayItems = items.slice(0, 2);
     const extraCount = items.length - 2;
 
+    const isPurple = ['accepted', 'preparing', 'ready'].includes(s);
     const bannerClasses = [
       'active-order-banner',
       isCompleted ? 'is-delivered' : '',
+      (!isCompleted && isPurple) ? `is-purple is-${s}` : '',
       isUpdating ? 'state-updating' : '',
       rippleActive ? 'has-ripple' : ''
     ].filter(Boolean).join(' ');
@@ -354,61 +356,73 @@
       }
     }, []);
 
-    // Initial mount & sync with Neon DB if available
+    // Initial mount & continuous sync with Neon DB
     useEffect(() => {
       refreshOrders();
 
-      // Async sync from Neon PostgreSQL
-      let curUid = null;
-      if (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser) {
-        const u = window.UserManager.getActiveUser();
-        curUid = u?.uid || u?.id || u?.guestId;
-      }
-      if (curUid && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getUserOrders === 'function') {
-        window.UniMallDB.getUserOrders(curUid).then(dbOrders => {
-          if (Array.isArray(dbOrders) && dbOrders.length > 0) {
-            try {
-              const raw = localStorage.getItem('unimall_v1');
-              if (raw) {
+      const syncFromDB = () => {
+        let curUid = null;
+        if (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser) {
+          const u = window.UserManager.getActiveUser();
+          curUid = u?.uid || u?.id || u?.guestId;
+        }
+        if (curUid && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getUserOrders === 'function') {
+          window.UniMallDB.getUserOrders(curUid).then(dbOrders => {
+            if (Array.isArray(dbOrders) && dbOrders.length > 0) {
+              try {
+                const raw = localStorage.getItem('unimall_v1') || '{}';
                 const appData = JSON.parse(raw);
-                if (Array.isArray(appData.orders)) {
-                  let changed = false;
-                  dbOrders.forEach(rem => {
-                    const loc = appData.orders.find(o => o.id === rem.id);
-                    if (loc) {
-                      if (loc.status !== (rem.status || '').toLowerCase()) {
-                        loc.status = (rem.status || '').toLowerCase();
-                        if (loc.status === 'delivered' || loc.status === 'completed') {
-                          loc.deliveredAt = loc.deliveredAt || new Date().toISOString();
-                        }
-                        changed = true;
+                if (!Array.isArray(appData.orders)) appData.orders = [];
+                let changed = false;
+                let justDelivered = false;
+
+                dbOrders.forEach(rem => {
+                  const remStatus = (rem.status || '').toLowerCase();
+                  const loc = appData.orders.find(o => String(o.id) === String(rem.id));
+                  if (loc) {
+                    const prevStatus = (loc.status || '').toLowerCase();
+                    if (prevStatus !== remStatus) {
+                      loc.status = remStatus;
+                      if (remStatus === 'delivered' || remStatus === 'completed') {
+                        loc.deliveredAt = loc.deliveredAt || new Date().toISOString();
+                        justDelivered = true;
                       }
-                    } else if (rem.user_id === curUid) {
-                      appData.orders.unshift({
-                        id: rem.id,
-                        order_number_display: rem.order_number || (`#ORD-${String(rem.id).slice(-4)}`),
-                        user_id: rem.user_id,
-                        customerName: rem.user_name || 'Campus Student',
-                        storeId: rem.store_id,
-                        storeName: (typeof STORES !== 'undefined' && STORES.find(s => s.id === rem.store_id)?.name) || 'Campus Store',
-                        items: rem.items || [],
-                        total: Number(rem.total || 0),
-                        status: (rem.status || 'placed').toLowerCase(),
-                        createdAt: rem.created_at || new Date().toISOString()
-                      });
                       changed = true;
                     }
-                  });
-                  if (changed) {
-                    localStorage.setItem('unimall_v1', JSON.stringify(appData));
-                    refreshOrders();
+                  } else if (rem.user_id === curUid) {
+                    appData.orders.unshift({
+                      id: rem.id,
+                      order_number_display: rem.order_number || (`#ORD-${String(rem.id).slice(-4)}`),
+                      user_id: rem.user_id,
+                      customerName: rem.user_name || 'Campus Student',
+                      storeId: rem.store_id,
+                      storeName: (typeof STORES !== 'undefined' && STORES.find(s => s.id === rem.store_id)?.name) || 'Campus Store',
+                      items: rem.items || [],
+                      total: Number(rem.total || 0),
+                      status: remStatus,
+                      createdAt: rem.created_at || new Date().toISOString()
+                    });
+                    changed = true;
+                  }
+                });
+
+                if (changed) {
+                  localStorage.setItem('unimall_v1', JSON.stringify(appData));
+                  refreshOrders();
+                  if (justDelivered) {
+                    setRippleActive(true);
+                    setTimeout(() => setRippleActive(false), 2400);
                   }
                 }
-              }
-            } catch (e) {}
-          }
-        }).catch(() => {});
-      }
+              } catch (e) {}
+            }
+          }).catch(() => {});
+        }
+      };
+
+      // Run initial sync and poll every 3 seconds for zero-lag background pickup
+      syncFromDB();
+      const pollTimer = setInterval(syncFromDB, 3000);
 
       let bc = null;
       try {
@@ -418,6 +432,7 @@
           if (type === 'ORDER_STATUS_CHANGED' || type === 'ORDER_PLACED') {
             setIsUpdating(true);
             setTimeout(() => {
+              syncFromDB();
               refreshOrders(status, orderId);
               setIsUpdating(false);
 
@@ -432,12 +447,14 @@
 
       const handleStorage = (e) => {
         if (e.key === 'unimall_v1' || e.key === 'unimall_new_order_placed_event' || e.key === 'unimall_order_delivered_event') {
+          syncFromDB();
           refreshOrders();
         }
       };
 
       const handleCustom = (e) => {
         const { status, orderId } = e.detail || {};
+        syncFromDB();
         refreshOrders(status, orderId);
       };
 
@@ -446,6 +463,7 @@
       window.addEventListener('unimall:orderPlaced', handleCustom);
 
       return () => {
+        clearInterval(pollTimer);
         if (bc) bc.close();
         window.removeEventListener('storage', handleStorage);
         window.removeEventListener('unimall:orderStatusUpdated', handleCustom);

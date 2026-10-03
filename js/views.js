@@ -282,14 +282,19 @@ function _renderDefaultHomeSections() {
   // Show normal section headers
   _setHomeSectionsVisible(true);
 
-  let nearYou = AppState.products.filter(p => p.isNearby);
-  let popular  = AppState.products.filter(p => p.isPopular);
-  let restocked = AppState.products.filter(p => p.isRestocked);
+  // Fallback to global PRODUCTS if AppState.products is not yet populated
+  const productList = (AppState && Array.isArray(AppState.products) && AppState.products.length > 0)
+    ? AppState.products
+    : (Array.isArray(PRODUCTS) && PRODUCTS.length > 0 ? PRODUCTS : []);
+
+  let nearYou = productList.filter(p => p.isNearby);
+  let popular  = productList.filter(p => p.isPopular);
+  let restocked = productList.filter(p => p.isRestocked);
 
   // ── Smart Fallback: if DB flags aren't configured yet, gracefully distribute
   //    ALL available products across the home sections so the home screen is
   //    never empty just because admin hasn't toggled the flag columns.
-  const allActive = AppState.products.filter(p => p.availability !== 'out-of-stock');
+  const allActive = productList.filter(p => p.availability !== 'out-of-stock');
   if (nearYou.length === 0 && popular.length === 0 && restocked.length === 0 && allActive.length > 0) {
     // Sort by rating desc for "popular"
     const byRating  = [...allActive].sort((a, b) => (b.rating || 0) - (a.rating || 0));

@@ -75,50 +75,75 @@ async function syncCatalogWithSupabase() {
     if (dbStores && Array.isArray(dbStores) && dbStores.length > 0) {
       const prevIds = STORES.map(s => s.id).sort().join(',');
       const newIds = dbStores.map(s => s.id).sort().join(',');
-      if (prevIds !== newIds || dbStores.length !== STORES.length) {
+      if (prevIds !== newIds || dbStores.length !== STORES.length || STORES.length === 0) {
         hasChanged = true;
-      STORES = dbStores.map(s => ({
-          id: s.id,
-          name: s.name,
-          floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
-          openNow: s.is_open !== false,
-          isVisible: s.is_visible !== false, // default visible when null (new stores)
-          hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
-          category: s.category || 'essentials',
-          location: s.location || 'Campus Center',
-          coverImage: s.cover_image || '',
-          rating: Number(s.rating) || 4.5
-        }));
       }
+      STORES = dbStores.map(s => ({
+        id: s.id,
+        name: s.name,
+        floor: s.floor ? s.floor.replace(' Floor', '') : 'Ground',
+        openNow: s.is_open !== false,
+        isVisible: s.is_visible !== false, // default visible when null (new stores)
+        hours: `${s.opening_time || '8:00 AM'} – ${s.closing_time || '10:00 PM'}`,
+        category: s.category || 'essentials',
+        location: s.location || 'Campus Center',
+        coverImage: s.cover_image || '',
+        rating: Number(s.rating) || 4.5
+      }));
     }
 
     if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
       const prevProdIds = PRODUCTS.map(p => p.id).sort().join(',');
       const newProdIds = dbProducts.map(p => p.id).sort().join(',');
-      if (prevProdIds !== newProdIds || dbProducts.length !== PRODUCTS.length) {
+      if (prevProdIds !== newProdIds || dbProducts.length !== PRODUCTS.length || PRODUCTS.length === 0) {
         hasChanged = true;
-        PRODUCTS = dbProducts.map(p => ({
-          id: p.id,
-          name: p.name,
-          price: parseFloat(p.price) || 0,
-          emoji: p.emoji || '📦',
-          bg: p.bg || '#F8FAFC',
-          image: p.image || '',
-          categoryId: p.category_id,
-          storeId: p.store_id,
-          description: p.description || '',
-          stock: p.stock ?? 20,
-          availability: p.availability || 'in-stock',
-          deliveryAvailable: p.delivery_available !== false,
-          pickupAvailable: p.pickup_available !== false,
-          rating: Number(p.rating) || 4.5,
-          isNearby: Boolean(p.is_nearby),
-          isPopular: Boolean(p.is_popular),
-          isRestocked: Boolean(p.is_restocked)
-        }));
       }
+      PRODUCTS = dbProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: parseFloat(p.price) || 0,
+        emoji: p.emoji || '📦',
+        bg: p.bg || '#F8FAFC',
+        image: p.image || '',
+        categoryId: p.category_id,
+        storeId: p.store_id,
+        description: p.description || '',
+        stock: p.stock ?? 20,
+        availability: p.availability || 'in-stock',
+        deliveryAvailable: p.delivery_available !== false,
+        pickupAvailable: p.pickup_available !== false,
+        rating: Number(p.rating) || 4.5,
+        isNearby: Boolean(p.is_nearby),
+        isPopular: Boolean(p.is_popular),
+        isRestocked: Boolean(p.is_restocked)
+      }));
     }
-    return hasChanged;
+
+    // Apply visibility and store status overrides
+    syncStoreStatusesFromAdmin();
+
+    // Authoritatively calculate active campus operational store counts
+    const visibleStores = STORES.filter(s => s.isVisible !== false);
+    CAMPUS_INFO.storesTotal = visibleStores.length;
+    CAMPUS_INFO.storesOpen = visibleStores.filter(s => s.openNow).length;
+
+    // Always keep AppState synchronized
+    if (typeof AppState !== 'undefined') {
+      AppState.stores = STORES;
+      const hiddenStoreIds = new Set(
+        STORES.filter(s => s.isVisible === false).map(s => s.id)
+      );
+      AppState.products = PRODUCTS.filter(p =>
+        p.isActive !== false && !hiddenStoreIds.has(p.storeId)
+      );
+    }
+
+    // Immediately reflect store count in the campus operational info bar
+    if (typeof renderCampusInfo === 'function') {
+      renderCampusInfo();
+    }
+
+    return hasChanged || (typeof AppState !== 'undefined' && AppState.products.length > 0);
   } catch (err) {
     console.warn('[UniMall] Supabase catalog sync note:', err.message);
     return false;

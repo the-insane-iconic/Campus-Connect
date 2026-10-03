@@ -1119,27 +1119,27 @@ window.UniMallDB = {
         ? `created_at >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date`
         : `created_at >= (NOW() - INTERVAL '24 hours')`;
 
-      // 1. Query Store-by-Store Sales & Customers Breakdown
+      // 1. Query Store-by-Store Sales & Customers Breakdown (Delivered/Completed orders only)
       const storeBreakdownRows = await this.neonSql(`
         SELECT s.id AS store_id, s.name AS store_name, s.category,
-               COUNT(o.id) AS today_orders_count,
-               COALESCE(SUM(o.total), 0) AS today_gross_sales,
-               COUNT(DISTINCT o.user_id) AS today_customers_count,
-               COALESCE(SUM(CASE WHEN o.payment_method IN ('online', 'razorpay', 'Instant Pay (Verified)', 'Razorpay Instant (Paid)', 'Razorpay Instant') THEN o.total ELSE 0 END), 0) AS digital_sales,
-               COALESCE(SUM(CASE WHEN o.payment_method IN ('cod', 'cash', 'Pay at Counter') THEN o.total ELSE 0 END), 0) AS cash_sales
+               COUNT(CASE WHEN o.status IN ('delivered', 'completed') THEN o.id END) AS today_orders_count,
+               COALESCE(SUM(CASE WHEN o.status IN ('delivered', 'completed') THEN o.total ELSE 0 END), 0) AS today_gross_sales,
+               COUNT(DISTINCT CASE WHEN o.status IN ('delivered', 'completed') THEN o.user_id END) AS today_customers_count,
+               COALESCE(SUM(CASE WHEN o.status IN ('delivered', 'completed') AND o.payment_method IN ('online', 'razorpay', 'Instant Pay (Verified)', 'Razorpay Instant (Paid)', 'Razorpay Instant') THEN o.total ELSE 0 END), 0) AS digital_sales,
+               COALESCE(SUM(CASE WHEN o.status IN ('delivered', 'completed') AND o.payment_method IN ('cod', 'cash', 'Pay at Counter') THEN o.total ELSE 0 END), 0) AS cash_sales
         FROM unimall_stores s
         LEFT JOIN unimall_orders o ON s.id = o.store_id AND ${dateCondition}
         GROUP BY s.id, s.name, s.category
         ORDER BY today_gross_sales DESC, s.name ASC;
       `);
 
-      // 2. Query Operational Totals & Active Orders
+      // 2. Query Operational Totals & Active Orders (Revenue only for Delivered/Completed)
       let totalQuery = `
         SELECT 
-          COALESCE(SUM(total), 0) AS today_sales,
-          COUNT(id) AS today_orders,
-          COUNT(DISTINCT user_id) AS today_customers,
-          COUNT(CASE WHEN status IN ('placed', 'preparing', 'ready', 'out_for_delivery') THEN 1 END) AS active_orders
+          COALESCE(SUM(CASE WHEN status IN ('delivered', 'completed') THEN total ELSE 0 END), 0) AS today_sales,
+          COUNT(CASE WHEN status IN ('delivered', 'completed') THEN id END) AS today_orders,
+          COUNT(DISTINCT CASE WHEN status IN ('delivered', 'completed') THEN user_id END) AS today_customers,
+          COUNT(CASE WHEN status IN ('placed', 'preparing', 'ready', 'accepted', 'out_for_delivery') THEN 1 END) AS active_orders
         FROM unimall_orders
         WHERE ${totalDateCondition}
       `;
@@ -1151,12 +1151,12 @@ window.UniMallDB = {
       let totalRows = await this.neonSql(totalQuery, totalParams);
       let totals = totalRows && totalRows[0] ? totalRows[0] : {};
 
-      // 3. Query Lifetime / All-Time Summary
+      // 3. Query Lifetime / All-Time Summary (Delivered/Completed only)
       let lifeQuery = `
         SELECT 
-          COALESCE(SUM(total), 0) AS lifetime_sales,
-          COUNT(id) AS lifetime_orders,
-          COUNT(DISTINCT user_id) AS lifetime_customers
+          COALESCE(SUM(CASE WHEN status IN ('delivered', 'completed') THEN total ELSE 0 END), 0) AS lifetime_sales,
+          COUNT(CASE WHEN status IN ('delivered', 'completed') THEN id END) AS lifetime_orders,
+          COUNT(DISTINCT CASE WHEN status IN ('delivered', 'completed') THEN user_id END) AS lifetime_customers
         FROM unimall_orders
       `;
       const lifeParams = [];
@@ -1166,16 +1166,6 @@ window.UniMallDB = {
       }
       const lifeRows = await this.neonSql(lifeQuery, lifeParams);
       const lifetime = lifeRows && lifeRows[0] ? lifeRows[0] : {};
-
-      // If even 24h totals are 0, fall back to lifetime totals so the platform overview is never completely empty
-      if ((!totals.today_sales || parseFloat(totals.today_sales) === 0) && isPlatform && parseFloat(lifetime.lifetime_sales || 0) > 0) {
-        totals = {
-          today_sales: lifetime.lifetime_sales,
-          today_orders: lifetime.lifetime_orders,
-          today_customers: lifetime.lifetime_customers,
-          active_orders: 0
-        };
-      }
 
       // Format Store Payout Ledger dynamically for ALL stores in unimall_stores
       const storesLedger = (storeBreakdownRows || []).map(row => {
@@ -1268,7 +1258,9 @@ window.UniMallDB = {
         storeFilter = ` AND o.store_id = $${params.length}`;
       }
 
-      // 1. Overall KPI metrics for period
+      const statusFilter = " AND o.status IN ('delivered', 'completed')";
+
+      // 1. Overall KPI metrics for period (Delivered/Completed only)
       const summaryRows = await this.neonSql(`
         SELECT 
           COALESCE(SUM(o.total), 0) AS revenue,
@@ -1276,44 +1268,44 @@ window.UniMallDB = {
           COUNT(DISTINCT o.user_id) AS customers_count,
           COALESCE(AVG(o.total), 0) AS avg_order_value
         FROM unimall_orders o
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
       `, params);
       const summary = summaryRows && summaryRows[0] ? summaryRows[0] : {};
 
-      // 2. Units sold across items
+      // 2. Units sold across items (Delivered/Completed only)
       const unitsRows = await this.neonSql(`
         SELECT COALESCE(SUM(oi.qty), 0) AS units_sold
         FROM unimall_order_items oi
         JOIN unimall_orders o ON oi.order_id = o.id
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
       `, params);
       const unitsSold = unitsRows && unitsRows[0] ? parseInt(unitsRows[0].units_sold || 0, 10) : 0;
 
-      // 3. Peak Campus Rush Hours (Hourly Distribution 0 - 23)
+      // 3. Peak Campus Rush Hours (Delivered/Completed only)
       const hourlyRows = await this.neonSql(`
         SELECT EXTRACT(HOUR FROM (o.created_at AT TIME ZONE 'Asia/Kolkata'))::int AS hr,
                COUNT(o.id) AS orders_count,
                COALESCE(SUM(o.total), 0) AS revenue
         FROM unimall_orders o
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
         GROUP BY hr
         ORDER BY hr ASC;
       `, params);
 
-      // 4. Store Performance Comparison Matrix
+      // 4. Store Performance Comparison Matrix (Delivered/Completed only)
       const storeMatrixRows = await this.neonSql(`
         SELECT s.id AS store_id, s.name AS store_name, s.category,
-               COUNT(o.id) AS orders_count,
-               COALESCE(SUM(o.total), 0) AS revenue,
-               COUNT(DISTINCT o.user_id) AS customers_count,
-               COALESCE(AVG(o.total), 0) AS aov
+               COUNT(CASE WHEN o.status IN ('delivered', 'completed') THEN o.id END) AS orders_count,
+               COALESCE(SUM(CASE WHEN o.status IN ('delivered', 'completed') THEN o.total ELSE 0 END), 0) AS revenue,
+               COUNT(DISTINCT CASE WHEN o.status IN ('delivered', 'completed') THEN o.user_id END) AS customers_count,
+               COALESCE(AVG(CASE WHEN o.status IN ('delivered', 'completed') THEN o.total END), 0) AS aov
         FROM unimall_stores s
         LEFT JOIN unimall_orders o ON s.id = o.store_id ${dateFilter}
         GROUP BY s.id, s.name, s.category
         ORDER BY revenue DESC, orders_count DESC;
       `);
 
-      // 5. Top 10 Best-Selling Campus Products Leaderboard
+      // 5. Top 10 Best-Selling Campus Products Leaderboard (Delivered/Completed only)
       const topProductsRows = await this.neonSql(`
         SELECT oi.product_name, oi.emoji,
                SUM(oi.qty) AS units_sold,
@@ -1322,13 +1314,13 @@ window.UniMallDB = {
         FROM unimall_order_items oi
         JOIN unimall_orders o ON oi.order_id = o.id
         LEFT JOIN unimall_stores s ON o.store_id = s.id
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
         GROUP BY oi.product_name, oi.emoji
         ORDER BY units_sold DESC, gross_sales DESC
         LIMIT 10;
       `, params);
 
-      // 6. Payment Method Breakdown
+      // 6. Payment Method Breakdown (Delivered/Completed only)
       const paymentRows = await this.neonSql(`
         SELECT 
           CASE 
@@ -1339,12 +1331,12 @@ window.UniMallDB = {
           COUNT(o.id) AS orders_count,
           COALESCE(SUM(o.total), 0) AS total_sales
         FROM unimall_orders o
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
         GROUP BY method
         ORDER BY total_sales DESC;
       `, params);
 
-      // 7. Fulfillment Breakdown (Hostel Delivery vs Counter Pickup)
+      // 7. Fulfillment Breakdown (Delivered/Completed only)
       const fulfillmentRows = await this.neonSql(`
         SELECT 
           CASE 
@@ -1354,7 +1346,7 @@ window.UniMallDB = {
           COUNT(o.id) AS orders_count,
           COALESCE(SUM(o.total), 0) AS total_sales
         FROM unimall_orders o
-        WHERE 1=1 ${dateFilter} ${storeFilter}
+        WHERE 1=1 ${statusFilter} ${dateFilter} ${storeFilter}
         GROUP BY fulfillment
         ORDER BY total_sales DESC;
       `, params);

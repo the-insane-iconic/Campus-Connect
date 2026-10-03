@@ -55,8 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
   /* 5b. Sync live catalog from Supabase (only re-render if data updated) */
   if (typeof syncCatalogWithSupabase === 'function') {
     syncCatalogWithSupabase().then(hasChanged => {
+      renderCampusInfo();
       if (hasChanged) renderHome();
-    }).catch(() => {});
+    }).catch(() => {
+      renderCampusInfo();
+      renderHome();
+    });
   }
 
   /* 6. Sync cart badge from persisted state */
@@ -69,14 +73,22 @@ document.addEventListener('DOMContentLoaded', () => {
         e.key === 'unimall_catalog_sync_event' || e.key === 'unimall_store_visibility') {
       syncStoreStatusesFromAdmin();
       if (typeof syncCatalogWithSupabase === 'function') {
-        syncCatalogWithSupabase().then(() => renderHome()).catch(() => renderHome());
+        syncCatalogWithSupabase().then(() => {
+          renderCampusInfo();
+          renderHome();
+        }).catch(() => {
+          renderCampusInfo();
+          renderHome();
+        });
       } else {
+        renderCampusInfo();
         renderHome();
       }
     }
   });
   window.addEventListener('unimall:storeStatusChanged', () => {
     syncStoreStatusesFromAdmin();
+    renderCampusInfo();
     renderHome();
   });
   window.addEventListener('unimall:storeVisibilityChanged', () => {
@@ -87,8 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     syncCatalogWithSupabase().then(() => {
       syncStoreStatusesFromAdmin();
+      renderCampusInfo();
       renderHome();
-    }).catch(() => renderHome());
+    }).catch(() => {
+      renderCampusInfo();
+      renderHome();
+    });
   });
 
   /* 7. Sync notification dot — show red dot if any unread notifications */

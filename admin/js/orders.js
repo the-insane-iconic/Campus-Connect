@@ -648,14 +648,82 @@ function renderActiveOrdersBoard() {
     return;
   }
 
-  container.innerHTML = activeOrders.map((o, idx) => {
-    try {
-      return renderActiveOrderCard(o, idx, activeOrders);
-    } catch (cardErr) {
-      console.warn('[Orders Board] Error rendering order card:', o?.id, cardErr);
-      return '';
+  // If container had empty state or error, do clean render
+  if (container.querySelector('.empty-active-orders') || container.querySelector('.empty-state-sm')) {
+    container.innerHTML = activeOrders.map((o, idx) => {
+      try {
+        return renderActiveOrderCard(o, idx, activeOrders);
+      } catch (e) {
+        return '';
+      }
+    }).join('');
+    return;
+  }
+
+  // Keyed DOM reconciliation: update existing cards in-place without rebuilding DOM
+  const existingCards = new Map();
+  container.querySelectorAll('.active-order-card').forEach(el => {
+    const id = el.getAttribute('data-order-id');
+    if (id) existingCards.set(id, el);
+  });
+
+  const activeIds = new Set(activeOrders.map(o => String(o.id)));
+
+  // 1. Remove stale or completed cards
+  existingCards.forEach((cardEl, id) => {
+    if (!activeIds.has(id)) {
+      cardEl.remove();
     }
-  }).join('');
+  });
+
+  // 2. Update existing cards or insert new ones
+  activeOrders.forEach((o, idx) => {
+    const safeId = String(o.id || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
+    const existingCard = existingCards.get(safeId);
+    const status = (o.status || 'PLACED').toUpperCase();
+
+    if (existingCard) {
+      // In-place updates: check if status changed
+      const currentStatus = existingCard.getAttribute('data-status');
+      if (currentStatus !== status) {
+        const temp = document.createElement('div');
+        temp.innerHTML = renderActiveOrderCard(o, idx, activeOrders);
+        const newCard = temp.firstElementChild;
+        if (newCard) {
+          existingCard.replaceWith(newCard);
+        }
+      } else {
+        // Status unchanged: smoothly update wait time and elapsed time without flicker
+        const waitTextEl = existingCard.querySelector('.wait-text');
+        if (waitTextEl) {
+          const waitTime = getWaitingTimeText(o.created_at);
+          const newWaitText = status === 'READY' ? 'Ready for Pickup' : 'Waiting for ' + waitTime;
+          if (waitTextEl.textContent !== newWaitText) waitTextEl.textContent = newWaitText;
+        }
+
+        const metaTimeEl = existingCard.querySelector('.meta-time');
+        if (metaTimeEl) {
+          const timeElapsed = formatTimeElapsed(o.created_at);
+          const placedTime = new Date(o.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const newMeta = `🕒 ${placedTime} (${timeElapsed})`;
+          if (metaTimeEl.textContent !== newMeta) metaTimeEl.textContent = newMeta;
+        }
+      }
+    } else {
+      // New incoming order: insert into DOM at correct index
+      const temp = document.createElement('div');
+      temp.innerHTML = renderActiveOrderCard(o, idx, activeOrders);
+      const newCard = temp.firstElementChild;
+      if (newCard) {
+        const currentChildren = Array.from(container.children);
+        if (idx < currentChildren.length) {
+          container.insertBefore(newCard, currentChildren[idx]);
+        } else {
+          container.appendChild(newCard);
+        }
+      }
+    }
+  });
 }
 
 function formatTimeElapsed(isoDate) {
@@ -929,7 +997,7 @@ function renderActiveOrderCard(o, index, allOrders) {
       return `
         <div class="order-product-card" title="${name} (x${qty})">
           <div class="product-qty-badge">${qty}×</div>
-          <img src="${thumb}" alt="${name}" class="product-thumbnail" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120&auto=format&fit=crop&q=80'" />
+          <img src="${thumb}" alt="${name}" class="product-thumbnail" width="24" height="24" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120&auto=format&fit=crop&q=80'" />
           <div class="product-info-box">
             <div class="product-title">${name}</div>
             <div class="product-price-line">₹${price}</div>
@@ -954,7 +1022,7 @@ function renderActiveOrderCard(o, index, allOrders) {
   const isDelivery = o.delivery_method === 'delivery' || o.fulfillment_type === 'delivery' || o.fulfillmentType === 'delivery';
 
   return `
-    <div class="active-order-card status-${statusClass} order-card-${safeOrderId}" id="order-card-${safeOrderId}">
+    <div class="active-order-card status-${statusClass} order-card-${safeOrderId}" id="order-card-${safeOrderId}" data-order-id="${safeOrderId}" data-status="${status}">
       <!-- 1. TOP HEADER: STORE TAG, NEXT ORDER TAG & WAITING TIME -->
       <div class="order-top-banner">
         <div style="display:flex; align-items:center; gap:6px;">

@@ -2148,9 +2148,10 @@ textarea::placeholder {
   flex-direction: column;
   gap: 9px;
   position: relative;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   box-sizing: border-box;
   overflow: hidden;
+  will-change: transform, box-shadow;
 }
 
 .active-order-card::after {
@@ -2165,19 +2166,19 @@ textarea::placeholder {
   pointer-events: none;
 }
 
-/* Placed Status: Amber-Coral glow & header accent line */
+/* Placed Status: Elegant warm coral glow & clean border */
 .active-order-card.status-placed {
-  background: linear-gradient(145deg, #FFFFFF 0%, #FFF5F5 45%, #FFFFFF 100%);
-  border: 1.5px solid rgba(244, 63, 94, 0.35);
-  box-shadow: 0 4px 16px -2px rgba(239, 68, 68, 0.08), 0 2px 6px rgba(0, 0, 0, 0.02);
+  background: linear-gradient(145deg, #FFFFFF 0%, #FFF8F8 50%, #FFFFFF 100%);
+  border: 1.5px solid #FECDD3;
+  box-shadow: 0 4px 14px -2px rgba(244, 63, 94, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 .active-order-card.status-placed::after {
   background: linear-gradient(90deg, #F43F5E 0%, #FB7185 100%);
 }
 .active-order-card.status-placed:hover {
-  border-color: rgba(244, 63, 94, 0.55);
-  box-shadow: 0 8px 24px -4px rgba(239, 68, 68, 0.14), 0 3px 8px rgba(0, 0, 0, 0.04);
-  transform: translateY(-1.5px);
+  border-color: #FDA4AF;
+  box-shadow: 0 6px 20px -3px rgba(244, 63, 94, 0.12), 0 2px 6px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
 }
 
 /* Preparing Status: Purple-Violet glow & header accent line */

@@ -796,8 +796,12 @@ async function handleClientAdminRequest(endpoint, options = {}) {
     const ordersRes = await handleClientAdminRequest(`/admin/stores/${storeId}/orders`);
     const orders = ordersRes.orders || [];
 
-    const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
-    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(o.status));
+    const deliveredOrders = orders.filter(o => {
+      const s = (o.status || '').toUpperCase();
+      return s === 'DELIVERED' || s === 'COMPLETED';
+    });
+    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+    const pendingOrders = orders.filter(o => ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes((o.status || '').toUpperCase()));
 
     const catalog = getStoredCatalog();
     const storeProds = storeId === 'all' ? catalog : catalog.filter(p => p.store_id === storeId || p.storeId === storeId);
@@ -805,7 +809,7 @@ async function handleClientAdminRequest(endpoint, options = {}) {
 
     return {
       stats: {
-        total_orders: orders.length,
+        total_orders: deliveredOrders.length,
         total_revenue: totalRevenue,
         pending_orders: pendingOrders.length,
         low_stock_items: lowStockCount
