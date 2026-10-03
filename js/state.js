@@ -219,7 +219,7 @@ async function placeOrder(fulfillmentType, deliveryInfo) {
     activeUser = window.UserManager.ensureGuestProfile();
   }
   const user = activeUser || AppState.currentUser || {};
-  const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
+  const userId = user.userId || user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
   const studentName = user.name || (user.profile && user.profile.name) || (deliveryInfo && deliveryInfo.name) || 'Campus Student';
   const studentPhone = user.phone || (user.profile && user.profile.phone) || (deliveryInfo && deliveryInfo.phone) || '+91 98765 43210';
   const numMatch = (studentName || '').match(/\d+/);
@@ -430,13 +430,13 @@ function hydrateState() {
     } catch (e) {}
   }
 
-  const curUid = AppState.currentUser ? (AppState.currentUser.uid || AppState.currentUser.id || AppState.currentUser.guestId) : null;
+  const curUid = AppState.currentUser ? (AppState.currentUser.userId || AppState.currentUser.uid || AppState.currentUser.id || AppState.currentUser.guestId) : null;
 
   if (saved.orders && Array.isArray(saved.orders)) {
     if (curUid) {
-      AppState.orders = saved.orders.filter(o => o.user_id === curUid);
+      AppState.orders = saved.orders.filter(o => !o.user_id || o.user_id === curUid || o.userId === curUid);
     } else {
-      AppState.orders = [];
+      AppState.orders = saved.orders;
     }
   } else {
     AppState.orders = [];
@@ -505,4 +505,11 @@ function hydrateState() {
 
   if (saved.itemRequests)  AppState.itemRequests  = saved.itemRequests;
   if (saved.notifications) AppState.notifications = saved.notifications;
+}
+
+// Hydrate state from localStorage immediately on script load
+try {
+  hydrateState();
+} catch (e) {
+  console.warn('[state] Hydration warning:', e);
 }

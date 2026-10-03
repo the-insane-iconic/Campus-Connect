@@ -25,16 +25,16 @@ function loadStateFromStorage() {
     let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
       ? window.UserManager.getActiveUser()
       : null;
-    const currentUid = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+    const currentUid = activeUser?.userId || activeUser?.uid || activeUser?.id || activeUser?.guestId;
 
     const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.orders)) {
         if (currentUid) {
-          OrdersState.orders = parsed.orders.filter(o => o.user_id === currentUid);
+          OrdersState.orders = parsed.orders.filter(o => !o.user_id || o.user_id === currentUid || o.userId === currentUid);
         } else {
-          OrdersState.orders = [];
+          OrdersState.orders = parsed.orders;
         }
         return;
       }
@@ -56,7 +56,7 @@ function saveOrdersToStorage() {
     let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
       ? window.UserManager.getActiveUser()
       : null;
-    const currentUid = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+    const currentUid = activeUser?.userId || activeUser?.uid || activeUser?.id || activeUser?.guestId;
     if (currentUid) {
       const otherUsersOrders = existingOrders.filter(o => o.user_id && o.user_id !== currentUid);
       currentData.orders = [...otherUsersOrders, ...OrdersState.orders];
@@ -258,7 +258,7 @@ let isOrdersLoading = true;
 /* ─── ORDER SKELETON SHIMMER ──────────────────────────────── */
 function renderOrderSkeletons(count = 3) {
   const listEl = document.getElementById('ordersList');
-  const emptyEl = document.getElementById('emptyState');
+  const emptyEl = document.getElementById('ordersEmptyState') || document.getElementById('emptyState');
   if (!listEl) return;
   listEl.classList.remove('hidden');
   if (emptyEl) emptyEl.classList.add('hidden');
@@ -288,7 +288,7 @@ function renderOrderSkeletons(count = 3) {
 /* ─── ORDERS LIST COMPONENT ──────────────────────────────── */
 function renderOrdersList() {
   const listEl = document.getElementById('ordersList');
-  const emptyEl = document.getElementById('emptyState');
+  const emptyEl = document.getElementById('ordersEmptyState') || document.getElementById('emptyState');
   const sectionTitle = document.getElementById('ordersSectionTitle');
   const sectionCount = document.getElementById('ordersSectionCount');
   if (!listEl || !emptyEl) return;
@@ -316,8 +316,8 @@ function renderOrdersList() {
     listEl.classList.add('hidden');
     emptyEl.classList.remove('hidden');
 
-    const emptyTitle = document.getElementById('emptyTitle');
-    const emptySub = document.getElementById('emptySub');
+    const emptyTitle = document.getElementById('ordersEmptyTitle') || document.getElementById('emptyTitle');
+    const emptySub = document.getElementById('ordersEmptySub') || document.getElementById('emptySub');
     if (emptyTitle && emptySub) {
       if (OrdersState.searchQuery) {
         emptyTitle.textContent = 'No matching orders';
@@ -812,7 +812,7 @@ async function syncOrdersWithSupabase() {
         try { activeUser = JSON.parse(auth); } catch (e) {}
       }
     }
-    const userId = activeUser?.uid || activeUser?.id || activeUser?.guestId;
+    const userId = activeUser?.userId || activeUser?.uid || activeUser?.id || activeUser?.guestId;
     if (!userId) {
       isOrdersLoading = false;
       OrdersState.orders = [];
@@ -903,8 +903,7 @@ async function syncOrdersWithSupabase() {
   }
 }
 
-/* ─── INITIALIZATION ─────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+function initOrders() {
   loadStateFromStorage();
   initEvents();
   updateTabCounts();
@@ -912,10 +911,14 @@ document.addEventListener('DOMContentLoaded', () => {
   renderOrdersList();
   syncCartBadge();
   syncSidebarProfile();
-
-  // Neon DB order sync on initial page load
   syncOrdersWithSupabase();
-  // Automatic polling interval and background resetting disabled — user reloads manually for fresh data
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initOrders);
+} else {
+  initOrders();
+}
 
   // Live relative timestamp ticker (updates "2m ago" -> "3m ago" every 30s)
   setInterval(() => {

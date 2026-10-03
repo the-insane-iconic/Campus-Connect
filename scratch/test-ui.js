@@ -72,6 +72,13 @@ async function main() {
     `
   });
 
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1280,
+    height: 800,
+    deviceScaleFactor: 1,
+    mobile: false
+  });
+
   const views = ['stores', 'orders', 'cart', 'profile'];
   const artifactDir = '/Users/ansh/.gemini/antigravity-ide/brain/fe538100-c983-4ccf-8c7d-594037f286c3';
 

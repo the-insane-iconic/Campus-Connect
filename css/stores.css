@@ -364,6 +364,8 @@
 }
 
 .store-name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 16.5px;
   font-weight: 700;
   color: var(--text-primary);
@@ -833,13 +835,13 @@
 
   .store-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
   }
 
   .store-card {
-    min-height: 188px;
-    grid-template-columns: 160px 1fr 28px;
+    min-height: 180px;
+    grid-template-columns: 145px minmax(0, 1fr) 24px;
     padding: 16px;
     border-radius: 20px;
     cursor: pointer;
@@ -899,13 +901,6 @@
   /* Hide bottom nav on PC — Desktop uses fixed sidebar */
   .bottom-nav {
     display: none !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  .store-list {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
   }
 }
 

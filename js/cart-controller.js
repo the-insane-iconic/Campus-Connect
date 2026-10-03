@@ -134,7 +134,7 @@ function saveCartToStorage() {
         storeId: i.product.storeId || 'campus-cafe'
       }
     }));
-    if (CartState.deliveryInfo.hostel && appData.currentUser) {
+    if (CartState.deliveryInfo && CartState.deliveryInfo.hostel && appData.currentUser) {
       appData.currentUser.hostel = CartState.deliveryInfo.hostel;
       appData.currentUser.room = CartState.deliveryInfo.room;
     }
@@ -753,11 +753,11 @@ function renderBillBreakdown() {
   const totals = getCartTotals();
 
   const billSubtotal = document.getElementById('billSubtotal');
-  const billDeliveryFee = document.getElementById('billDeliveryFee');
+  const billDeliveryFee = document.getElementById('billDeliveryFee') || document.getElementById('billDelivery');
   const billDiscountRow = document.getElementById('billDiscountRow');
   const billDiscount = document.getElementById('billDiscount');
   const billPackaging = document.getElementById('billPackaging');
-  const billGrandTotal = document.getElementById('billGrandTotal');
+  const billGrandTotal = document.getElementById('billGrandTotal') || document.getElementById('billTotal');
   const checkoutFooterPrice = document.getElementById('checkoutFooterPrice');
 
   if (billSubtotal) billSubtotal.textContent = `₹${fmtPrice(totals.subtotal)}`;
@@ -771,9 +771,11 @@ function renderBillBreakdown() {
   if (billDiscountRow && billDiscount) {
     if (totals.discountAmount > 0) {
       billDiscountRow.classList.remove('hidden');
+      billDiscountRow.style.display = 'flex';
       billDiscount.textContent = `-₹${fmtPrice(totals.discountAmount)}`;
     } else {
       billDiscountRow.classList.add('hidden');
+      billDiscountRow.style.display = 'none';
     }
   }
 

@@ -23,12 +23,14 @@ const Storage = {
   /** Persist only the mutable slices we care about. */
   save(state) {
     try {
+      const existing = this.load();
       const toSave = {
-        cart:         state.cart,
-        orders:       state.orders,
-        currentUser:  state.currentUser,
-        itemRequests: state.itemRequests,
-        notifications: state.notifications,
+        ...existing,
+        cart:         state.cart !== undefined ? state.cart : (existing.cart || []),
+        orders:       (Array.isArray(state.orders) && state.orders.length > 0) ? state.orders : (existing.orders || []),
+        currentUser:  state.currentUser || existing.currentUser,
+        itemRequests: state.itemRequests !== undefined ? state.itemRequests : (existing.itemRequests || []),
+        notifications: state.notifications !== undefined ? state.notifications : (existing.notifications || []),
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
     } catch (e) {
