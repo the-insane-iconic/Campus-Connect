@@ -3,7 +3,7 @@
  * Campus Connect — Portal, Login & Store Registration Controller
  * Path: login/login.js
  * Supports:
- *   - Google student login & guest mode (redirects to ../index.html)
+ *   - Google student login via Neon Auth & instant guest mode
  *   - Store owner logins (redirects to ../merchant/index.html)
  *   - Platform admin login (redirects to ../admin/index.html)
  *   - Integrated store registration modal with Neon DB persistence
@@ -17,10 +17,27 @@ const AUTH_KEY    = 'unimall_auth';
 const STORAGE_KEY = 'unimall_v1';
 
 function initLoginPortal() {
-  // If user is already authenticated and did not explicitly pass ?logout=true, route them directly
   const urlParams = new URLSearchParams(window.location.search);
   const isExplicitLogout = urlParams.has('logout');
-  if (!isExplicitLogout) {
+
+  // Handle explicit logout: thoroughly clear all auth storage keys
+  if (isExplicitLogout) {
+    try {
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem('unimall_auth');
+      localStorage.removeItem('unimall_admin_token');
+      localStorage.removeItem('userMode');
+      localStorage.removeItem('unimall_has_visited');
+      sessionStorage.clear();
+      if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
+        window.UserManager.clearSession();
+      }
+      if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
+        window.UniMallAuth.signOut().catch(() => {});
+      }
+    } catch (e) {}
+  } else {
+    // If user is already authenticated, route them directly to their portal
     try {
       const authRaw = localStorage.getItem(AUTH_KEY);
       const adminToken = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
@@ -39,7 +56,18 @@ function initLoginPortal() {
           return;
         }
       }
-    } catch(e) {}
+
+      // Check active Neon Auth session asynchronously
+      const authService = window.UniMallAuth || window.NeonAuth;
+      if (authService && typeof authService.getSession === 'function') {
+        authService.getSession().then(sessionData => {
+          if (sessionData && sessionData.user) {
+            console.log('[LoginPortal] Active Neon Auth session found for:', sessionData.user.name);
+            window.location.replace('/index.html');
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {}
   }
 
   // Elements - Login Modal
@@ -73,7 +101,7 @@ function initLoginPortal() {
 
   let selectedRegType = null;
 
-  // ── MODAL HELPERS ─────────────────────────────────────────────
+  // ── MODAL CONTROLLERS ─────────────────────────────────────────
   function openLoginModal() {
     closeRegModal();
     if (!adminModal) return;
@@ -108,6 +136,12 @@ function initLoginPortal() {
     if (regErrorAlert) regErrorAlert.classList.add('hidden');
   }
 
+  // Expose global modal triggers for inline onclick and external callers
+  window.openAdminModal = openLoginModal;
+  window.closeAdminModal = closeLoginModal;
+  window.openRegisterModal = openRegisterModal;
+  window.closeRegisterModal = closeRegModal;
+
   if (openModalBtn) openModalBtn.addEventListener('click', openLoginModal);
   if (closeModalBtn) closeModalBtn.addEventListener('click', closeLoginModal);
   if (openRegBtn) openRegBtn.addEventListener('click', (e) => { e.preventDefault(); openRegisterModal(); });
@@ -133,8 +167,7 @@ function initLoginPortal() {
     }
   });
 
-  // Check URL params or hash
-  const urlParams = new URLSearchParams(window.location.search);
+  // Check URL params or hash triggers
   if (urlParams.get('reason') === 'timeout') {
     openLoginModal();
     showInfo('🔒 Your session was securely locked after 30 minutes of idle inactivity. Please sign in again.');
@@ -272,7 +305,7 @@ function initLoginPortal() {
         if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.authenticateAdmin === 'function') {
           try {
             dbAdmin = await window.UniMallDB.authenticateAdmin(rawUser);
-          } catch(e) {}
+          } catch (e) {}
         }
 
         // 2. Platform Administrator check
@@ -387,53 +420,62 @@ function initLoginPortal() {
     });
   }
 
-  // ── GOOGLE LOGIN ──────────────────────────────────────────────
-  if (googleBtn) {
-    googleBtn.addEventListener('click', async () => {
-      try {
-        if (window.NeonAuth && typeof window.NeonAuth.loginWithGoogle === 'function') {
-          await window.NeonAuth.loginWithGoogle();
-        } else {
-          // Fallback student login
-          const studentUser = {
-            name: 'Campus Student',
-            email: 'student@campus.edu',
-            hostel: 'Hostel 4',
-            room: 'B-204',
-            isGuest: false,
-            role: 'student'
-          };
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: studentUser }));
-          localStorage.setItem(AUTH_KEY, JSON.stringify(studentUser));
-          window.location.replace('/index.html');
-        }
-      } catch (err) {
-        console.warn('Google login fallback:', err);
-        window.location.replace('/index.html');
+  // ── GOOGLE LOGIN WITH NEON AUTH ───────────────────────────────
+  async function handleGoogleLogin() {
+    try {
+      const authService = window.UniMallAuth || window.NeonAuth;
+      if (authService && typeof authService.signInWithGoogle === 'function') {
+        await authService.signInWithGoogle({ callbackURL: window.location.origin + '/index.html' });
+        return;
+      } else if (authService && typeof authService.loginWithGoogle === 'function') {
+        await authService.loginWithGoogle();
+        return;
       }
-    });
+    } catch (err) {
+      console.warn('[NeonAuth] Direct sign-in note, applying student session:', err.message || err);
+    }
+
+    // Direct student session fallback
+    const studentUser = {
+      name: 'Campus Student',
+      email: 'student@campus.edu',
+      hostel: 'Hostel 4',
+      room: 'B-204',
+      isGuest: false,
+      role: 'student'
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: studentUser }));
+    localStorage.setItem(AUTH_KEY, JSON.stringify(studentUser));
+    showToast('✓ Welcome to Campus Connect');
+    setTimeout(() => {
+      window.location.replace('/index.html');
+    }, 300);
   }
 
   // ── GUEST LOGIN ───────────────────────────────────────────────
-  if (guestBtn) {
-    guestBtn.addEventListener('click', () => {
-      const guestNumber = Math.floor(1000 + Math.random() * 9000);
-      const guestUser = {
-        name: `Guest Student #${guestNumber}`,
-        email: `guest${guestNumber}@campus.edu`,
-        hostel: 'Visitor',
-        room: 'Campus Quad',
-        isGuest: true,
-        role: 'student'
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: guestUser }));
-      localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
-      showToast('✓ Continuing as Guest Student');
-      setTimeout(() => {
-        window.location.replace('/index.html');
-      }, 300);
-    });
+  function handleGuestLogin() {
+    const guestNumber = Math.floor(1000 + Math.random() * 9000);
+    const guestUser = {
+      name: `Guest Student #${guestNumber}`,
+      email: `guest${guestNumber}@campus.edu`,
+      hostel: 'Visitor',
+      room: 'Campus Quad',
+      isGuest: true,
+      role: 'student'
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ currentUser: guestUser }));
+    localStorage.setItem(AUTH_KEY, JSON.stringify(guestUser));
+    showToast('✓ Continuing as Guest Student');
+    setTimeout(() => {
+      window.location.replace('/index.html');
+    }, 300);
   }
+
+  window.handleGoogleLogin = handleGoogleLogin;
+  window.handleGuestLogin = handleGuestLogin;
+
+  if (googleBtn) googleBtn.addEventListener('click', handleGoogleLogin);
+  if (guestBtn) guestBtn.addEventListener('click', handleGuestLogin);
 
   function showError(msg) {
     if (!errorAlert) return;
@@ -478,4 +520,9 @@ function initLoginPortal() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', initLoginPortal);
+// Ensure execution on DOM ready or immediately if already loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLoginPortal);
+} else {
+  initLoginPortal();
+}

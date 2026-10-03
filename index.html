@@ -1008,7 +1008,7 @@
 
                 <!-- LOGOUT & ACTIONS -->
                 <div class="account-actions-wrap fade-up delay-3" style="margin-top: 16px;">
-                  <button type="button" class="logout-btn" id="logoutBtn">
+                  <button type="button" class="logout-btn" id="logoutBtn" onclick="const m = document.getElementById('logoutModal'); if(m) m.classList.remove('hidden'); else if(typeof handleLogout === 'function') handleLogout(); else window.performDirectLogout();">
                     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Log Out
                   </button>
@@ -1285,6 +1285,52 @@
     </div>
   </div>
 </div>
+
+<!-- LOGOUT CONFIRMATION MODAL -->
+<div class="modal-overlay hidden" id="logoutModal" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-icon-badge logout-badge">🚪</div>
+      <div class="modal-header-text">
+        <h3 id="logoutModalTitle">Log Out</h3>
+        <p>Are you sure you want to log out?</p>
+      </div>
+      <button type="button" class="modal-close-icon" id="cancelLogoutIconBtn" onclick="document.getElementById('logoutModal')?.classList.add('hidden')" aria-label="Close modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info-row">
+        <span class="m-icon">ℹ️</span>
+        <div>
+          <strong>Active Campus Session</strong>
+          <p>You can sign back in at any time to track orders, explore campus shops, and checkout.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions-dual">
+      <button type="button" class="modal-btn-cancel" id="cancelLogoutBtn" onclick="document.getElementById('logoutModal')?.classList.add('hidden')">Cancel</button>
+      <button type="button" class="modal-btn-logout" id="confirmLogoutBtn" onclick="if(typeof handleLogout === 'function') { handleLogout(); } else { window.performDirectLogout(); }">Log Out</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.performDirectLogout = function() {
+    try {
+      localStorage.removeItem('unimall_auth');
+      localStorage.removeItem('unimall_admin_token');
+      localStorage.removeItem('userMode');
+      localStorage.removeItem('unimall_has_visited');
+      sessionStorage.clear();
+      if (typeof window.UserManager !== 'undefined' && typeof window.UserManager.clearSession === 'function') {
+        window.UserManager.clearSession();
+      }
+      if (typeof window.UniMallAuth !== 'undefined' && typeof window.UniMallAuth.signOut === 'function') {
+        window.UniMallAuth.signOut().catch(function() {});
+      }
+    } catch(e) {}
+    window.location.replace('/login/?logout=true');
+  };
+</script>
 
 <!-- STORE TOASTS -->
 <div class="ssd-yay-toast" id="ssd-yay-toast">

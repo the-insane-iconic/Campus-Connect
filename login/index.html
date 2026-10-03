@@ -170,7 +170,7 @@
 
           <div class="auth-buttons-group">
             <!-- Button 1: Google Login -->
-            <button type="button" class="btn-google" id="googleLoginBtn">
+            <button type="button" class="btn-google" id="googleLoginBtn" onclick="if(window.handleGoogleLogin) window.handleGoogleLogin();">
               <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -184,7 +184,7 @@
             <div class="auth-divider"><span>or</span></div>
 
             <!-- Button 2: Continue as Guest -->
-            <button type="button" class="btn-guest" id="guestLoginBtn">
+            <button type="button" class="btn-guest" id="guestLoginBtn" onclick="if(window.handleGuestLogin) window.handleGuestLogin();">
               <span class="btn-icon">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -196,7 +196,7 @@
             </button>
 
             <!-- Button 3: Store Admin Login -->
-            <button type="button" class="btn-store-admin" id="openAdminModalBtn">
+            <button type="button" class="btn-store-admin" id="openAdminModalBtn" onclick="if(window.openAdminModal) window.openAdminModal();">
               <span class="btn-icon">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="3" width="7" height="7"></rect>
@@ -219,7 +219,7 @@
   <!-- ── STORE & ADMIN LOGIN MODAL ── -->
   <div class="modal-backdrop hidden" id="adminLoginModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-card">
-      <button type="button" class="modal-close-btn" id="closeAdminModalBtn" aria-label="Close store login modal">✕</button>
+      <button type="button" class="modal-close-btn" id="closeAdminModalBtn" onclick="if(window.closeAdminModal) window.closeAdminModal();" aria-label="Close store login modal">✕</button>
 
       <div class="brand-header">
         <div class="modal-badge-icon" aria-hidden="true" style="padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;">
@@ -302,7 +302,7 @@
 
         <div class="register-sublink-container">
           <span class="register-sublink-text">Want to open a store on campus?</span>
-          <button type="button" class="register-sublink-btn" id="openRegisterModalBtn">Register store →</button>
+          <button type="button" class="register-sublink-btn" id="openRegisterModalBtn" onclick="if(window.openRegisterModal) window.openRegisterModal();">Register store →</button>
         </div>
       </form>
     </div>
@@ -311,7 +311,7 @@
   <!-- ── INTEGRATED STORE REGISTRATION MODAL (Merged from register.html) ── -->
   <div class="modal-backdrop hidden" id="storeRegisterModal" role="dialog" aria-modal="true" aria-labelledby="regModalTitle">
     <div class="modal-card register-card" style="max-height: 90vh; overflow-y: auto;">
-      <button type="button" class="modal-close-btn" id="closeRegisterModalBtn" aria-label="Close registration modal">✕</button>
+      <button type="button" class="modal-close-btn" id="closeRegisterModalBtn" onclick="if(window.closeRegisterModal) window.closeRegisterModal();" aria-label="Close registration modal">✕</button>
 
       <!-- REGISTRATION FORM -->
       <div id="register-form-section">
@@ -417,7 +417,7 @@
         </form>
 
         <div class="login-footer" style="margin-top: 14px; text-align: center;">
-          <button type="button" class="back-link" id="switchToLoginBtn" style="background: none; border: none; font-size: 13.5px; color: var(--primary); font-weight: 600; cursor: pointer;">← Already registered? Sign In</button>
+          <button type="button" class="back-link" id="switchToLoginBtn" onclick="if(window.openAdminModal) window.openAdminModal();" style="background: none; border: none; font-size: 13.5px; color: var(--primary); font-weight: 600; cursor: pointer;">← Already registered? Sign In</button>
         </div>
       </div>
 
@@ -434,7 +434,7 @@
           </p>
           <div class="success-id" id="reg-success-id">Application ID: REG-001</div>
           <br />
-          <button type="button" class="btn-secondary" id="regSuccessBackToLogin" style="padding: 10px 20px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-weight: 600;">← Back to Sign In</button>
+          <button type="button" class="btn-secondary" id="regSuccessBackToLogin" onclick="if(window.openAdminModal) window.openAdminModal();" style="padding: 10px 20px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-weight: 600;">← Back to Sign In</button>
         </div>
       </div>
 
