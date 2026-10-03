@@ -246,7 +246,7 @@
         } catch (e) {}
       }
 
-      window.location.href = window.location.pathname.includes('/admin/') ? 'login.html' : 'admin/login.html';
+      window.location.href = (window.location.pathname.includes('/admin/') || window.location.pathname.includes('/merchant/')) ? '../login/' : 'login/';
     },
 
     /**
@@ -287,11 +287,13 @@
             }
 
             // Navigate to appropriate portal based on role
-            if (window.location.pathname.endsWith('login.html')) {
-              if (userRole === 'admin' || userRole === 'merchant') {
-                window.location.href = window.location.pathname.includes('/admin/') ? 'index.html' : 'admin/index.html';
+            if (window.location.pathname.includes('/login')) {
+              if (userRole === 'admin') {
+                window.location.href = '../admin/';
+              } else if (userRole === 'merchant') {
+                window.location.href = '../merchant/';
               } else {
-                window.location.href = window.location.pathname.includes('/admin/') ? '../index.html' : 'index.html';
+                window.location.href = '../';
               }
             }
           }

@@ -1,10 +1,11 @@
+(function() {
+'use strict';
+
 /* ═══════════════════════════════════════════════════════════
    UNIMALL — USER PROFILE CONTROLLER (profile.js)
    ═══════════════════════════════════════════════════════════ */
 
-'use strict';
-
-var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
+var PROFILE_STORAGE_KEY = window.PROFILE_STORAGE_KEY || 'unimall_v1';
 var AUTH_KEY = window.AUTH_KEY || 'unimall_auth';
 
 /* ─── FIREBASE AUTH (uses config from js/config.js) ───────── */
@@ -55,7 +56,7 @@ function loadProfileData() {
         ProfileState.user = { ...ProfileState.user, ...authUser };
       }
 
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.currentUser) {
@@ -73,7 +74,7 @@ function loadProfileData() {
     }
 
     // Always load orders & requests from storage
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.orders)) {
@@ -94,12 +95,12 @@ function saveProfileData() {
       window.UserManager.updateProfile(ProfileState.user);
     } else {
       let appData = {};
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (raw) {
         appData = JSON.parse(raw);
       }
       appData.currentUser = { ...ProfileState.user };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(appData));
       localStorage.setItem(AUTH_KEY, JSON.stringify(ProfileState.user));
     }
     if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
@@ -235,18 +236,18 @@ async function handleLogout() {
     localStorage.removeItem('userMode');
     localStorage.removeItem('unimall_has_visited');
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         delete parsed.currentUser;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(parsed));
       }
     } catch (e) {}
   }
 
   showToast('Logged out successfully');
   setTimeout(() => {
-    window.location.href = 'admin/login.html';
+    window.location.href = 'login/';
   }, 400);
 }
 
@@ -301,7 +302,7 @@ function showToast(message) {
 function syncCartBadge() {
   try {
     let items = [];
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(PROFILE_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.cart)) items = parsed.cart;
@@ -515,3 +516,8 @@ window.renderProfileView = function() {
   renderProfile();
   syncSidebarProfile();
 };
+
+window.saveProfileData = saveProfileData;
+window.handleLogout = handleLogout;
+
+})();

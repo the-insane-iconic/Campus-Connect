@@ -1,12 +1,13 @@
+(function() {
+'use strict';
+
 /* ═══════════════════════════════════════════════════════════
    UNIMALL — ORDERS CONTROLLER (orders.js)
    Full functional frontend + mock backend state engine
    ═══════════════════════════════════════════════════════════ */
 
-'use strict';
-
 /* ─── CONSTANTS & SEED DATA ──────────────────────────────── */
-var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
+var ORDERS_STORAGE_KEY = window.ORDERS_STORAGE_KEY || 'unimall_v1';
 
 const INITIAL_DEMO_ORDERS = [];
 
@@ -26,7 +27,7 @@ function loadStateFromStorage() {
       : null;
     const currentUid = activeUser?.uid || activeUser?.id || activeUser?.guestId;
 
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.orders)) {
@@ -47,7 +48,7 @@ function loadStateFromStorage() {
 function saveOrdersToStorage() {
   try {
     let currentData = {};
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (raw) {
       currentData = JSON.parse(raw);
     }
@@ -62,7 +63,7 @@ function saveOrdersToStorage() {
     } else {
       currentData.orders = OrdersState.orders;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentData));
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(currentData));
   } catch (e) {
     console.error('Failed to save orders to localStorage:', e);
   }
@@ -443,7 +444,7 @@ function handleReorder(orderId) {
 
   try {
     let appData = {};
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (raw) {
       appData = JSON.parse(raw);
     }
@@ -481,7 +482,7 @@ function handleReorder(orderId) {
       appData.cart.push(itemObj);
     });
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(appData));
     syncCartBadge();
     const orderNumText = order.order_number_display || order.order_number || `#${order.id}`;
     showToast(`Added ${order.items.length} item${order.items.length > 1 ? 's' : ''} from ${orderNumText} to cart! Opening cart...`);
@@ -688,7 +689,7 @@ function showToast(message) {
 function syncCartBadge() {
   try {
     let items = [];
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.cart)) items = parsed.cart;
@@ -708,7 +709,7 @@ function syncCartBadge() {
 function syncSidebarProfile() {
   try {
     let user = null;
-    const v1 = localStorage.getItem(STORAGE_KEY);
+    const v1 = localStorage.getItem(ORDERS_STORAGE_KEY);
     if (v1) {
       const parsed = JSON.parse(v1);
       if (parsed.currentUser) user = parsed.currentUser;
@@ -977,3 +978,5 @@ window.renderOrdersView = function() {
   renderOrdersList();
   syncOrdersWithSupabase();
 };
+
+})();

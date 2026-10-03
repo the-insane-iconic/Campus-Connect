@@ -612,6 +612,7 @@ const DEFAULT_PRODUCTS = [
 
 /* ─── STORES ─────────────────────────────────────────────── */
 let STORES = [...DEFAULT_STORES];
+window.STORES = STORES;
 
 /* ─── CATEGORIES ─────────────────────────────────────────── */
 const CATEGORIES = [
@@ -639,6 +640,7 @@ const AVAIL_CHIPS = [
 //   stock, availability, deliveryAvailable, pickupAvailable,
 //   rating, isNearby, isPopular, isRestocked
 let PRODUCTS = [...DEFAULT_PRODUCTS];
+window.PRODUCTS = PRODUCTS;
 /* ─── CAMPUS OPERATIONAL INFO ────────────────────────────── */
 const CAMPUS_INFO = {
   mallHours:   '8:00 AM – 10:00 PM',
@@ -693,6 +695,7 @@ async function syncCatalogWithSupabase() {
         coverImage: s.cover_image || '',
         rating: Number(s.rating) || 4.5
       }));
+      window.STORES = STORES;
     }
 
     if (dbProducts && Array.isArray(dbProducts) && dbProducts.length > 0) {
@@ -720,6 +723,7 @@ async function syncCatalogWithSupabase() {
         isPopular: Boolean(p.is_popular),
         isRestocked: Boolean(p.is_restocked)
       }));
+      window.PRODUCTS = PRODUCTS;
     }
 
     // Apply visibility and store status overrides
@@ -842,3 +846,11 @@ function syncStoreStatusesFromAdmin() {
   }
 }
 window.syncStoreStatusesFromAdmin = syncStoreStatusesFromAdmin;
+window.syncCatalogWithSupabase = syncCatalogWithSupabase;
+window.DEFAULT_STORES = DEFAULT_STORES;
+window.DEFAULT_PRODUCTS = DEFAULT_PRODUCTS;
+window.STORES = STORES;
+window.PRODUCTS = PRODUCTS;
+window.CATEGORIES = CATEGORIES;
+window.AVAIL_CHIPS = AVAIL_CHIPS;
+window.CAMPUS_INFO = CAMPUS_INFO;

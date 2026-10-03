@@ -28,9 +28,10 @@
    ═══════════════════════════════════════════════════════════ */
 
 .profile-page-header {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: calc(18px + env(safe-area-inset-top)) 20px 12px;
   background: var(--background);
   position: sticky;
@@ -38,8 +39,14 @@
   z-index: 20;
 }
 
-.header-title {
-  text-align: center;
+.profile-page-header .header-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.profile-page-header .icon-button {
+  flex-shrink: 0;
 }
 
 .header-title h1 {
@@ -372,30 +379,35 @@
 }
 
 .save-profile-btn {
-  margin-top: 6px;
+  width: 100%;
+  margin-top: 12px;
   height: 44px;
-  background: var(--blue);
+  background: var(--blue, #2563eb);
   color: #ffffff;
+  border: none;
   border-radius: 12px;
-  font-size: 13.5px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  box-sizing: border-box;
+  padding: 0 20px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .save-profile-btn:hover {
-  background: var(--blue-dark);
+  background: var(--blue-dark, #1d4ed8);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.32);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
 }
 
 .save-profile-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.99);
 }
 
 .save-profile-btn.saved {

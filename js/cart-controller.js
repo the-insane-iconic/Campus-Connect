@@ -1,11 +1,12 @@
+(function() {
+'use strict';
+
 /* ═══════════════════════════════════════════════════════════
    UNIMALL — CART & CHECKOUT CONTROLLER (cart.js)
    Full functional cart frontend + backend state engine
    ═══════════════════════════════════════════════════════════ */
 
-'use strict';
-
-var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
+var CART_STORAGE_KEY = window.CART_STORAGE_KEY || 'unimall_v1';
 
 /* ─── COUPON DICTIONARY (fetched from DB; hardcoded as fallback) ── */
 // This map is populated on init from the DB. Hardcoded fallback for offline/dev.
@@ -60,7 +61,7 @@ const CartState = {
 /* ─── STORAGE SYNC ───────────────────────────────────────── */
 function loadCartFromStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.cart)) {
@@ -99,6 +100,7 @@ function loadCartFromStorage() {
       }
 
       if (parsed.currentUser) {
+        if (!CartState.deliveryInfo) CartState.deliveryInfo = {};
         if (parsed.currentUser.hostel) CartState.deliveryInfo.hostel = parsed.currentUser.hostel;
         if (parsed.currentUser.room) CartState.deliveryInfo.room = parsed.currentUser.room;
       }
@@ -111,7 +113,7 @@ function loadCartFromStorage() {
 function saveCartToStorage() {
   try {
     let appData = {};
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (raw) {
       appData = JSON.parse(raw);
     }
@@ -136,7 +138,7 @@ function saveCartToStorage() {
       appData.currentUser.hostel = CartState.deliveryInfo.hostel;
       appData.currentUser.room = CartState.deliveryInfo.room;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(appData));
     syncCartBadge();
   } catch (e) {
     console.error('Error saving cart state:', e);
@@ -413,7 +415,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
 
   try {
     let appData = {};
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (raw) {
       appData = JSON.parse(raw);
     }
@@ -602,7 +604,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
 
     // Clear cart ONLY AFTER all store orders are registered
     appData.cart = [];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(appData));
 
     // Celebration: Subtle chime + confetti + exciting pop-up
     playOrderPlacedChime();
@@ -833,7 +835,7 @@ function updateDeliveryEstimate() {
 function syncCartBadge() {
   try {
     let items = [];
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.cart)) items = parsed.cart;
@@ -853,7 +855,7 @@ function syncCartBadge() {
 function syncSidebarProfile() {
   try {
     let user = null;
-    const v1 = localStorage.getItem(STORAGE_KEY);
+    const v1 = localStorage.getItem(CART_STORAGE_KEY);
     if (v1) {
       const parsed = JSON.parse(v1);
       if (parsed.currentUser) user = parsed.currentUser;
@@ -1093,3 +1095,8 @@ function renderCartView() {
   syncCartBadge();
 }
 window.renderCartView = renderCartView;
+window.clearCart = clearCart;
+window.applyCoupon = applyCoupon;
+window.removeCoupon = removeCoupon;
+
+})();

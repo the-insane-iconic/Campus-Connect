@@ -1,3 +1,6 @@
+(function() {
+'use strict';
+
 /* =========================================================
    UNIMALL — STORES
    Stores directory + search + filters + sorting
@@ -8,7 +11,9 @@
 ========================================================= */
 
 // Populated from Neon DB or pre-hydrated window.STORES
-var STORES = (typeof window !== 'undefined' && window.STORES && window.STORES.length > 0) ? window.STORES : [];
+var STORES = (typeof window !== 'undefined' && window.STORES && window.STORES.length > 0)
+  ? window.STORES.map(mapDbStoreToCard)
+  : [];
 
 /* =========================================================
    APPLICATION STATE
@@ -720,15 +725,18 @@ function resetFilters() {
    BACK BUTTON
 ========================================================= */
 
-document
-  .getElementById("backButton")
-  .addEventListener("click", () => {
-    if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
+const backBtn = document.getElementById("storesBackButton") || document.getElementById("backButton");
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    if (typeof window.navigate === 'function') {
+      window.navigate('home');
+    } else if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
       window.history.back();
     } else {
       window.location.href = "index.html";
     }
   });
+}
 
 
 /* =========================================================
@@ -992,5 +1000,10 @@ window.renderStoresView = function() {
   syncStoreStatuses();
   renderStores();
 };
+window.openStore = openStore;
+window.mapDbStoreToCard = mapDbStoreToCard;
+window.renderStores = renderStores;
+
+})();
 
 

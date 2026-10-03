@@ -822,3 +822,50 @@ button, a, [role="button"], input, select, textarea, .menu-item-card {
   margin-top: -24px;
 }
 
+/* ── Mobile responsiveness for compact viewports ── */
+@media (max-width: 480px) {
+  .store-hero {
+    height: 190px;
+  }
+  .store-info-sheet {
+    padding: 16px 14px 0;
+    border-radius: 22px 22px 0 0;
+    margin-top: -24px;
+  }
+  .store-logo-wrap {
+    width: 54px;
+    height: 54px;
+    margin-top: -26px;
+    font-size: 22px;
+  }
+  .store-name-heading {
+    font-size: 18px;
+  }
+  .store-tab {
+    font-size: 13px;
+    padding: 11px 4px 9px;
+  }
+  .store-products-grid {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .store-product-img-wrap {
+    height: 110px;
+  }
+  .product-modal-content {
+    padding: 14px 16px 18px;
+  }
+  .product-modal-img-wrap {
+    height: 175px;
+  }
+}
+
+@media (max-width: 360px) {
+  .store-products-grid {
+    grid-template-columns: 1fr;
+  }
+  .store-product-img-wrap {
+    height: 140px;
+  }
+}
+

@@ -3320,11 +3320,65 @@ body.overlay-open {
   }
 }
 
+/* Universal Sub-view Header Styling */
+.stores-header,
+.orders-header,
+.cart-header,
+.profile-page-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.stores-header .header-title,
+.orders-header .header-title,
+.cart-header .header-title,
+.profile-page-header .header-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+.stores-header .icon-button,
+.orders-header .icon-button,
+.cart-header .icon-button,
+.cart-header .clear-cart-btn,
+.profile-page-header .icon-button {
+  flex-shrink: 0 !important;
+}
+
 @media (min-width: 768px) {
   #storesBackButton,
   #ordersBackButton,
   #cartBackButton,
   #profileBackButton {
     display: none !important;
+  }
+
+  .stores-header,
+  .orders-header,
+  .cart-header,
+  .profile-page-header {
+    padding: 24px 32px 18px !important;
+    gap: 16px !important;
+  }
+
+  .stores-header .header-title h1,
+  .orders-header .header-title h1,
+  .cart-header .header-title h1,
+  .profile-page-header .header-title h1 {
+    font-size: 26px !important;
+    line-height: 1.25 !important;
+  }
+
+  .stores-header .header-title p,
+  .orders-header .header-title p,
+  .cart-header .header-title p,
+  .profile-page-header .header-title p {
+    font-size: 14px !important;
+    margin-top: 4px !important;
   }
 }

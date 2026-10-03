@@ -25,9 +25,10 @@
    ═══════════════════════════════════════════════════════════ */
 
 .cart-header {
-  display: grid;
-  grid-template-columns: 44px 1fr 54px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: calc(18px + env(safe-area-inset-top)) 20px 12px;
   background: var(--background);
   position: sticky;
@@ -35,8 +36,15 @@
   z-index: 20;
 }
 
-.header-title {
-  text-align: center;
+.cart-header .header-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+}
+
+.cart-header .icon-button,
+.cart-header .clear-cart-btn {
+  flex-shrink: 0;
 }
 
 .header-title h1 {

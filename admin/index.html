@@ -22,11 +22,11 @@
       try {
         var token = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
         if (!token) {
-          window.location.replace('login.html');
+          window.location.replace('../login/');
           return;
         }
       } catch (e) {
-        window.location.replace('login.html');
+        window.location.replace('../login/');
       }
     })();
   </script>

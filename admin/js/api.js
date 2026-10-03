@@ -32,7 +32,7 @@ async function apiRequest(endpoint, options = {}) {
 
     if (res.status === 401) {
       sessionStorage.removeItem('unimall_admin_token');
-      window.location.href = 'login.html';
+      window.location.href = '../login/';
       throw new Error('Session expired. Please sign in again.');
     }
 

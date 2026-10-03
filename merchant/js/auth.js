@@ -20,7 +20,7 @@ window.currentMerchantUser = null;
 document.addEventListener('DOMContentLoaded', async () => {
   const token = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
   if (!token) {
-    window.location.replace('../admin/login.html');
+    window.location.replace('../login/');
     return;
   }
 
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!activeStoreId) {
       alert('Error: No campus store is assigned to this merchant account. Please contact campus admin.');
       sessionStorage.clear();
-      window.location.replace('/admin/login.html');
+      window.location.replace('../login/');
       return;
     }
 
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (err) {
     console.error('[Merchant Auth] Session initialization failed:', err);
     sessionStorage.clear();
-    window.location.replace('/admin/login.html');
+    window.location.replace('../login/');
   }
 });
 
@@ -343,7 +343,7 @@ function setupLogout() {
     btn.addEventListener('click', () => {
       if (confirm('Are you sure you want to sign out of your merchant portal?')) {
         sessionStorage.clear();
-        window.location.replace('/admin/login.html');
+        window.location.replace('../login/');
       }
     });
   }

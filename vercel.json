@@ -78,6 +78,14 @@
       "dest": "/login/$1"
     },
     {
+      "src": "^/admin/login(\\.html)?$",
+      "dest": "/login/index.html"
+    },
+    {
+      "src": "^/admin/register(\\.html)?$",
+      "dest": "/login/index.html?tab=register"
+    },
+    {
       "src": "^/admin$",
       "dest": "/admin/index.html"
     },

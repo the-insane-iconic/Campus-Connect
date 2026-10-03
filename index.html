@@ -30,7 +30,7 @@
         var hasAuth = Boolean(localStorage.getItem('unimall_auth') || localStorage.getItem('unimall_admin_token'));
         var urlParams = new URLSearchParams(window.location.search);
         if (!hasVisited && !hasAuth && !urlParams.has('neon_auth_session_verifier')) {
-          window.location.replace('admin/login.html');
+          window.location.replace('login/');
         }
       } catch (e) {}
     })();
