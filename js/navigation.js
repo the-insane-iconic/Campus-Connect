@@ -287,22 +287,10 @@ function initShortcuts() {
 
   if (nearbyBtn) {
     nearbyBtn.addEventListener('click', () => {
-      setState({ ui: { activeFilters: ['nearby'], selectedCategoryId: null, searchQuery: '' } });
-      const searchInput = document.getElementById('main-search');
-      if (searchInput) searchInput.value = '';
-      _resetCategoryHighlight();
-      _resetAllChips();
-      const nearbyChip = document.getElementById('chip-nearby');
-      if (nearbyChip) {
-        nearbyChip.classList.add('active');
-        nearbyChip.setAttribute('aria-pressed', 'true');
+      navigate('stores');
+      if (typeof showToast === 'function') {
+        showToast('Showing all campus stores & live counters');
       }
-      renderHome();
-      const nearSec = document.getElementById('near-you-section');
-      if (nearSec) {
-        nearSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      showToast('Showing nearby items');
     });
     nearbyBtn.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nearbyBtn.click(); }

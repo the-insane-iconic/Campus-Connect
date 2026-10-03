@@ -1566,17 +1566,31 @@ window.UniMallDB = {
         ADD COLUMN IF NOT EXISTS is_restocked BOOLEAN NOT NULL DEFAULT FALSE;
     `).catch(() => {});
 
-    // 4. Users: add avatar, hostel, room, and preferences columns
+    // 4. Users: add avatar, hostel, room, preferences, and updated_at columns
     await window.UniMallDB.neonSql(`
       ALTER TABLE users
         ADD COLUMN IF NOT EXISTS avatar_url TEXT,
         ADD COLUMN IF NOT EXISTS avatar TEXT,
         ADD COLUMN IF NOT EXISTS hostel TEXT DEFAULT '',
         ADD COLUMN IF NOT EXISTS room TEXT DEFAULT '',
-        ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{"orderNotifications":true,"promotionalAlerts":true,"language":"en"}'::jsonb;
+        ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{"orderNotifications":true,"promotionalAlerts":true,"language":"en"}'::jsonb,
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
     `).catch(() => {});
 
-    // 5. Invalidate SWR cache so the fresh schema is used on next fetch
+    // 5. Reviews table: real user-generated store reviews
+    await window.UniMallDB.neonSql(`
+      CREATE TABLE IF NOT EXISTS unimall_reviews (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        store_id      TEXT NOT NULL,
+        user_id       TEXT NOT NULL,
+        rating        SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+        text          TEXT DEFAULT '',
+        created_at    TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (store_id, user_id)
+      );
+    `).catch(() => {});
+
+    // 6. Invalidate SWR cache so the fresh schema is used on next fetch
     window.UniMallDB.invalidateCache('stores');
     window.UniMallDB.invalidateCache('stores:all');
     window.UniMallDB.invalidateCache('products:all');

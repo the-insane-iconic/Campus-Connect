@@ -946,7 +946,9 @@ def place_order_safe():
     customer_name = data.get('customer_name', 'Campus Student')
     customer_email = data.get('customer_email', 'student@univ.edu')
     customer_phone = data.get('customer_phone', '')
-    delivery_method = 'pickup'
+    # Accept user_id from the authenticated frontend session (not hardcoded)
+    user_id = (data.get('user_id') or data.get('userId') or '').strip() or None
+    delivery_method = data.get('delivery_method', 'pickup')  # 'pickup' | 'delivery'
     delivery_address = data.get('delivery_address', 'Store Counter Pickup Station')
     notes = data.get('notes', '')
 
@@ -1002,12 +1004,12 @@ def place_order_safe():
             delivery_fee = 0.0  # Counter self-pickup only — ₹0 delivery fee
             total = subtotal + delivery_fee
 
-            # Create Order
+            # Create Order — user_id comes from the authenticated frontend session
             execute_mutation(
                 "INSERT INTO orders (id, user_id, customer_name, customer_email, customer_phone, status, "
                 "subtotal, delivery_fee, total, delivery_method, delivery_address, payment_status, notes, created_at, updated_at) "
-                "VALUES (?, 'usr_student', ?, ?, ?, 'PLACED', ?, ?, ?, ?, ?, 'paid', ?, ?, ?)",
-                (order_id, customer_name, customer_email, customer_phone, subtotal, delivery_fee, total,
+                "VALUES (?, ?, ?, ?, ?, 'PLACED', ?, ?, ?, ?, ?, 'paid', ?, ?, ?)",
+                (order_id, user_id, customer_name, customer_email, customer_phone, subtotal, delivery_fee, total,
                  delivery_method, delivery_address, notes, now_iso, now_iso),
                 conn=tx_conn
             )

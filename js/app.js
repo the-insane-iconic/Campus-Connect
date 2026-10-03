@@ -51,11 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* 5. Render initial product sections */
   renderHome();
+  _updateStoresBadge();
 
   /* 5b. Sync live catalog from Supabase (only re-render if data updated) */
   if (typeof syncCatalogWithSupabase === 'function') {
     syncCatalogWithSupabase().then(hasChanged => {
       renderCampusInfo();
+      _updateStoresBadge();
       if (hasChanged) renderHome();
     }).catch(() => {
       renderCampusInfo();
@@ -184,4 +186,18 @@ function renderCampusInfo() {
       </div>
     </div>
   `;
+}
+
+/* ── Dynamic Stores Count Badge ── */
+function _updateStoresBadge() {
+  try {
+    const badge = document.getElementById('stores-count-badge');
+    if (!badge) return;
+    const allStores = (typeof window.STORES !== 'undefined' ? window.STORES : [])
+      .filter(s => s.isVisible !== false);
+    const count = allStores.length;
+    if (count > 0) {
+      badge.textContent = count + (count === 1 ? ' STORE' : ' STORES');
+    }
+  } catch (e) {}
 }

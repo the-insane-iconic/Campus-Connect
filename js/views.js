@@ -383,8 +383,41 @@ function _wireCategoryCardEvents(container) {
   });
 }
 
+function _renderFeaturedStores() {
+  const container = document.getElementById('featured-stores-scroll');
+  if (!container) return;
+
+  const storesList = (typeof STORES !== 'undefined' && Array.isArray(STORES) && STORES.length > 0)
+    ? STORES
+    : (typeof DEFAULT_STORES !== 'undefined' && Array.isArray(DEFAULT_STORES) ? DEFAULT_STORES : []);
+
+  container.innerHTML = storesList.slice(0, 5).map(s => {
+    const cover = s.coverImage || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600';
+    const rating = s.rating || 4.6;
+    return `
+      <div class="featured-store-card" role="button" tabindex="0" onclick="navigate('store', { id: '${s.id}' })">
+        <div class="featured-store-cover">
+          <img src="${cover}" alt="${s.name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600';">
+          <div class="featured-store-badge">
+            <span class="star">★</span> ${rating}
+          </div>
+        </div>
+        <div class="featured-store-body">
+          <div class="featured-store-name">${s.name}</div>
+          <div class="featured-store-meta">
+            <span class="featured-store-open-pill">
+              <span class="featured-store-open-dot"></span> Open
+            </span>
+            <span>·</span>
+            <span>${s.location || s.floor + ' Floor'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function _renderDefaultHomeSections() {
-  // Show normal section headers
   _setHomeSectionsVisible(true);
 
   // Fallback to global PRODUCTS if AppState.products is not yet populated
@@ -392,95 +425,121 @@ function _renderDefaultHomeSections() {
     ? AppState.products
     : (Array.isArray(PRODUCTS) && PRODUCTS.length > 0 ? PRODUCTS : []);
 
-  let nearYou = productList.filter(p => p.isNearby);
-  let popular  = productList.filter(p => p.isPopular);
-  let restocked = productList.filter(p => p.isRestocked);
-
-  // ── Smart Fallback: if DB flags aren't configured yet, gracefully distribute
-  //    ALL available products across the home sections so the home screen is
-  //    never empty just because admin hasn't toggled the flag columns.
   const allActive = productList.filter(p => p.availability !== 'out-of-stock');
-  if (nearYou.length === 0 && popular.length === 0 && restocked.length === 0 && allActive.length > 0) {
-    // Sort by rating desc for "popular"
-    const byRating  = [...allActive].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    // Show top 8 by rating as "Available Near You"
-    nearYou   = byRating.slice(0, 8);
-    // Next 4 as "Popular Right Now"
-    popular   = byRating.slice(8, 14);
-    // Remaining as "Recently Restocked" (or overlap with near-you if few products)
-    restocked = byRating.slice(14, 20).length > 0 ? byRating.slice(14, 20) : byRating.slice(4, 10);
-  } else {
-    // Mix in any active products if a specific section is empty
-    if (nearYou.length === 0)  nearYou  = allActive.slice(0, 8);
-    if (popular.length === 0)  popular  = allActive.sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 6);
+  const byRating = [...allActive].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+
+  // 1. Amazon-Inspired Today's Campus Deals
+  let deals = allActive.filter(p => p.price && p.price >= 60);
+  if (deals.length === 0) deals = allActive.slice(0, 8);
+  const dealsContainer = document.getElementById('deals-scroll');
+  if (dealsContainer) {
+    dealsContainer.innerHTML = deals.slice(0, 8).map(p => buildProductCard(p, { isDeal: true })).join('');
+    _wireCardListeners(dealsContainer);
   }
 
-  _fillProductSection('near-you-scroll', nearYou);
+  // 2. Featured Campus Stores Spotlight
+  _renderFeaturedStores();
+
+  // 3. Campus Best Sellers (Popular Right Now)
+  let popular = productList.filter(p => p.isPopular);
+  if (popular.length === 0) popular = byRating.slice(0, 8);
   _fillProductSection('popular-scroll', popular);
+
+  // 4. Recently Restocked
+  let restocked = productList.filter(p => p.isRestocked);
+  if (restocked.length === 0) restocked = allActive.slice(4, 12);
   _fillProductSection('restocked-scroll', restocked);
+}
+
+function _wireCardListeners(container) {
+  if (!container) return;
+  container.querySelectorAll('.add-btn:not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const prod = getProduct(btn.dataset.pid);
+      cartAdd(btn.dataset.pid);
+      updateCartBadges();
+      showYayCartToast(prod ? prod.name : 'Item');
+
+      btn.classList.add('added');
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '✓';
+      setTimeout(() => {
+        btn.classList.remove('added');
+        btn.innerHTML = origHtml;
+      }, 650);
+    });
+  });
+
+  container.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', () => navigate('product', { selectedProductId: card.dataset.pid }));
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter') navigate('product', { selectedProductId: card.dataset.pid });
+    });
+  });
 }
 
 function _renderFilteredResults() {
   const filtered = getFilteredProducts();
 
-  // Hide default sections and use "Available Near You" slot for results
+  // Hide default sections and show dedicated search results section
   _setHomeSectionsVisible(false);
 
-  const section = document.getElementById('near-you-section');
+  const section = document.getElementById('search-results-section') || document.getElementById('popular-section');
   if (!section) return;
   section.style.display = '';
 
-  const header = section.querySelector('.section-title');
+  const header = document.getElementById('search-results-title') || section.querySelector('.section-title');
   if (header) {
     const q = AppState.ui.searchQuery;
-    header.textContent = q ? `Results for "${q}"` : 'Filtered Results';
+    header.textContent = q ? `Results for "${q}" (${filtered.length})` : `Filtered Products (${filtered.length})`;
   }
 
-  const link = section.querySelector('.section-link');
-  if (link) link.style.display = 'none';
-
-  if (filtered.length === 0) {
-    const container = document.getElementById('near-you-scroll');
-    if (container) {
+  const container = document.getElementById('search-results-scroll') || section.querySelector('.products-scroll');
+  if (container) {
+    if (filtered.length === 0) {
       container.innerHTML = `
-        <div class="empty-results">
-          <div class="empty-results-emoji">🔍</div>
-          <div class="empty-results-title">Nothing found</div>
-          <div class="empty-results-sub">Try a different search term or clear your filters.</div>
-          <button class="empty-results-btn" id="clear-filters-btn">Clear filters</button>
+        <div class="empty-results" style="width: 100%; text-align: center; padding: 48px 16px;">
+          <div class="empty-results-emoji" style="font-size: 38px; margin-bottom: 8px;">🔍</div>
+          <div class="empty-results-title" style="font-weight: 700; font-size: 16px; color: var(--text-primary);">No products found</div>
+          <div class="empty-results-sub" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Try searching for snacks, books, stationery, or campus stores.</div>
+          <button class="empty-results-btn" id="clear-filters-btn" style="margin-top: 16px;">Clear search</button>
         </div>
       `;
       container.querySelector('#clear-filters-btn')?.addEventListener('click', () => {
         setState({ ui: { searchQuery: '', selectedCategoryId: null, activeFilters: [] } });
-        document.getElementById('main-search').value = '';
-        _resetCategoryHighlight();
-        _resetChipHighlight();
+        const input = document.getElementById('main-search');
+        if (input) input.value = '';
         renderHome();
       });
+    } else {
+      container.innerHTML = filtered.map(p => buildProductCard(p)).join('');
+      _wireCardListeners(container);
     }
-  } else {
-    _fillProductSection('near-you-scroll', filtered);
   }
 }
 
 function _setHomeSectionsVisible(visible) {
-  ['near-you-section', 'popular-section', 'restocked-section'].forEach(id => {
+  const homeSectionIds = [
+    'campus-trust-strip',
+    'shortcuts-row',
+    'deals-section',
+    'featured-stores-section',
+    'popular-section',
+    'restocked-section',
+    'cantfind-card',
+    'campus-info'
+  ];
+
+  homeSectionIds.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = visible ? '' : 'none';
-
-    const header = el.querySelector('.section-title');
-    const link = el.querySelector('.section-link');
-    if (header) {
-      // Restore original titles
-      const titles = { 'near-you-section': 'Available Near You', 'popular-section': 'Popular Right Now', 'restocked-section': 'Recently Restocked' };
-      header.textContent = titles[id] || header.textContent;
-    }
-    if (link) link.style.display = '';
   });
 
-  if (!visible) {
-    document.getElementById('near-you-section').style.display = '';
+  const searchSec = document.getElementById('search-results-section');
+  if (searchSec) {
+    searchSec.style.display = visible ? 'none' : '';
   }
 }
 
@@ -488,10 +547,13 @@ function _setHomeSectionsVisible(visible) {
    PRODUCT CARD BUILDER
    ═══════════════════════════════════════════════════════════ */
 
-function buildProductCard(product) {
+function buildProductCard(product, options = {}) {
   const { id, name, price, availability, stock, storeId, emoji, image, bg } = product;
   const store = getStore(storeId) || {};
   const unavailable = availability === 'out-of-stock';
+
+  const isDeal = options.isDeal || false;
+  const originalPrice = isDeal ? Math.round(price * 1.3) : (product.originalPrice || null);
 
   const availMap = {
     'in-stock': { cls: 'in-stock', label: 'In stock' },
@@ -509,11 +571,17 @@ function buildProductCard(product) {
     <article class="product-card" role="listitem" id="product-${id}"
              tabindex="0" data-pid="${id}"
              aria-label="${name}, ₹${fmtPrice(price)}, ${avail.label}">
-      <div class="product-img-wrap" style="background:${bg};" aria-hidden="true">${imgHtml}</div>
+      <div class="product-img-wrap" style="background:${bg};" aria-hidden="true">
+        ${isDeal ? `<span class="product-deal-badge">⚡ DEAL</span>` : ''}
+        ${imgHtml}
+      </div>
       <div class="product-info">
         <div class="product-name">${name}</div>
         <div class="product-store">${store.name || ''}</div>
-        <div class="product-price"><span class="currency">₹</span>${fmtPrice(price)}</div>
+        <div class="product-price">
+          <span class="currency">₹</span>${fmtPrice(price)}
+          ${originalPrice ? `<span class="original-price-strike">₹${fmtPrice(originalPrice)}</span>` : ''}
+        </div>
         <div class="product-footer">
           <span class="avail-badge ${avail.cls}">
             <span class="dot" aria-hidden="true"></span>

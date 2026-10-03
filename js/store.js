@@ -38,7 +38,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Cards, Cash',
     rating: 4.7,
     ratingBreakdown: [75, 16, 5, 2, 2],
-    reviewCount: 142,
+    reviewCount: 0,
   },
   {
     id: 'book-corner',
@@ -65,7 +65,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Cash',
     rating: 4.6,
     ratingBreakdown: [68, 20, 7, 3, 2],
-    reviewCount: 110,
+    reviewCount: 0,
   },
   {
     id: 'techstop',
@@ -91,7 +91,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Card, Cash',
     rating: 4.5,
     ratingBreakdown: [62, 24, 9, 3, 2],
-    reviewCount: 96,
+    reviewCount: 0,
   },
   {
     id: 'campus-mart',
@@ -117,7 +117,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Card, Cash',
     rating: 4.3,
     ratingBreakdown: [55, 27, 11, 4, 3],
-    reviewCount: 88,
+    reviewCount: 0,
   },
   {
     id: 'campus-wear',
@@ -143,7 +143,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Card',
     rating: 4.6,
     ratingBreakdown: [66, 22, 7, 3, 2],
-    reviewCount: 75,
+    reviewCount: 0,
   },
   {
     id: 'health-hub',
@@ -169,7 +169,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Card, Cash',
     rating: 4.5,
     ratingBreakdown: [64, 23, 8, 3, 2],
-    reviewCount: 65,
+    reviewCount: 0,
   },
   {
     id: 'nand-juice',
@@ -195,7 +195,7 @@ const STORE_CATALOG = [
     paymentMethods: 'Razorpay UPI, Cash',
     rating: 4.5,
     ratingBreakdown: [70, 20, 8, 2, 0],
-    reviewCount: 48,
+    reviewCount: 0,
   },
   // Legacy alias redirects
   { id: 'store-bakery', dataId: 'campus-cafe', name: 'Campus Bakery & Café', emoji: '🥐', coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800' },
@@ -653,8 +653,10 @@ async function initStoreDetail(targetStoreId) {
   }
 
   // Fallback to static catalog if DB returned nothing
+  // Products marked db_fallback=true are offline-only stale copies — availability shown as 'check-store'
   if (prods.length === 0 && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
-    prods = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
+    const staticProds = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
+    prods = staticProds.map(p => ({ ...p, db_fallback: true, availability: 'check-store', stock: null }));
   }
 
   // Derive dynamic category chips from actual product subcategories
@@ -935,9 +937,14 @@ function renderProductGrid() {
   }
 
   grid.innerHTML = SSD.filteredProducts.map(p => {
-    const avail = p.availability === 'in-stock' ? 'in-stock' : p.availability === 'low-stock' ? 'low-stock' : 'out-stock';
-    const availLabel = p.availability === 'in-stock' ? 'In stock' : p.availability === 'low-stock' ? `Only ${p.stock} left` : 'Out of stock';
-    const isOut = p.availability === 'out-of-stock';
+    const isCheckStore = p.availability === 'check-store' || p.db_fallback;
+    const isOut = p.availability === 'out-of-stock' || isCheckStore;
+    const avail = isCheckStore ? 'out-stock'
+      : p.availability === 'in-stock' ? 'in-stock'
+      : p.availability === 'low-stock' ? 'low-stock' : 'out-stock';
+    const availLabel = isCheckStore ? 'Check in store'
+      : p.availability === 'in-stock' ? 'In stock'
+      : p.availability === 'low-stock' ? `Only ${p.stock} left` : 'Out of stock';
     const descText = p.description ? p.description.trim() : '';
 
     return `
@@ -1100,72 +1107,77 @@ function renderAboutPanel() {
    ───────────────────────────────────────────────────────── */
 function renderReviewsPanel() {
   const s = SSD.store;
-  const reviews = STORE_REVIEWS[s.id] || STORE_REVIEWS.default;
 
-  // Summary
+  // Summary — show real rating from DB, no breakdown bars (they were hardcoded)
   const summary = document.getElementById('reviews-summary');
   if (summary) {
-    const avgRating = s.rating || 4.5;
-    const breakdown = s.ratingBreakdown || [60, 25, 10, 3, 2];
+    const avgRating = s.rating || 0;
     const starsHtml = [1,2,3,4,5].map(i => starSvg(i <= Math.round(avgRating))).join('');
-    const barsHtml = [5,4,3,2,1].map((star, idx) => `
-      <div class="review-bar-row">
-        <div class="review-bar-label">${star}★</div>
-        <div class="review-bar-track">
-          <div class="review-bar-fill" style="width:${breakdown[4 - idx] || 0}%"></div>
-        </div>
-        <div class="review-bar-pct">${breakdown[4 - idx] || 0}%</div>
-      </div>`).join('');
-
-    summary.innerHTML = `
-      <div class="reviews-big-rating">
-        <div class="reviews-big-num">${avgRating.toFixed(1)}</div>
-        <div class="reviews-stars-row">${starsHtml}</div>
-        <div class="reviews-count-text">${s.reviewCount || reviews.length * 10}+ reviews</div>
-      </div>
-      <div class="reviews-bars">${barsHtml}</div>`;
+    if (avgRating > 0) {
+      summary.innerHTML = `
+        <div class="reviews-big-rating">
+          <div class="reviews-big-num">${avgRating.toFixed(1)}</div>
+          <div class="reviews-stars-row">${starsHtml}</div>
+          <div class="reviews-count-text">Campus Rating</div>
+        </div>`;
+    } else {
+      summary.innerHTML = '';
+    }
   }
 
-  // Review cards
+  // Review cards — fetch from DB; show empty state until real reviews exist
   const list = document.getElementById('reviews-list');
-  if (list) {
+  if (!list) return;
+
+  // Async: try fetching real reviews from Neon
+  (async () => {
+    let reviews = [];
+    if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.neonSql === 'function') {
+      try {
+        reviews = await window.UniMallDB.neonSql(
+          `SELECT r.id, r.rating, r.text, r.created_at, u.name, u.avatar
+           FROM unimall_reviews r
+           JOIN users u ON r.user_id = u.id
+           WHERE r.store_id = $1
+           ORDER BY r.created_at DESC LIMIT 20`,
+          [s.id]
+        );
+      } catch (e) { reviews = []; }
+    }
+
+    if (!reviews || reviews.length === 0) {
+      // Clean empty state — no fake reviews
+      list.innerHTML = `
+        <div style="text-align:center;padding:40px 20px 24px;">
+          <div style="font-size:42px;margin-bottom:12px;">💬</div>
+          <div style="font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px;">No reviews yet</div>
+          <div style="font-size:13.5px;color:var(--text-secondary);max-width:260px;margin:0 auto;line-height:1.5;">Be the first to share your experience at ${s.name}!</div>
+        </div>`;
+      return;
+    }
+
     list.innerHTML = reviews.map(r => {
-      const starsHtml = [1,2,3,4,5].map(i => starSvg(i <= r.rating)).join('');
+      const starsHtml = [1,2,3,4,5].map(i => starSvg(i <= (r.rating || 5))).join('');
+      const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '';
+      const avatarSrc = r.avatar || `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${encodeURIComponent(r.name || 'user')}&radius=50`;
       return `
         <div class="review-card">
           <div class="review-card-header">
             <div class="review-avatar">
-              <img src="${r.avatar}" alt="${r.name}"
-                   onerror="this.src='${typeof window.getStickerAvatar === 'function' ? window.getStickerAvatar(r.name) : ''}'"
-                   referrerpolicy="no-referrer">
+              <img src="${avatarSrc}" alt="${r.name || 'Student'}" referrerpolicy="no-referrer"
+                   onerror="this.src='https://api.dicebear.com/7.x/fun-emoji/svg?seed=student&radius=50'">
             </div>
             <div class="review-user-info">
-              <div class="review-user-name">${r.name}</div>
+              <div class="review-user-name">${r.name || 'Campus Student'}</div>
               <div class="review-verified">✓ Verified Student</div>
             </div>
           </div>
           <div class="review-stars">${starsHtml}</div>
-          <p class="review-text">"${r.text}"</p>
-          <div class="review-footer">
-            <span class="review-date">${r.date}</span>
-            <button class="review-helpful-btn" data-helpful="${r.helpful}">
-              ${thumbsSvg()} Helpful ${r.helpful}
-            </button>
-          </div>
+          <p class="review-text">"${r.text || ''}"</p>
+          <div class="review-footer"><span class="review-date">${date}</span></div>
         </div>`;
     }).join('');
-
-    list.querySelectorAll('.review-helpful-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        let count = parseInt(btn.dataset.helpful || '0', 10) + 1;
-        btn.dataset.helpful = count;
-        btn.innerHTML = `${thumbsSvg()} Helpful ${count}`;
-        btn.style.color = '#2563EB';
-        btn.style.borderColor = '#93C5FD';
-        btn.disabled = true;
-      });
-    });
-  }
+  })();
 }
 
 /* ─────────────────────────────────────────────────────────
