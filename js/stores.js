@@ -404,8 +404,11 @@ function openStore(storeId) {
   const targetId = (store && store.id) ? store.id : storeId;
   if (!targetId) return;
 
-  // Navigate to the store detail page
-  window.location.href = `store.html?id=${encodeURIComponent(targetId)}`;
+  if (typeof window.navigate === 'function') {
+    window.navigate('store', { id: targetId });
+  } else {
+    window.location.href = `index.html?view=store&id=${encodeURIComponent(targetId)}`;
+  }
 }
 
 
@@ -864,24 +867,27 @@ function mapDbStoreToCard(s) {
   const filterTags = s.filter_tags 
     ? String(s.filter_tags).split(',').map(t => t.trim().toLowerCase()).filter(Boolean)
     : [];
+  const isOpen = (s.is_open !== undefined && s.is_open !== null) ? Boolean(s.is_open) : (s.openNow !== undefined ? Boolean(s.openNow) : true);
+  const cover = s.cover_image || s.coverImage || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80';
+  const desc = s.description || (s.categoryLabel ? s.categoryLabel : `${cat.charAt(0).toUpperCase() + cat.slice(1)} Store`);
 
   return {
     id: s.id,
     name: s.name,
     category: cat,
     categories: [cat],
-    categoryLabel: s.description || `${cat.charAt(0).toUpperCase() + cat.slice(1)} Store`,
+    categoryLabel: desc,
     location: loc,
     floor: loc,
     filterTags: filterTags,
-    coverImage: s.cover_image || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80',
-    status: s.is_open ? 'open' : 'closed',
-    statusLabel: s.is_open ? 'Open' : 'Closed',
-    isVisible: s.is_visible !== false,
-    deliveryAvailable: s.delivery_available !== false,
-    pickupAvailable: s.pickup_available !== false,
-    openingTime: s.opening_time || '8:00 AM',
-    closingTime: s.closing_time || '10:00 PM',
+    coverImage: cover,
+    status: isOpen ? 'open' : 'closed',
+    statusLabel: isOpen ? 'Open' : 'Closed',
+    isVisible: s.isVisible !== undefined ? s.isVisible : (s.is_visible !== false),
+    deliveryAvailable: (s.delivery_available !== undefined) ? (s.delivery_available !== false) : (s.deliveryAvailable !== false),
+    pickupAvailable: (s.pickup_available !== undefined) ? (s.pickup_available !== false) : (s.pickupAvailable !== false),
+    openingTime: s.opening_time || (s.hours ? s.hours.split('–')[0]?.trim() : '8:00 AM') || '8:00 AM',
+    closingTime: s.closing_time || (s.hours ? s.hours.split('–')[1]?.trim() : '10:00 PM') || '10:00 PM',
     rating: Number(s.rating) || 4.5,
     popularity: s.popularity || 85
   };

@@ -1,49 +1,20 @@
-@import url('css/fonts.css');
-
 /* ═══════════════════════════════════════════════════════════
    UniMall · store.css
    Store Detail Page — exclusive styles.
    All global tokens come from css/styles.css loaded first.
    ═══════════════════════════════════════════════════════════ */
 
-/* ─── PAGE WRAPPER ───────────────────────────────────────── */
-html,
-body {
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  background-color: #0F172A;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: none;
-}
-
-@view-transition {
-  navigation: auto;
-}
-
 button, a, [role="button"], input, select, textarea, .menu-item-card {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-button:active:not(:disabled),
-.menu-item-card:active,
-.hero-btn:active,
-.nav-item:active {
-  transform: scale(0.965);
-  opacity: 0.9;
-  transition: transform 60ms ease, opacity 60ms ease;
-}
-
-.desktop-wrapper,
 .store-page {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
   min-height: 100vh;
-  background: #F5F6F8;
+  background: var(--bg, #F8FAFC);
   padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px) + 20px);
 }
 

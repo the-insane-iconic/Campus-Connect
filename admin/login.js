@@ -418,9 +418,9 @@ function initLoginPortal() {
     const navigateToStore = () => {
       const storeId = card.getAttribute('data-store');
       if (storeId === 'hostel-delivery') {
-        window.location.href = '../stores.html';
+        window.location.href = '../index.html?view=stores';
       } else {
-        window.location.href = `../store.html?store=${encodeURIComponent(storeId)}`;
+        window.location.href = `../index.html?view=store&id=${encodeURIComponent(storeId)}`;
       }
     };
 
@@ -436,7 +436,7 @@ function initLoginPortal() {
   if (viewAllStoresBtn) {
     viewAllStoresBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      window.location.href = '../stores.html';
+      window.location.href = '../index.html?view=stores';
     });
   }
 

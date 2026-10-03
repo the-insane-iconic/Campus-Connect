@@ -84,7 +84,7 @@ window.prefetchPage = function(url) {
 // Prefetch core routes on idle & hover
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => {
-    const coreRoutes = ['index.html', 'stores.html', 'cart.html', 'orders.html', 'profile.html'];
+    const coreRoutes = ['index.html'];
     if ('requestIdleCallback' in window) {
       window.requestIdleCallback(() => coreRoutes.forEach(r => window.prefetchPage(r)));
     } else {
@@ -457,6 +457,29 @@ window.UniMallDB = {
     } catch (e) {
       return '#ORD-01';
     }
+  },
+
+  /* ── Generic SQL query alias (used by cart-controller and other modules) ── */
+  async query(sql, params = []) {
+    return this.neonSql(sql, params);
+  },
+
+  /* ── Get Active Promo Codes (5-min SWR cache) ── */
+  async getPromoCodes() {
+    return this._swr('promo_codes', 300000, async () => {
+      try {
+        const rows = await this.neonSql(`
+          SELECT code, discount_type, discount_value, label, min_order_value
+          FROM unimall_promo_codes
+          WHERE is_active = true
+          ORDER BY code
+        `);
+        return rows || [];
+      } catch (e) {
+        // Table may not exist yet — return empty (cart falls back to hardcoded defaults)
+        return [];
+      }
+    });
   },
 
   /* ── Atomic Order Creation ── */

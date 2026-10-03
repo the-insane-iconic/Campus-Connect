@@ -67,7 +67,6 @@ console.log('📱 Syncing web assets to www/ and Android assets...');
 
 const files = [
   'index.html',
-  'store.html',
   'favicon.png',
   'manifest.json',
   'sw.js'
@@ -79,7 +78,7 @@ files.forEach(f => {
   copyFileTo(p, ANDROID_PUBLIC);
 });
 
-const dirs = ['assets', 'css', 'js', 'admin', 'merchant', 'vendor'];
+const dirs = ['assets', 'css', 'js', 'admin', 'merchant', 'login', 'vendor'];
 dirs.forEach(d => {
   const p = path.join(ROOT, d);
   copyDirTo(p, WWW_DIR);

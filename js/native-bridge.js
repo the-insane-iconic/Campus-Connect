@@ -87,7 +87,7 @@
         var isHome = path.endsWith('index.html') || path.endsWith('/') || path.split('/').pop() === '';
 
         if (!isHome) {
-          // If in a subpage (stores.html, store.html, cart.html, orders.html, profile.html), go back
+          // If in a subpage (store.html), go back to index.html
           if (window.history.length > 1) {
             window.history.back();
           } else {
@@ -151,7 +151,7 @@
   // 3. ZERO-LAG PREFETCH ENGINE FOR LOCAL PAGES
   // Prewarms browser cache for instant sub-page navigation
   function initPagePrefetching() {
-    var pagesToPreload = ['index.html', 'stores.html', 'cart.html', 'orders.html', 'profile.html'];
+    var pagesToPreload = ['index.html'];
     
     // Idle prefetch
     var schedulePrefetch = window.requestIdleCallback || function (cb) { setTimeout(cb, 1000); };

@@ -56,10 +56,16 @@ function navigate(viewName, params = {}) {
     const url = new URL(window.location);
     if (viewName === 'home') {
       url.searchParams.delete('view');
+      url.searchParams.delete('id');
     } else {
       url.searchParams.set('view', viewName);
+      if (viewName === 'store' && (params.id || params.storeId)) {
+        url.searchParams.set('id', params.id || params.storeId);
+      } else if (viewName !== 'store') {
+        url.searchParams.delete('id');
+      }
     }
-    window.history.replaceState({ view: viewName }, '', url);
+    window.history.replaceState({ view: viewName, ...params }, '', url);
   } catch (e) {}
 
   // 6. Scroll to top immediately
@@ -75,6 +81,12 @@ function navigate(viewName, params = {}) {
         window.renderStoresView();
       } else if (typeof renderStores === 'function') {
         renderStores();
+      }
+      break;
+    case 'store':
+      const targetStoreId = params.storeId || params.id || (new URLSearchParams(window.location.search)).get('id') || (new URLSearchParams(window.location.search)).get('store');
+      if (typeof window.renderStoreDetailView === 'function') {
+        window.renderStoreDetailView(targetStoreId);
       }
       break;
     case 'orders':
@@ -122,7 +134,7 @@ window.navigate = navigate;
 
 function _syncNavActiveState(viewName) {
   const navMap = {
-    home: 'nav-home', stores: 'nav-stores', cart: 'nav-cart', checkout: 'nav-cart',
+    home: 'nav-home', stores: 'nav-stores', store: 'nav-stores', cart: 'nav-cart', checkout: 'nav-cart',
     orders: 'nav-orders', 'order-detail': 'nav-orders',
     'order-confirm': 'nav-orders',
     profile: 'nav-profile', notifications: 'nav-home',
@@ -1342,7 +1354,7 @@ function _openStores() {
         'health-hub':   'store-sports',
       };
       const detailId = idMap[storeId] || storeId;
-      window.location.href = `store.html?id=${encodeURIComponent(detailId)}`;
+      navigate('store', { id: detailId });
     };
 
     card.addEventListener('click', onSelect);

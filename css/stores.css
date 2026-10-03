@@ -942,3 +942,44 @@
     height: 160px;
   }
 }
+
+/* ── Mobile responsiveness for compact viewports ── */
+@media (max-width: 540px) {
+  .store-card {
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    min-height: 135px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .store-image-wrap {
+    width: 110px;
+    min-height: 115px;
+    height: 115px;
+    border-radius: 10px;
+  }
+  .store-arrow {
+    display: none;
+  }
+  .store-name {
+    font-size: 15px;
+  }
+  .store-meta-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .store-hours {
+    font-size: 11px;
+  }
+  .store-card-skeleton {
+    grid-template-columns: 110px 1fr;
+    gap: 12px;
+    min-height: 135px;
+    padding: 10px;
+  }
+  .skeleton-img {
+    width: 110px;
+    height: 115px;
+  }
+}

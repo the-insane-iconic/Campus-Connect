@@ -7,28 +7,20 @@
 var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
 var AUTH_KEY = window.AUTH_KEY || 'unimall_auth';
 
-/* ─── FIREBASE CONFIG (FOR AUTH SIGN-OUT / UPGRADE) ───────── */
-const firebaseConfig = {
-  apiKey: "AIzaSyAI1pYMj_ht9YRrVCMKNYNVtmt_mZw-ysI",
-  authDomain: "unimall-d484f.firebaseapp.com",
-  projectId: "unimall-d484f",
-  storageBucket: "unimall-d484f.firebasestorage.app",
-  messagingSenderId: "162359291874",
-  appId: "1:162359291874:web:fe413c9fa9b823ce06d3bb",
-  measurementId: "G-28QZKVB4K1"
-};
-
+/* ─── FIREBASE AUTH (uses config from js/config.js) ───────── */
 let firebaseAuth = null;
 try {
   if (typeof firebase !== 'undefined') {
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
+    const fbCfg = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.FIREBASE) || {};
+    if (!firebase.apps.length && fbCfg.apiKey) {
+      firebase.initializeApp(fbCfg);
     }
     firebaseAuth = firebase.auth();
   }
 } catch (e) {
   console.warn('Firebase init note:', e);
 }
+
 
 /* ─── PROFILE STATE ──────────────────────────────────────── */
 const ProfileState = {

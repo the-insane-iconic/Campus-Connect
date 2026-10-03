@@ -169,7 +169,7 @@ function setupUserProfile() {
   // Storefront preview link
   const storefrontLink = document.getElementById('btn-storefront-link');
   if (storefrontLink) {
-    storefrontLink.href = `/store.html?store=${encodeURIComponent(activeStoreId)}`;
+    storefrontLink.href = `../index.html?view=store&id=${encodeURIComponent(activeStoreId)}`;
   }
 
   updateStoreOpenStatusUI(merchantStoreData?.is_open);

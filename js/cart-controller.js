@@ -7,12 +7,44 @@
 
 var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
 
-/* ─── COUPON DICTIONARY ──────────────────────────────────── */
-const PROMO_CODES = {
+/* ─── COUPON DICTIONARY (fetched from DB; hardcoded as fallback) ── */
+// This map is populated on init from the DB. Hardcoded fallback for offline/dev.
+let _PROMO_CODES = {
   CAMPUS10: { type: 'percent', value: 10, label: '10% Campus Discount' },
   FREEDEL: { type: 'delivery', value: 20, label: 'Free Delivery' },
   STUDENT20: { type: 'flat', value: 20, label: '₹20 Student Discount' }
 };
+
+async function _fetchPromoCodes() {
+  try {
+    if (typeof window.UniMallDB === 'undefined') return;
+    let rows = [];
+    if (typeof window.UniMallDB.getPromoCodes === 'function') {
+      rows = await window.UniMallDB.getPromoCodes();
+    } else if (typeof window.UniMallDB.query === 'function') {
+      rows = await window.UniMallDB.query(
+        `SELECT code, discount_type, discount_value, label
+         FROM unimall_promo_codes
+         WHERE is_active = true
+         ORDER BY code`
+      );
+    }
+    if (rows && rows.length > 0) {
+      _PROMO_CODES = {};
+      rows.forEach(r => {
+        _PROMO_CODES[r.code.toUpperCase()] = {
+          type: r.discount_type,   // 'percent' | 'delivery' | 'flat'
+          value: parseFloat(r.discount_value),
+          label: r.label
+        };
+      });
+    }
+  } catch (e) {
+    // silently fall back to hardcoded defaults
+    console.warn('[Cart] Could not fetch promo codes from DB, using defaults.', e.message);
+  }
+}
+
 
 /* ─── CART STATE ─────────────────────────────────────────── */
 const CartState = {
@@ -118,8 +150,8 @@ function getCartTotals() {
   let deliveryFee = 0; // Self-pickup is always 100% free
   let discountAmount = 0;
 
-  if (CartState.appliedCoupon && PROMO_CODES[CartState.appliedCoupon]) {
-    const coupon = PROMO_CODES[CartState.appliedCoupon];
+  if (CartState.appliedCoupon && _PROMO_CODES[CartState.appliedCoupon]) {
+    const coupon = _PROMO_CODES[CartState.appliedCoupon];
     if (coupon.type === 'percent') {
       discountAmount = Math.round((subtotal * coupon.value) / 100);
     } else if (coupon.type === 'flat') {
@@ -190,14 +222,16 @@ function applyCoupon(code) {
     return;
   }
 
-  if (PROMO_CODES[normalized]) {
+  if (_PROMO_CODES[normalized]) {
     CartState.appliedCoupon = normalized;
     if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('success');
     renderBillBreakdown();
     renderCouponSection();
     showToast(`Coupon "${normalized}" applied successfully!`);
   } else {
-    showToast('Invalid coupon code. Try CAMPUS10 or FREEDEL.');
+    const available = Object.keys(_PROMO_CODES).join(', ');
+    showToast(`Invalid coupon code.${available ? ' Try: ' + available : ''}`);
+
   }
 }
 
@@ -315,11 +349,11 @@ function handlePlaceOrder() {
       currency: 'INR',
       name: 'UniMall · ' + storeName,
       description: `Counter Pickup Order (${CartState.items.length} items)`,
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120',
+        image: '/favicon.png',
       prefill: {
-        name: user.name || 'Campus Student',
-        email: user.email || 'student@campus.edu',
-        contact: user.phone || '9876543210'
+        name: user.name || '',
+        email: user.email || '',
+        contact: user.phone || ''
       },
       theme: {
         color: '#2563EB'
@@ -396,7 +430,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     const user = activeUser || appData.currentUser || {};
     const userId = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
     const studentName = user.name || (user.profile && user.profile.name) || 'Campus Student';
-    const studentPhone = user.phone || (user.profile && user.profile.phone) || '+91 98765 43210';
+    const studentPhone = user.phone || (user.profile && user.profile.phone) || '';
     const numMatch = (studentName || '').match(/\d+/);
     const studentNumber = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
     const studentEmail = user.email || (user.profile && user.profile.email) || `student${studentNumber}@campus.edu`;
@@ -752,9 +786,9 @@ function renderCouponSection() {
 
   if (!couponAppliedTag || !appliedCouponText) return;
 
-  if (CartState.appliedCoupon && PROMO_CODES[CartState.appliedCoupon]) {
+  if (CartState.appliedCoupon && _PROMO_CODES[CartState.appliedCoupon]) {
     couponAppliedTag.classList.remove('hidden');
-    appliedCouponText.textContent = `${CartState.appliedCoupon} applied (${PROMO_CODES[CartState.appliedCoupon].label})`;
+    appliedCouponText.textContent = `${CartState.appliedCoupon} applied (${_PROMO_CODES[CartState.appliedCoupon].label})`;
     if (couponInput) couponInput.value = '';
   } else {
     couponAppliedTag.classList.add('hidden');
@@ -883,7 +917,7 @@ function syncStoreNavigation() {
     }
 
     if (targetStoreId) {
-      const targetUrl = `store.html?id=${encodeURIComponent(targetStoreId)}`;
+      const targetUrl = `index.html?view=store&id=${encodeURIComponent(targetStoreId)}`;
 
       // 1. Bottom nav "Stores" option takes user back to that particular store
       const navStores = document.getElementById('nav-stores');
@@ -938,7 +972,13 @@ function initEvents() {
     if (storeMap[targetStoreId]) targetStoreId = storeMap[targetStoreId];
 
     if (targetStoreId) {
-      window.location.href = `store.html?id=${encodeURIComponent(targetStoreId)}`;
+      if (typeof window.navigate === 'function') {
+        window.navigate('store', { id: targetStoreId });
+      } else {
+        window.location.href = `index.html?view=store&id=${encodeURIComponent(targetStoreId)}`;
+      }
+    } else if (typeof window.navigate === 'function') {
+      window.navigate('home');
     } else if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
       window.history.back();
     } else {
@@ -1043,6 +1083,8 @@ document.addEventListener('DOMContentLoaded', () => {
   syncCartBadge();
   syncSidebarProfile();
   syncStoreNavigation();
+  // Fetch live promo codes from DB (async - fallback to defaults if unavailable)
+  _fetchPromoCodes();
 });
 
 function renderCartView() {

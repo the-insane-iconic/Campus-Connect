@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════════════
    UNIMALL MERCHANT PORTAL — ISOLATED STORE OWNER STYLES
+   Single unified stylesheet for merchant portal
    ═══════════════════════════════════════════════════════════ */
-
-@import url('/admin/admin.css');
+@import url('../admin/admin.css');
 
 /* Store Owner specific overrides */
 :root {

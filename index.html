@@ -17,6 +17,7 @@
 
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/stores.css" />
+  <link rel="stylesheet" href="css/store.css" />
   <link rel="stylesheet" href="css/orders.css" />
   <link rel="stylesheet" href="css/cart.css" />
   <link rel="stylesheet" href="css/profile.css" />
@@ -283,7 +284,7 @@
                   </div>
                 </div>
                 <div class="empty-promo-footer">
-                  <a href="stores.html" class="empty-promo-cta">
+                  <a href="index.html?view=stores" class="empty-promo-cta">
                     <span>Browse Campus Stores</span>
                     <span class="cta-chevron">›</span>
                   </a>
@@ -466,7 +467,7 @@
           <footer class="page-footer" id="page-footer">
             <div class="footer-links">
               <a href="#" class="footer-link" id="help-link">Help &amp; Support</a>
-              <a href="stores.html" class="footer-link" id="stores-link">All Stores</a>
+              <a href="index.html?view=stores" class="footer-link" id="stores-link">All Stores</a>
               <a href="#" class="footer-link" id="request-link">Request an Item</a>
               <a href="#" class="footer-link" id="terms-link">Terms</a>
               <a href="#" class="footer-link" id="privacy-link">Privacy</a>
@@ -588,6 +589,98 @@
               <button type="button" class="apply-button" id="applyFilters">Apply Filters</button>
             </aside>
           </div><!-- /view-stores -->
+
+          <!-- ═════════════════════════════════════════════════
+               2B. STORE DETAIL VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-store" style="display: none;">
+            <div class="store-page" id="store-page-root">
+
+              <!-- HERO -->
+              <div class="store-hero" id="store-hero">
+                <img class="store-hero-img" id="store-hero-img" src="" alt="" />
+                <div class="store-hero-overlay"></div>
+                <button class="hero-btn hero-btn-back" id="hero-back-btn" aria-label="Go back" onclick="navigate('stores')">
+                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button class="hero-btn hero-btn-fav" id="hero-fav-btn" aria-label="Toggle favourite">
+                  <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                </button>
+              </div>
+
+              <!-- INFO SHEET -->
+              <div class="store-info-sheet" id="store-info-sheet">
+                <div class="store-info-top">
+                  <div class="store-logo-wrap" id="store-logo-wrap">🏪</div>
+                  <div class="store-info-text">
+                    <h1 class="store-name-heading" id="store-name-heading">Loading…</h1>
+                    <div class="store-categories-line" id="store-categories-line"></div>
+                    <div class="store-status-row">
+                      <span class="store-open-badge" id="store-open-badge"><span class="status-dot"></span> Open</span>
+                      <span class="store-closes-text" id="store-closes-text"></span>
+                    </div>
+                    <div class="store-location-row" id="store-location-row">
+                      <svg viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12z"/><circle cx="12" cy="9" r="2.2"/></svg>
+                      <span id="store-location-text"></span>
+                    </div>
+                  </div>
+                </div>
+                <p class="store-description" id="store-description"></p>
+              </div>
+
+              <!-- TABS -->
+              <div class="store-tabs" id="store-tabs">
+                <button class="store-tab active" id="tab-products" data-tab="products">Products</button>
+                <button class="store-tab" id="tab-about" data-tab="about">About</button>
+                <button class="store-tab" id="tab-reviews" data-tab="reviews">Reviews</button>
+              </div>
+
+              <!-- PRODUCTS PANEL -->
+              <div class="tab-panel active" id="panel-products">
+                <div class="products-panel-header">
+                  <h3>Products</h3>
+                  <div class="store-search-wrap">
+                    <div class="store-search-box" id="store-search-box">
+                      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+                      <input type="search" id="store-search-input" placeholder="Search products…" autocomplete="off" aria-label="Search products" />
+                      <button class="store-search-close" id="store-search-close" aria-label="Close search">×</button>
+                    </div>
+                    <button class="store-search-toggle" id="store-search-toggle" aria-label="Search products">
+                      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="store-products-grid" id="store-products-grid"></div>
+              </div>
+
+              <!-- ABOUT PANEL -->
+              <div class="tab-panel" id="panel-about">
+                <div class="about-panel">
+                  <p class="about-description" id="about-description"></p>
+                  <div class="about-info-card" id="about-info-card"></div>
+                  <div class="about-gallery-title">Gallery</div>
+                  <div class="about-gallery" id="about-gallery"></div>
+                </div>
+                <div class="recommended-section" id="about-recommended"></div>
+              </div>
+
+              <!-- REVIEWS PANEL -->
+              <div class="tab-panel" id="panel-reviews">
+                <div class="reviews-panel">
+                  <div class="reviews-summary-card" id="reviews-summary"></div>
+                  <div class="write-review-btn-wrap">
+                    <button class="btn-write-review" id="btn-write-review">
+                      <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Write a Review
+                    </button>
+                  </div>
+                  <div id="reviews-list"></div>
+                </div>
+                <div class="recommended-section" id="reviews-recommended"></div>
+              </div>
+
+            </div><!-- /store-page-root -->
+          </div><!-- /view-store -->
 
           <!-- ═════════════════════════════════════════════════
                3. ORDERS VIEW PANEL
@@ -1115,6 +1208,77 @@
   </div>
 </aside>
 
+<!-- REVIEW WRITE MODAL -->
+<div class="review-modal-backdrop" id="review-modal-backdrop">
+  <div class="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+    <div class="review-modal-handle"></div>
+    <h3 id="review-modal-title">Write a Review</h3>
+    <div class="review-star-select" id="review-star-select" role="group" aria-label="Select rating"></div>
+    <textarea class="review-textarea" id="review-textarea" placeholder="Share your experience at this store…" maxlength="500"></textarea>
+    <div class="review-modal-actions">
+      <button class="btn-review-cancel" id="btn-review-cancel">Cancel</button>
+      <button class="btn-review-submit" id="btn-review-submit">Submit Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP OVERLAY -->
+<div class="map-overlay-backdrop" id="map-overlay-backdrop">
+  <div class="map-overlay" role="dialog" aria-modal="true" aria-label="Store location">
+    <div class="map-overlay-handle"></div>
+    <h3 id="map-store-label-title">Store Location</h3>
+    <div class="map-visual">
+      <div class="map-grid"></div>
+      <div class="map-store-pin">
+        <div class="map-pin-circle">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="map-store-label" id="map-store-name-label">Store</div>
+      </div>
+    </div>
+    <div class="map-info-list" id="map-info-list"></div>
+  </div>
+</div>
+
+<!-- PRODUCT DETAIL QUICK-VIEW MODAL -->
+<div class="product-modal-backdrop" id="product-detail-modal-backdrop" aria-hidden="true">
+  <div class="product-detail-modal" role="dialog" aria-modal="true" aria-labelledby="modal-prod-name">
+    <button class="product-modal-close" id="product-modal-close-btn" aria-label="Close product view">×</button>
+    <div class="product-modal-img-wrap">
+      <img id="modal-prod-img" src="" alt="Product photo" />
+      <span class="product-modal-badge" id="modal-prod-stock-badge"></span>
+    </div>
+    <div class="product-modal-content">
+      <div class="product-modal-header">
+        <h3 class="product-modal-title" id="modal-prod-name"></h3>
+        <div class="product-modal-price" id="modal-prod-price"></div>
+      </div>
+      <div class="product-modal-store" id="modal-prod-store"></div>
+      <div class="product-modal-desc-section">
+        <div class="product-modal-desc-heading">About this item</div>
+        <p class="product-modal-desc" id="modal-prod-desc"></p>
+      </div>
+      <div class="product-modal-actions">
+        <button class="btn-product-add" id="modal-add-to-cart-btn">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STORE TOASTS -->
+<div class="ssd-yay-toast" id="ssd-yay-toast">
+  <div class="ssd-yay-toast-icon">🛍️</div>
+  <div class="ssd-yay-toast-text">
+    <div class="ssd-yay-toast-title">Yay! Added to cart ✨</div>
+    <div class="ssd-yay-toast-sub" id="ssd-toast-name"></div>
+  </div>
+  <a href="#" class="ssd-yay-toast-link" onclick="event.preventDefault(); navigate('cart');">View Cart →</a>
+</div>
+<div class="ssd-simple-toast" id="ssd-simple-toast"></div>
+
 <!-- React 18 Engine & Reactive Components (Zero-Reload Live State) -->
 <script src="vendor/react.production.min.js"></script>
 <script src="vendor/react-dom.production.min.js"></script>
@@ -1136,6 +1300,7 @@
 <script src="js/navigation.js"></script>
 <script src="js/views.js"></script>
 <script src="js/stores.js"></script>
+<script src="js/store.js"></script>
 <script src="js/orders.js"></script>
 <script src="js/cart-controller.js"></script>
 <script src="js/profile.js"></script>

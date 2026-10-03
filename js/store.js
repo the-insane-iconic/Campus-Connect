@@ -357,6 +357,18 @@ function cartAddProduct(product) {
   }
   cartSave(items);
   updateCartBadgeUI();
+
+  // Keep global AppState and cart badge in sync across SPA
+  if (typeof AppState !== 'undefined') {
+    if (typeof loadCart === 'function') {
+      try { loadCart(); } catch(e) {}
+    } else {
+      AppState.cart = items;
+    }
+    if (typeof updateCartBadges === 'function') {
+      try { updateCartBadges(); } catch(e) {}
+    }
+  }
   return true;
 }
 
@@ -452,7 +464,7 @@ function renderStoreNotFound(storeId) {
         <p style="font-size: 14.5px; color: var(--text-secondary); max-width: 380px; margin: 0 auto 24px; line-height: 1.5;">
           The store "${storeId || 'unknown'}" does not exist or has not been approved yet.
         </p>
-        <a href="stores.html" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; background: #2563EB; color: #fff; border-radius: 999px; font-weight: 700; text-decoration: none; font-size: 14.5px; box-shadow: 0 4px 14px rgba(37,99,235,0.3);">
+        <a href="index.html?view=stores" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; background: #2563EB; color: #fff; border-radius: 999px; font-weight: 700; text-decoration: none; font-size: 14.5px; box-shadow: 0 4px 14px rgba(37,99,235,0.3);">
           ← Browse Campus Stores
         </a>
       </div>
@@ -481,12 +493,26 @@ function renderProductSkeletons(count = 6) {
 /* ─────────────────────────────────────────────────────────
    INIT
    ───────────────────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', async () => {
+let _storeListenersAttached = false;
+
+async function initStoreDetail(targetStoreId) {
+  let storeId = targetStoreId;
+  if (!storeId) {
+    const params = new URLSearchParams(window.location.search);
+    storeId = params.get('id') || params.get('store') || '';
+  }
+  if (!storeId) {
+    return;
+  }
+
+  // Ensure store detail panel is visible when rendered
+  const viewStorePanel = document.getElementById('view-store');
+  if (viewStorePanel && viewStorePanel.style.display === 'none') {
+    viewStorePanel.style.display = 'block';
+  }
+
   // Render skeletons immediately on page parse so there is zero blank state
   renderProductSkeletons(6);
-
-  const params = new URLSearchParams(window.location.search);
-  const storeId = params.get('id') || params.get('store') || '';
 
   // 0. Instant 0ms Sync Hydration: If store exists locally in STORE_CATALOG, render IMMEDIATELY
   let localStore = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId);
@@ -665,7 +691,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderReviewsPanel();
   renderRecommended('about-recommended');
   renderRecommended('reviews-recommended');
-  initEventListeners();
+  if (!_storeListenersAttached) {
+    initEventListeners();
+    _storeListenersAttached = true;
+  }
 
   // Live reactivity when store status changes in admin
   window.addEventListener('storage', (e) => {
@@ -701,6 +730,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
   });
+}
+
+// Expose globally for SPA navigation
+window.renderStoreDetailView = initStoreDetail;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  const storeId = params.get('id') || params.get('store');
+  if (view === 'store' || (storeId && !window.location.pathname.includes('/admin') && !window.location.pathname.includes('/merchant') && !window.location.pathname.includes('/login'))) {
+    initStoreDetail(storeId);
+  }
 });
 
 function syncCurrentStoreStatus() {
@@ -1140,7 +1181,7 @@ function renderRecommended(containerId) {
   container.innerHTML = `
     <div class="recommended-header">
       <div class="recommended-title">You might also like</div>
-      <button class="recommended-see-all" onclick="window.location.href='stores.html'">
+      <button class="recommended-see-all" onclick="window.location.href='index.html?view=stores'">
         See all <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
@@ -1158,7 +1199,13 @@ function renderRecommended(containerId) {
     </div>`;
 
   container.querySelectorAll('.recommended-store-card').forEach(card => {
-    const go = () => { window.location.href = `store.html?id=${card.dataset.sid}`; };
+    const go = () => {
+      if (typeof window.navigate === 'function') {
+        window.navigate('store', { id: card.dataset.sid });
+      } else {
+        window.location.href = `index.html?view=store&id=${encodeURIComponent(card.dataset.sid)}`;
+      }
+    };
     card.addEventListener('click', go);
     card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
   });
@@ -1296,11 +1343,14 @@ function renderStarSelect(selected) {
    ───────────────────────────────────────────────────────── */
 function initEventListeners() {
   // Back button
-  document.getElementById('hero-back-btn')?.addEventListener('click', () => {
-    if (window.history.length > 1) {
+  document.getElementById('hero-back-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (typeof window.navigate === 'function') {
+      window.navigate('stores');
+    } else if (window.history.length > 1) {
       window.history.back();
     } else {
-      window.location.href = 'stores.html';
+      window.location.href = 'index.html?view=stores';
     }
   });
 

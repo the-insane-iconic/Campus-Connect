@@ -30,31 +30,31 @@ function renderSidebar() {
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         Home
       </a>
-      <a href="stores.html" class="sidebar-item" id="sb-stores">
+      <a href="index.html?view=stores" class="sidebar-item" id="sb-stores">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Stores
       </a>
 
       <div class="sidebar-section-label">My Activity</div>
 
-      <a href="orders.html" class="sidebar-item" id="sb-orders">
+      <a href="index.html?view=orders" class="sidebar-item" id="sb-orders">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         Orders
       </a>
-      <a href="cart.html" class="sidebar-item" id="sb-cart">
+      <a href="index.html?view=cart" class="sidebar-item" id="sb-cart">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
         Cart
         <span class="sidebar-badge" data-cart aria-label="${count} items in cart"
               style="display:${count > 0 ? '' : 'none'}">${count > 9 ? '9+' : count}</span>
       </a>
-      <a href="profile.html" class="sidebar-item" id="sb-profile">
+      <a href="index.html?view=profile" class="sidebar-item" id="sb-profile">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Profile
       </a>
     </nav>
 
     <div class="sidebar-footer">
-      <a href="profile.html" class="sidebar-profile" id="sb-profile-footer" aria-label="View profile">
+      <a href="index.html?view=profile" class="sidebar-profile" id="sb-profile-footer" aria-label="View profile">
         <div class="sidebar-avatar">${avatarHtml}</div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name">${user.name || 'Campus Student'}</div>

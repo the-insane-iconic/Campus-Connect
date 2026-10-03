@@ -86,8 +86,8 @@ export default async function handler(req, res) {
     // Write operations validation
     const isWrite = /^\s*(INSERT|UPDATE|DELETE)\b/i.test(query);
     if (isWrite) {
-      // Check if it's a student order insertion or demand request (customer checkout)
-      const isPublicWrite = /^\s*INSERT\s+INTO\s+(unimall_orders|unimall_order_items|unimall_demand_requests)\b/i.test(query);
+      // Check if it's a student order insertion, demand request, review, or store registration
+      const isPublicWrite = /^\s*INSERT\s+INTO\s+(unimall_orders|unimall_order_items|unimall_demand_requests|unimall_stores|unimall_reviews)\b/i.test(query);
 
       if (!isPublicWrite) {
         const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();

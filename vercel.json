@@ -66,8 +66,16 @@
       "dest": "/api/$1"
     },
     {
-      "src": "^/login(\\.html)?$",
-      "dest": "/admin/login.html"
+      "src": "^/store(\\.html)?$",
+      "dest": "/index.html?view=store"
+    },
+    {
+      "src": "^/login/?$",
+      "dest": "/login/index.html"
+    },
+    {
+      "src": "^/login/(.*)$",
+      "dest": "/login/$1"
     },
     {
       "src": "^/admin$",
@@ -88,10 +96,6 @@
     {
       "src": "^/merchant/(.*)$",
       "dest": "/merchant/$1"
-    },
-    {
-      "src": "^/(admin\\.css|login\\.css|login\\.js|girl\\.png)$",
-      "dest": "/admin/$1"
     },
     {
       "src": "^/admin/(.*)$",
