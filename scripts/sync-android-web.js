@@ -11,14 +11,19 @@ const ROOT = path.resolve(__dirname, '..');
 const WWW_DIR = path.resolve(ROOT, 'www');
 const ANDROID_PUBLIC = path.resolve(ROOT, 'android/app/src/main/assets/public');
 
+// Clean target directories to prevent accumulation of stale files
 [WWW_DIR, ANDROID_PUBLIC].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (fs.existsSync(dir)) {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
+  fs.mkdirSync(dir, { recursive: true });
 });
 
 function copyFileTo(srcPath, destDir) {
   if (fs.existsSync(srcPath)) {
+    const base = path.basename(srcPath);
+    // Ignore duplicates/temp files like "file 2.js" or ".DS_Store"
+    if (base.startsWith('.') || base.includes(' 2.') || base.includes(' 3.')) return;
     const rel = path.relative(ROOT, srcPath);
     const dest = path.join(destDir, rel);
     const parent = path.dirname(dest);
@@ -32,6 +37,7 @@ function copyDirTo(srcPath, destDir) {
   const entries = fs.readdirSync(srcPath, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'www' || entry.name === 'android') continue;
+    if (entry.name.includes(' 2.') || entry.name.includes(' 3.')) continue;
     const fullSrc = path.join(srcPath, entry.name);
     if (entry.isDirectory()) {
       copyDirTo(fullSrc, destDir);

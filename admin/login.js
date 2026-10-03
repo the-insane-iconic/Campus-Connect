@@ -136,7 +136,7 @@ function initLoginPortal() {
           if (apiData && apiData.token) {
             saveAdminSession(apiData);
             const isPlatform = (apiData.user?.role === 'platform_admin' || apiData.user?.role === 'admin');
-            const targetUrl = apiData.redirectUrl || (isPlatform ? '/admin/index.html' : '/merchant/index.html');
+            const targetUrl = apiData.redirectUrl || (isPlatform ? 'index.html' : '../merchant/index.html');
             showToast(`Welcome back, ${apiData.user?.name || (isPlatform ? 'Admin' : 'Store Owner')}!`);
             setTimeout(() => { window.location.href = targetUrl; }, 400);
             return;
@@ -161,7 +161,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast('Welcome back, Platform Administrator! Opening Executive HQ…');
-        setTimeout(() => { window.location.href = '/admin/index.html'; }, 400);
+        setTimeout(() => { window.location.href = 'index.html'; }, 400);
         return;
       }
 
@@ -214,7 +214,7 @@ function initLoginPortal() {
                 stores
               };
               saveAdminSession(sessionData);
-              const targetUrl = isPlatform ? '/admin/index.html' : '/merchant/index.html';
+              const targetUrl = isPlatform ? 'index.html' : '../merchant/index.html';
               showToast(`Welcome back, ${dbAdmin.name || (isPlatform ? 'Admin' : 'Store Owner')}! Opening portal…`);
               setTimeout(() => { window.location.href = targetUrl; }, 400);
               return;
@@ -278,7 +278,7 @@ function initLoginPortal() {
         };
         saveAdminSession(sessionData);
         showToast(`Signed in to ${regStore.storeName}!`);
-        setTimeout(() => { window.location.href = '/merchant/index.html'; }, 400);
+        setTimeout(() => { window.location.href = '../merchant/index.html'; }, 400);
         return;
       }
 
@@ -391,12 +391,14 @@ function initLoginPortal() {
         }
 
         localStorage.setItem('userMode', 'guest');
+        localStorage.setItem('unimall_has_visited', 'true');
         showToast('Continuing as ' + (guestUser?.name || 'Student') + '…');
-        setTimeout(() => { window.location.href = '/index.html'; }, 350);
+        setTimeout(() => { window.location.href = '../index.html'; }, 350);
       } catch (e) {
         console.error('[Login] Guest session error:', e);
+        localStorage.setItem('unimall_has_visited', 'true');
         showToast('Continuing as guest…');
-        setTimeout(() => { window.location.href = '/index.html'; }, 350);
+        setTimeout(() => { window.location.href = '../index.html'; }, 350);
       }
     });
   }
@@ -406,9 +408,9 @@ function initLoginPortal() {
     const navigateToStore = () => {
       const storeId = card.getAttribute('data-store');
       if (storeId === 'hostel-delivery') {
-        window.location.href = '/stores.html';
+        window.location.href = '../stores.html';
       } else {
-        window.location.href = `/store.html?store=${encodeURIComponent(storeId)}`;
+        window.location.href = `../store.html?store=${encodeURIComponent(storeId)}`;
       }
     };
 
@@ -424,7 +426,7 @@ function initLoginPortal() {
   if (viewAllStoresBtn) {
     viewAllStoresBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      window.location.href = '/stores.html';
+      window.location.href = '../stores.html';
     });
   }
 
@@ -468,24 +470,31 @@ function initLoginPortal() {
   }
 
   function saveAdminSession(data) {
+    // Save to BOTH sessionStorage and localStorage so Android WebView never drops session across top-level page navigations!
     sessionStorage.setItem('unimall_admin_token', data.token);
     sessionStorage.setItem('unimall_admin_user', JSON.stringify(data.user));
     sessionStorage.setItem('unimall_admin_stores', JSON.stringify(data.stores || []));
-    if (data.user?.role === 'platform_admin' || data.user?.role === 'admin') {
-      sessionStorage.setItem('unimall_admin_active_store', 'all');
-    } else {
-      const sId = data.user?.store_id || (data.stores && data.stores[0] ? data.stores[0].store_id : '');
-      sessionStorage.setItem('unimall_admin_active_store', sId);
-    }
+
+    localStorage.setItem('unimall_admin_token', data.token);
+    localStorage.setItem('unimall_admin_user', JSON.stringify(data.user));
+    localStorage.setItem('unimall_admin_stores', JSON.stringify(data.stores || []));
+    localStorage.setItem('unimall_has_visited', 'true');
+
+    const activeStore = (data.user?.role === 'platform_admin' || data.user?.role === 'admin')
+      ? 'all'
+      : (data.user?.store_id || (data.stores && data.stores[0] ? data.stores[0].store_id : ''));
+
+    sessionStorage.setItem('unimall_admin_active_store', activeStore);
+    localStorage.setItem('unimall_admin_active_store', activeStore);
   }
 
   async function verifyExistingAdminSession(token) {
-    let target = '/admin/login.html';
+    let target = 'login.html';
     try {
-      const rawUser = sessionStorage.getItem('unimall_admin_user');
+      const rawUser = sessionStorage.getItem('unimall_admin_user') || localStorage.getItem('unimall_admin_user');
       if (rawUser) {
         const u = JSON.parse(rawUser);
-        target = (u.role === 'platform_admin' || u.role === 'admin') ? '/admin/index.html' : '/merchant/index.html';
+        target = (u.role === 'platform_admin' || u.role === 'admin') ? 'index.html' : '../merchant/index.html';
       }
       const res = await fetch(`${API_BASE}/auth/verify`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -495,10 +504,10 @@ function initLoginPortal() {
         return;
       }
     } catch {
-      const user = sessionStorage.getItem('unimall_admin_user');
+      const user = sessionStorage.getItem('unimall_admin_user') || localStorage.getItem('unimall_admin_user');
       if (user) {
         const u = JSON.parse(user);
-        window.location.href = (u.role === 'platform_admin' || u.role === 'admin') ? '/admin/index.html' : '/merchant/index.html';
+        window.location.href = (u.role === 'platform_admin' || u.role === 'admin') ? 'index.html' : '../merchant/index.html';
       }
     }
   }

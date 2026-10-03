@@ -40,13 +40,16 @@
 }
 
 /* ── Reset ──────────────────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-button, input {
+button,
+input {
   font-family: inherit;
 }
 
@@ -75,7 +78,9 @@ body.register-page {
 
 /* ── DEFAULT / DESKTOP LAYOUT (>= 920px) ────────────────────────── */
 @media (min-width: 920px) {
-  html, body {
+
+  html,
+  body {
     width: 100%;
     height: 100%;
     max-height: 100vh;
@@ -344,10 +349,21 @@ body.register-page {
     transform: scale(1.08);
   }
 
-  .step-bg-blue  { background-color: #E0F2FE; }
-  .step-bg-pink  { background-color: #FFE4E6; }
-  .step-bg-amber { background-color: #FEF3C7; }
-  .step-bg-green { background-color: #DCFCE7; }
+  .step-bg-blue {
+    background-color: #E0F2FE;
+  }
+
+  .step-bg-pink {
+    background-color: #FFE4E6;
+  }
+
+  .step-bg-amber {
+    background-color: #FEF3C7;
+  }
+
+  .step-bg-green {
+    background-color: #DCFCE7;
+  }
 
   .step-icon {
     width: 24px;
@@ -449,7 +465,8 @@ body.register-page {
     user-select: none;
   }
 
-  .store-card:hover, .store-card:focus-visible {
+  .store-card:hover,
+  .store-card:focus-visible {
     transform: translateY(-2px);
   }
 
@@ -675,7 +692,9 @@ body.register-page {
      - Crisp, well-proportioned typography and balanced spacing
    ══════════════════════════════════════════════════════════════════ */
 @media (max-width: 919px) {
-  html, body {
+
+  html,
+  body {
     width: 100%;
     height: auto;
     min-height: 100%;
@@ -744,8 +763,8 @@ body.register-page {
   /* Header Badge & Brand */
   .hero-header {
     position: relative;
-    z-index: 2;
-    margin-bottom: 8px;
+    z-index: 8;
+    margin-bottom: 0;
     width: 100%;
   }
 
@@ -784,6 +803,9 @@ body.register-page {
     align-items: flex-start;
     gap: 2px;
     width: 100%;
+    position: relative;
+    z-index: 10;
+    margin-bottom: -18px;
   }
 
   .brand-name {
@@ -812,10 +834,11 @@ body.register-page {
     align-items: flex-end;
     justify-content: space-between;
     min-height: 230px;
-    margin-top: 16px;
-    margin-bottom: 22px;
+    margin-top: 0;
+    margin-bottom: 18px;
     width: 100%;
     overflow: visible;
+    z-index: 2;
   }
 
   .hero-copy {
@@ -940,9 +963,9 @@ body.register-page {
   }
 
   .step-squircle {
-    width: 44px;
-    height: 44px;
-    border-radius: 13px;
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -950,18 +973,29 @@ body.register-page {
     transition: transform 0.2s ease;
   }
 
-  .step-bg-blue  { background-color: #E0F2FE; }
-  .step-bg-pink  { background-color: #FFE4E6; }
-  .step-bg-amber { background-color: #FEF3C7; }
-  .step-bg-green { background-color: #DCFCE7; }
+  .step-bg-blue {
+    background-color: #E0F2FE;
+  }
+
+  .step-bg-pink {
+    background-color: #FFE4E6;
+  }
+
+  .step-bg-amber {
+    background-color: #FEF3C7;
+  }
+
+  .step-bg-green {
+    background-color: #DCFCE7;
+  }
 
   .step-icon {
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
   }
 
   .step-title {
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 800;
     color: #0F172A;
     letter-spacing: -0.01em;
@@ -969,7 +1003,7 @@ body.register-page {
   }
 
   .step-caption {
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 500;
     color: #64748B;
     line-height: 1.25;
@@ -1064,7 +1098,8 @@ body.register-page {
     user-select: none;
   }
 
-  .store-card:hover, .store-card:focus-visible {
+  .store-card:hover,
+  .store-card:focus-visible {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
   }
@@ -1230,7 +1265,8 @@ body.register-page {
     gap: 12px;
   }
 
-  .btn-google:hover, .btn-google:focus-visible {
+  .btn-google:hover,
+  .btn-google:focus-visible {
     background: #F8FAFC;
     border-color: #CBD5E1;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
@@ -1280,7 +1316,8 @@ body.register-page {
     gap: 10px;
   }
 
-  .btn-guest:hover, .btn-guest:focus-visible {
+  .btn-guest:hover,
+  .btn-guest:focus-visible {
     background: linear-gradient(135deg, #185BEE 0%, #104ED6 100%);
     box-shadow: 0 10px 28px rgba(29, 104, 254, 0.38);
   }
@@ -1319,7 +1356,8 @@ body.register-page {
     gap: 10px;
   }
 
-  .btn-store-admin:hover, .btn-store-admin:focus-visible {
+  .btn-store-admin:hover,
+  .btn-store-admin:focus-visible {
     background-color: #EEF2F6;
     border-color: #CBD5E1;
     color: #0F172A;
@@ -1409,13 +1447,25 @@ body.register-page {
 
 /* ── ANIMATIONS ─────────────────────────────────────────────────── */
 @keyframes floatBubble {
-  0%   { transform: translateY(0px) rotate(-3deg); }
-  100% { transform: translateY(-4px) rotate(-2deg); }
+  0% {
+    transform: translateY(0px) rotate(-3deg);
+  }
+
+  100% {
+    transform: translateY(-4px) rotate(-2deg);
+  }
 }
 
 @keyframes sparklePulse {
-  0%   { transform: scale(0.95); opacity: 0.85; }
-  100% { transform: scale(1.1); opacity: 1; }
+  0% {
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+
+  100% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 /* ── STORE & ADMIN LOGIN MODAL ─────────────────────────────────── */
@@ -1710,7 +1760,9 @@ body.register-page {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .security-badge {
@@ -1813,6 +1865,7 @@ body.register-page {
   .register-container {
     padding: 20px 12px;
   }
+
   .register-card {
     padding: 28px 20px;
     border-radius: var(--radius-lg);

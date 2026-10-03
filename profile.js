@@ -241,6 +241,7 @@ async function handleLogout() {
     }
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem('userMode');
+    localStorage.removeItem('unimall_has_visited');
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {

@@ -12,9 +12,9 @@ window.currentAdminUser = null;
 window.currentAuthorizedStores = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const token = sessionStorage.getItem('unimall_admin_token');
+  const token = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
   if (!token) {
-    window.location.href = '/admin/login.html';
+    window.location.href = 'login.html';
     return;
   }
 
@@ -23,8 +23,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       meData = await apiRequest('/auth/me');
     } catch (e) {
-      const cachedUser = sessionStorage.getItem('unimall_admin_user');
-      const cachedStores = sessionStorage.getItem('unimall_admin_stores');
+      const cachedUser = sessionStorage.getItem('unimall_admin_user') || localStorage.getItem('unimall_admin_user');
+      const cachedStores = sessionStorage.getItem('unimall_admin_stores') || localStorage.getItem('unimall_admin_stores');
       if (cachedUser) {
         meData = {
           user: JSON.parse(cachedUser),
@@ -50,8 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     ));
 
     if (!isPlatform) {
-      console.info('[Admin Guard] Merchant detected in admin area. Redirecting to /merchant/index.html…');
-      window.location.replace('/merchant/index.html');
+      console.info('[Admin Guard] Merchant detected in admin area. Redirecting to ../merchant/index.html…');
+      window.location.replace('../merchant/index.html');
       return;
     }
 

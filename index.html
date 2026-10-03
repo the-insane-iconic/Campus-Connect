@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>UniMall — Your Campus, Closer.</title>
   <meta name="description" content="UniMall lets you discover what's available inside your campus mall without physically going there. Browse, order, and get it delivered on campus." />
   <meta name="theme-color" content="#0F172A" />
@@ -16,6 +16,20 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- FIRST-TIME APP INSTALL / VISIT ONBOARDING GUARD -->
+  <script>
+    (function() {
+      try {
+        var hasVisited = localStorage.getItem('unimall_has_visited') === 'true';
+        var hasAuth = Boolean(localStorage.getItem('unimall_auth') || localStorage.getItem('unimall_admin_token'));
+        var urlParams = new URLSearchParams(window.location.search);
+        if (!hasVisited && !hasAuth && !urlParams.has('neon_auth_session_verifier')) {
+          window.location.replace('admin/login.html');
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
 
@@ -34,8 +48,11 @@
     <!-- ── SIDEBAR FOR PC / DESKTOP ────────────────────────── -->
     <aside class="sidebar" id="sidebar" aria-label="Site navigation">
       <div class="sidebar-brand">
-        <div class="sidebar-wordmark">Uni<span>Mall</span></div>
-        <div class="sidebar-tagline">Your Campus, Closer.</div>
+        <img src="favicon.png" alt="Campus Connect" class="sidebar-app-logo" />
+        <div class="header-brand-text">
+          <div class="sidebar-wordmark">Uni<span>Mall</span></div>
+          <div class="sidebar-tagline">Your Campus, Closer.</div>
+        </div>
       </div>
 
       <nav class="sidebar-nav" aria-label="Site navigation">
@@ -90,8 +107,11 @@
         <header class="header" id="main-header" role="banner">
           <!-- Brand (mobile only — desktop uses sidebar) -->
           <div class="header-brand">
-            <div class="header-wordmark">Uni<span>Mall</span></div>
-            <div class="header-tagline">Your Campus, Closer.</div>
+            <img src="favicon.png" alt="Campus Connect" class="header-app-logo" />
+            <div class="header-brand-text">
+              <div class="header-wordmark">Uni<span>Mall</span></div>
+              <div class="header-tagline">Your Campus, Closer.</div>
+            </div>
           </div>
 
           <div class="header-actions">

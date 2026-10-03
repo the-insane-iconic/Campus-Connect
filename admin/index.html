@@ -20,13 +20,13 @@
   <script>
     (function() {
       try {
-        var token = sessionStorage.getItem('unimall_admin_token');
+        var token = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
         if (!token) {
-          window.location.replace('/admin/login.html');
+          window.location.replace('login.html');
           return;
         }
       } catch (e) {
-        window.location.replace('/admin/login.html');
+        window.location.replace('login.html');
       }
     })();
   </script>
@@ -53,8 +53,11 @@
     <aside class="admin-sidebar" id="admin-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-brand">
-          <div class="brand-wordmark">Uni<span>Mall</span></div>
-          <div class="brand-portal-label" id="brand-portal-label">Platform Superadmin</div>
+          <img src="/favicon.png" alt="Campus Connect" class="sidebar-app-logo" />
+          <div>
+            <div class="brand-wordmark">Uni<span>Mall</span></div>
+            <div class="brand-portal-label" id="brand-portal-label">Platform Superadmin</div>
+          </div>
         </div>
         <button type="button" id="btn-close-drawer" class="btn-close-drawer" aria-label="Close menu">✕</button>
       </div>

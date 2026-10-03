@@ -18,9 +18,9 @@ window.currentAdminUser = null;
 window.currentMerchantUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const token = sessionStorage.getItem('unimall_admin_token');
+  const token = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token');
   if (!token) {
-    window.location.replace('/admin/login.html');
+    window.location.replace('../admin/login.html');
     return;
   }
 
@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       meData = await apiRequest('/auth/me');
     } catch (e) {
-      const cachedUser = sessionStorage.getItem('unimall_admin_user');
-      const cachedStores = sessionStorage.getItem('unimall_admin_stores');
+      const cachedUser = sessionStorage.getItem('unimall_admin_user') || localStorage.getItem('unimall_admin_user');
+      const cachedStores = sessionStorage.getItem('unimall_admin_stores') || localStorage.getItem('unimall_admin_stores');
       if (cachedUser) {
         meData = {
           user: JSON.parse(cachedUser),
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Security Gate: If Platform Admin opens the merchant URL, route to Platform Admin HQ
     if (currentAdminUser.role === 'platform_admin' || currentAdminUser.role === 'admin' || (currentAdminUser.email && currentAdminUser.email.toLowerCase() === 'anupamyadav6477@gmail.com')) {
       console.info('[Merchant Guard] Platform administrator detected. Redirecting to Executive HQ…');
-      window.location.replace('/admin/index.html');
+      window.location.replace('../admin/index.html');
       return;
     }
 

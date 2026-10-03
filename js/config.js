@@ -10,12 +10,12 @@ const IS_NATIVE = (typeof window !== 'undefined' && (
   window.location.protocol === 'capacitor:' ||
   (window.location.hostname === 'localhost' && !window.location.port)
 ));
-const API_HOST = IS_NATIVE ? 'https://campus-connect.vercel.app' : '';
+const API_HOST = '';
 
 window.UNIMALL_CONFIG = {
   // Database API Proxy Endpoint (All DB credentials kept securely server-side)
   API_HOST: API_HOST,
-  API_QUERY_URL: API_HOST + '/api/db/query',
+  API_QUERY_URL: '/api/db/query',
   NEON_SQL_URL: 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql',
   NEON_CONN: 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
   NEON_REST_URL: 'https://ep-broad-morning-b30i16bo.apirest.c-4.ap-southeast-1.aws.neon.tech/neondb/rest/v1',
@@ -218,20 +218,47 @@ window.UniMallDB = {
 
   /**
    * Secure Database Query Execution with Seamless Direct Fallback
-   * Tries local API proxy first, and gracefully falls back directly to Neon HTTP SQL
+   * On mobile (Android) or standalone environments, connects directly to Neon Serverless HTTP SQL for instant, reliable queries.
    */
   async neonSql(query, params = []) {
-    const proxyUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.API_QUERY_URL) || '/api/db/query';
-    const adminToken = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_auth_token');
-    
-    const headers = {
-      'Content-Type': 'application/json'
+    const directUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_SQL_URL) || 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql';
+    const directConn = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_CONN) || 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
+
+    const executeDirect = async () => {
+      const directRes = await fetch(directUrl, {
+        method: 'POST',
+        headers: {
+          'Neon-Connection-String': directConn,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] })
+      });
+
+      if (!directRes.ok) {
+        const err = await directRes.json().catch(() => ({}));
+        throw new Error(err.message || `Database query failed (${directRes.status})`);
+      }
+
+      const data = await directRes.json();
+      return data.rows || [];
     };
-    if (adminToken) {
-      headers['Authorization'] = `Bearer ${adminToken}`;
+
+    // If running inside Android Native Capacitor or static environment, use direct Neon HTTP SQL immediately
+    if (IS_NATIVE || !window.UNIMALL_CONFIG?.API_HOST) {
+      try {
+        return await executeDirect();
+      } catch (err) {
+        console.warn('[UniMallDB] Direct Neon query error:', err.message);
+      }
     }
 
-    // 1. Try serverless backend proxy
+    // Try serverless backend proxy if configured
+    const proxyUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.API_QUERY_URL) || '/api/db/query';
+    const adminToken = sessionStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_admin_token') || localStorage.getItem('unimall_auth_token');
+    
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+
     try {
       const res = await fetch(proxyUrl, {
         method: 'POST',
@@ -244,29 +271,10 @@ window.UniMallDB = {
         return data.rows || [];
       }
     } catch (proxyErr) {
-      // proxy offline or unreachable, fall through to direct Neon connection
+      // proxy offline, fall through to direct Neon
     }
 
-    // 2. Direct Neon Serverless HTTP SQL API fallback (works everywhere: local, Android, etc.)
-    const directUrl = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_SQL_URL) || 'https://ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/sql';
-    const directConn = (window.UNIMALL_CONFIG && window.UNIMALL_CONFIG.NEON_CONN) || 'postgresql://neondb_owner:npg_WXOsK6qhUNd1@ep-broad-morning-b30i16bo-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
-
-    const directRes = await fetch(directUrl, {
-      method: 'POST',
-      headers: {
-        'Neon-Connection-String': directConn,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ query, params: Array.isArray(params) ? params : [] })
-    });
-
-    if (!directRes.ok) {
-      const err = await directRes.json().catch(() => ({}));
-      throw new Error(err.message || `Database query failed (${directRes.status})`);
-    }
-
-    const data = await directRes.json();
-    return data.rows || [];
+    return await executeDirect();
   },
 
   /* ── Get Stores (Protected with SWR + Inflight Deduplication) ── */
