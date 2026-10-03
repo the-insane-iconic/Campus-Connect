@@ -400,8 +400,8 @@ body.register-page {
   .portal-right-panel {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 26px 28px 22px;
+    justify-content: center;
+    padding: 36px 36px;
     border-left: 1px solid #F1F5F9;
     background: #FFFFFF;
     overflow: hidden;

@@ -6,7 +6,7 @@
 'use strict';
 
 /* ─── CONSTANTS & SEED DATA ──────────────────────────────── */
-const STORAGE_KEY = 'unimall_v1';
+var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
 
 const INITIAL_DEMO_ORDERS = [];
 
@@ -969,3 +969,11 @@ function showOrderToast(msg) {
     toast.style.transform = 'translateX(-50%) translateY(8px)';
   }, 2200);
 }
+
+window.renderOrdersView = function() {
+  loadStateFromStorage();
+  updateTabCounts();
+  renderLiveTracker();
+  renderOrdersList();
+  syncOrdersWithSupabase();
+};

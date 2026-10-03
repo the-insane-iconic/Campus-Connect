@@ -57,10 +57,10 @@ async function handleClientAdminRequest(endpoint, options = {}) {
 
   // ── /auth/me ──
   if (endpoint === '/auth/me') {
-    const cachedUser = sessionStorage.getItem('unimall_admin_user');
-    const cachedStores = sessionStorage.getItem('unimall_admin_stores');
+    const cachedUser = sessionStorage.getItem('unimall_admin_user') || localStorage.getItem('unimall_admin_user');
+    const cachedStores = sessionStorage.getItem('unimall_admin_stores') || localStorage.getItem('unimall_admin_stores');
     return {
-      user: cachedUser ? JSON.parse(cachedUser) : { id: 'admin', name: 'UniMall Admin', role: 'platform_admin' },
+      user: cachedUser ? JSON.parse(cachedUser) : { id: 'admin', name: 'Campus Connect Admin', role: 'platform_admin' },
       stores: cachedStores ? JSON.parse(cachedStores) : []
     };
   }

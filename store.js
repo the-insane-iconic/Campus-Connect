@@ -171,6 +171,32 @@ const STORE_CATALOG = [
     ratingBreakdown: [64, 23, 8, 3, 2],
     reviewCount: 65,
   },
+  {
+    id: 'nand-juice',
+    dataId: 'nand-juice',
+    name: 'Nand Juice',
+    emoji: '🥤',
+    logo: null,
+    coverImage: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=900&auto=format&fit=crop&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=900&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1546173159-315724a31696?w=400&auto=format&fit=crop&q=80'
+    ],
+    description: 'Freshly squeezed fruit juices, revitalizing shakes, and chilled campus refreshments made to order.',
+    categoryLabel: 'Fresh Juices & Smoothies',
+    productCategories: ['All', 'Fresh Juices', 'Fruit Bowls'],
+    status: 'open',
+    openingTime: '9:00 AM',
+    closingTime: '9:00 PM',
+    walkingTime: 2,
+    floor: 'Ground Floor',
+    location: 'In front of MBA Block',
+    phone: '+91 98765 01007',
+    paymentMethods: 'Razorpay UPI, Cash',
+    rating: 4.5,
+    ratingBreakdown: [70, 20, 8, 2, 0],
+    reviewCount: 48,
+  },
   // Legacy alias redirects
   { id: 'store-bakery', dataId: 'campus-cafe', name: 'Campus Bakery & Café', emoji: '🥐', coverImage: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800' },
   { id: 'store-stationery', dataId: 'book-corner', name: 'Stationery Hub & Book Corner', emoji: '📚', coverImage: 'https://images.unsplash.com/photo-1507842229451-79b1be886a20?w=800' },
@@ -225,8 +251,13 @@ const STORE_PRODUCTS = {
   'health-hub': [
     { id: 'prod_health_01', name: 'Whey Protein Bar — Chocolate', price: 80, image: 'https://images.unsplash.com/photo-1622484212850-cab596d63c5d?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 40, subcat: 'Wellness', emoji: '🍫' },
     { id: 'prod_health_02', name: 'Roasted Salted Almonds 100g', price: 140, image: 'https://images.unsplash.com/photo-1508061253366-f7da158b6d46?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 30, subcat: 'Wellness', emoji: '🥜' },
-    { id: 'prod_health_03', name: 'Greek Blueberry Probiotic Yogurt', price: 55, image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 25, subcat: 'Wellness', emoji: '🫐' },
-    { id: 'prod_health_04', name: 'Hostel First-Aid Kit', price: 249, image: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 20, subcat: 'Care', emoji: '🩹' },
+    { id: 'prod_health_03', name: 'Greek Blueberry Probiotic Yogurt', price: 55, image: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 25, subcat: 'Wellness', emoji: '🫐' }
+  ],
+  // ─── 7. NAND JUICE (3 products) ──────────────────────────
+  'nand-juice': [
+    { id: 'prod_juice_01', name: 'Fresh Mosambi Sweet Lime Juice', price: 60, image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 30, subcat: 'Fresh Juices', emoji: '🍊' },
+    { id: 'prod_juice_02', name: 'Cold-Pressed Pomegranate Juice', price: 90, image: 'https://images.unsplash.com/photo-1546173159-315724a31696?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 20, subcat: 'Fresh Juices', emoji: '🥤' },
+    { id: 'prod_juice_03', name: 'Fresh Mixed Fruit Bowl', price: 80, image: 'https://images.unsplash.com/photo-1519996529931-28324d5a630e?w=600&auto=format&fit=crop&q=80', availability: 'in-stock', stock: 25, subcat: 'Fruit Bowls', emoji: '🍓' }
   ]
 };
 
@@ -457,7 +488,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const storeId = params.get('id') || params.get('store') || '';
 
-  let store = null;
+  // 0. Instant 0ms Sync Hydration: If store exists locally in STORE_CATALOG, render IMMEDIATELY
+  let localStore = STORE_CATALOG.find(s => s.id === storeId || s.dataId === storeId);
+  if (localStore) {
+    SSD.store = localStore;
+    const localProds = STORE_PRODUCTS[localStore.id] || STORE_PRODUCTS[localStore.dataId] || [];
+    if (localProds.length > 0) {
+      const distinctSubcats = [...new Set(localProds.map(p => p.subcat).filter(Boolean))];
+      SSD.store.productCategories = distinctSubcats.length > 0 ? ['All', ...distinctSubcats] : ['All'];
+      SSD.products = [...localProds];
+      SSD.filteredProducts = [...localProds];
+      document.title = `${SSD.store.name} — UniMall`;
+      updateCartBadgeUI();
+      syncSidebarProfile();
+      renderHero();
+      renderInfoSheet();
+      renderTabs();
+      renderProductsPanel();
+    } else {
+      renderProductSkeletons(4);
+    }
+  } else {
+    // Render skeletons only when store metadata is unknown and must be fetched
+    renderProductSkeletons(6);
+  }
+
+  let store = localStore;
 
   // 1. Authoritative Neon PostgreSQL Database Query for Store (Primary)
   if (storeId && typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getStore === 'function') {
@@ -470,22 +526,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           name: dbStore.name,
           emoji: getCategoryEmoji(dbStore.category),
           logo: null,
-          coverImage: dbStore.cover_image || 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80',
-          gallery: [dbStore.cover_image || 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80'],
-          description: dbStore.description || `Welcome to ${dbStore.name}. Campus store providing quality products.`,
-          categoryLabel: dbStore.category ? (dbStore.category.charAt(0).toUpperCase() + dbStore.category.slice(1)) : 'Campus Store',
-          productCategories: ['All'],
+          coverImage: dbStore.cover_image || (localStore ? localStore.coverImage : 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80'),
+          gallery: [dbStore.cover_image || (localStore ? localStore.coverImage : 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=800&auto=format&fit=crop&q=80')],
+          description: dbStore.description || (localStore ? localStore.description : `Welcome to ${dbStore.name}. Campus store providing quality products.`),
+          categoryLabel: dbStore.category ? (dbStore.category.charAt(0).toUpperCase() + dbStore.category.slice(1)) : (localStore ? localStore.categoryLabel : 'Campus Store'),
+          productCategories: localStore ? localStore.productCategories : ['All'],
           status: dbStore.is_open ? 'open' : 'closed',
-          openingTime: dbStore.opening_time || '9:00 AM',
-          closingTime: dbStore.closing_time || '9:00 PM',
+          openingTime: dbStore.opening_time || (localStore ? localStore.openingTime : '9:00 AM'),
+          closingTime: dbStore.closing_time || (localStore ? localStore.closingTime : '9:00 PM'),
           walkingTime: 2,
           floor: dbStore.floor || dbStore.location || 'Campus Center',
           location: dbStore.location || 'Campus Center',
-          phone: dbStore.phone || '+91 98765 00000',
+          phone: dbStore.phone || (localStore ? localStore.phone : '+91 98765 00000'),
           paymentMethods: 'Razorpay UPI, Cash',
-          rating: Number(dbStore.rating) || 4.8,
+          rating: Number(dbStore.rating) || (localStore ? localStore.rating : 4.8),
           ratingBreakdown: [85, 10, 5, 0, 0],
-          reviewCount: 0,
+          reviewCount: localStore ? localStore.reviewCount : 0,
           isCustomStore: true
         };
       }
@@ -548,7 +604,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   SSD.store = store;
 
   // 4. Resolve products for this store (Neon PostgreSQL authoritative)
-  let prods = [];
+  let prods = (SSD.products && SSD.products.length > 0) ? SSD.products : [];
 
   if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getProducts === 'function') {
     try {
@@ -570,8 +626,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Fallback to static catalog if DB returned nothing AND not custom store
-  if (prods.length === 0 && !store.isCustomStore && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
+  // Fallback to static catalog if DB returned nothing
+  if (prods.length === 0 && (STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId])) {
     prods = STORE_PRODUCTS[store.id] || STORE_PRODUCTS[store.dataId] || [];
   }
 

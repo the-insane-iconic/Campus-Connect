@@ -7,8 +7,8 @@
    STORE DATA
 ========================================================= */
 
-// Intentionally empty — populated from Neon DB at runtime
-let STORES = [];
+// Populated from Neon DB or pre-hydrated window.STORES
+var STORES = (typeof window !== 'undefined' && window.STORES && window.STORES.length > 0) ? window.STORES : [];
 
 /* =========================================================
    APPLICATION STATE
@@ -32,9 +32,9 @@ const emptyState = document.getElementById("emptyState");
 const storeCount = document.getElementById("storeCount");
 const resultsTitle = document.getElementById("resultsTitle");
 
-const searchSection = document.getElementById("searchSection");
+const searchSection = document.getElementById("storeSearchSection") || document.getElementById("searchSection");
 const storeSearch = document.getElementById("storeSearch");
-const clearSearch = document.getElementById("clearSearch");
+const clearSearch = document.getElementById("clearStoreSearch") || document.getElementById("clearSearch");
 
 const categoryFilters =
   document.getElementById("categoryFilters");
@@ -321,12 +321,15 @@ let isStoresLoading = true;
 ========================================================= */
 
 function renderStoreSkeletons(count = 4) {
-  if (!storeList) return;
-  storeList.classList.remove("hidden");
-  if (emptyState) emptyState.classList.add("hidden");
-  if (storeCount) storeCount.textContent = "Loading campus stores…";
+  const listEl = document.getElementById("storeList") || storeList;
+  const emptyEl = document.getElementById("emptyState") || emptyState;
+  const countEl = document.getElementById("storeCount") || storeCount;
+  if (!listEl) return;
+  listEl.classList.remove("hidden");
+  if (emptyEl) emptyEl.classList.add("hidden");
+  if (countEl) countEl.textContent = "Loading campus stores…";
 
-  storeList.innerHTML = Array(count).fill(0).map(() => `
+  listEl.innerHTML = Array(count).fill(0).map(() => `
     <div class="store-card-skeleton" aria-hidden="true">
       <div class="skeleton-img skeleton-shimmer"></div>
       <div class="skeleton-details">
@@ -349,6 +352,11 @@ function renderStoreSkeletons(count = 4) {
 ========================================================= */
 
 function renderStores() {
+  const listEl = document.getElementById("storeList") || storeList;
+  const emptyEl = document.getElementById("emptyState") || emptyState;
+  const countEl = document.getElementById("storeCount") || storeCount;
+  if (!listEl) return;
+
   if (isStoresLoading && STORES.length === 0) {
     renderStoreSkeletons(4);
     return;
@@ -356,22 +364,24 @@ function renderStores() {
 
   const stores = getFilteredStores();
 
-  storeList.innerHTML = "";
+  listEl.innerHTML = "";
 
   if (stores.length === 0) {
-    storeList.classList.add("hidden");
-    emptyState.classList.remove("hidden");
-    storeCount.textContent = "0 stores";
+    listEl.classList.add("hidden");
+    if (emptyEl) emptyEl.classList.remove("hidden");
+    if (countEl) countEl.textContent = "0 stores";
     return;
   }
 
-  storeList.classList.remove("hidden");
-  emptyState.classList.add("hidden");
+  listEl.classList.remove("hidden");
+  if (emptyEl) emptyEl.classList.add("hidden");
 
-  storeCount.textContent =
-    `${stores.length} ${stores.length === 1 ? "store" : "stores"}`;
+  if (countEl) {
+    countEl.textContent =
+      `${stores.length} ${stores.length === 1 ? "store" : "stores"}`;
+  }
 
-  storeList.innerHTML =
+  listEl.innerHTML =
     stores.map((store, index) => createStoreCard(store, index)).join("");
 
   document
@@ -456,26 +466,28 @@ loadAndRenderFilters();
 
 document
   .getElementById("searchToggle")
-  .addEventListener("click", () => {
-    searchSection.classList.toggle("hidden");
-
-    if (!searchSection.classList.contains("hidden")) {
-      storeSearch.focus();
+  ?.addEventListener("click", () => {
+    const searchSec = document.getElementById("storeSearchSection") || searchSection;
+    if (searchSec) {
+      searchSec.classList.toggle("hidden");
+      if (!searchSec.classList.contains("hidden") && storeSearch) {
+        storeSearch.focus();
+      }
     }
   });
 
 
-storeSearch.addEventListener("input", event => {
+storeSearch?.addEventListener("input", event => {
   StoreState.searchQuery = event.target.value;
   renderStores();
 });
 
 
-clearSearch.addEventListener("click", () => {
-  storeSearch.value = "";
+clearSearch?.addEventListener("click", () => {
+  if (storeSearch) storeSearch.value = "";
   StoreState.searchQuery = "";
   renderStores();
-  storeSearch.focus();
+  if (storeSearch) storeSearch.focus();
 });
 
 
@@ -483,28 +495,34 @@ clearSearch.addEventListener("click", () => {
    FILTER SHEET
 ========================================================= */
 
-filterButton.addEventListener("click", () => {
-  sheetBackdrop.classList.remove("hidden");
-  requestAnimationFrame(() => {
-    filterSheet.classList.add("open");
-  });
+filterButton?.addEventListener("click", () => {
+  const backdrop = document.getElementById("sheetBackdrop") || sheetBackdrop;
+  const sheet = document.getElementById("filterSheet") || filterSheet;
+  if (backdrop) backdrop.classList.remove("hidden");
+  if (sheet) {
+    requestAnimationFrame(() => {
+      sheet.classList.add("open");
+    });
+  }
 });
 
 
 function closeFilterSheet() {
-  filterSheet.classList.remove("open");
+  const backdrop = document.getElementById("sheetBackdrop") || sheetBackdrop;
+  const sheet = document.getElementById("filterSheet") || filterSheet;
+  if (sheet) sheet.classList.remove("open");
   setTimeout(() => {
-    sheetBackdrop.classList.add("hidden");
+    if (backdrop) backdrop.classList.add("hidden");
   }, 250);
 }
 
 
-closeSheet.addEventListener(
+closeSheet?.addEventListener(
   "click",
   closeFilterSheet
 );
 
-sheetBackdrop.addEventListener(
+sheetBackdrop?.addEventListener(
   "click",
   closeFilterSheet
 );
@@ -580,7 +598,7 @@ document
    APPLY FILTERS
 ========================================================= */
 
-applyFilters.addEventListener("click", () => {
+applyFilters?.addEventListener("click", () => {
   syncCategoryChip();
   updateResultsTitle();
   renderStores();
@@ -593,7 +611,9 @@ applyFilters.addEventListener("click", () => {
 ========================================================= */
 
 function syncCategoryChip() {
-  categoryFilters
+  const filtersEl = document.getElementById("categoryFilters") || categoryFilters;
+  if (!filtersEl) return;
+  filtersEl
     .querySelectorAll(".filter-chip")
     .forEach(button => {
       button.classList.toggle(
@@ -610,8 +630,10 @@ function syncCategoryChip() {
 ========================================================= */
 
 function updateResultsTitle() {
+  const titleEl = document.getElementById("resultsTitle") || resultsTitle;
+  if (!titleEl) return;
   if (StoreState.searchQuery) {
-    resultsTitle.textContent = "Search Results";
+    titleEl.textContent = "Search Results";
     return;
   }
 
@@ -625,7 +647,7 @@ function updateResultsTitle() {
     services: "Services"
   };
 
-  resultsTitle.textContent =
+  titleEl.textContent =
     categoryNames[StoreState.category] ||
     "All Stores";
 }
@@ -637,14 +659,14 @@ function updateResultsTitle() {
 
 document
   .getElementById("clearFilters")
-  .addEventListener("click", () => {
+  ?.addEventListener("click", () => {
     resetFilters();
   });
 
 
 document
   .getElementById("viewAll")
-  .addEventListener("click", () => {
+  ?.addEventListener("click", () => {
     resetFilters();
   });
 
@@ -865,6 +887,16 @@ function mapDbStoreToCard(s) {
   };
 }
 
+const DEFAULT_STORES_BACKUP = [
+  { id: 'campus-cafe', name: 'Campus Bakery & Café', category: 'food', floor: 'Ground', location: 'Block A, Food Court', phone: '+91 98765 01001', cover_image: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800', is_open: true, opening_time: '7:30 AM', closing_time: '10:00 PM', rating: 4.7, popularity: 95 },
+  { id: 'book-corner', name: 'Stationery Hub & Book Corner', category: 'stationery', floor: 'First', location: 'Block B, Academic Wing', phone: '+91 98765 01002', cover_image: 'https://images.unsplash.com/photo-1507842229451-79b1be886a20?w=800', is_open: true, opening_time: '9:00 AM', closing_time: '8:30 PM', rating: 4.6, popularity: 92 },
+  { id: 'techstop', name: 'TechStop Electronics', category: 'electronics', floor: 'Ground', location: 'Block C, Tech Hub', phone: '+91 98765 01003', cover_image: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800', is_open: true, opening_time: '10:00 AM', closing_time: '9:00 PM', rating: 4.5, popularity: 88 },
+  { id: 'campus-mart', name: 'Campus Mart & Groceries', category: 'essentials', floor: 'Ground', location: 'Hostel Quadrangle', phone: '+91 98765 01004', cover_image: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=800', is_open: true, opening_time: '8:00 AM', closing_time: '11:00 PM', rating: 4.3, popularity: 85 },
+  { id: 'campus-wear', name: 'Campus Wear & Style Square', category: 'fashion', floor: 'First', location: 'Student Activity Center', phone: '+91 98765 01005', cover_image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800', is_open: true, opening_time: '11:00 AM', closing_time: '8:00 PM', rating: 4.6, popularity: 80 },
+  { id: 'nand-juice', name: 'Nand Juice', category: 'food', floor: 'Ground', location: 'Infornt of Mba block', phone: '123456789', cover_image: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?w=900&auto=format&fit=crop&q=80', is_open: true, opening_time: '09:00 AM', closing_time: '09:00 PM', rating: 4.5, popularity: 80 },
+  { id: 'health-hub', name: 'Health Hub & Care', category: 'essentials', floor: 'Ground', location: 'Near Campus Clinic', phone: '+91 98765 01006', cover_image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=800', is_open: true, opening_time: '8:00 AM', closing_time: '9:00 PM', rating: 4.5, popularity: 78 }
+];
+
 // 1. Instant 0ms hydration from cache on reload or navigation
 try {
   const cached = sessionStorage.getItem('unimall_swr_stores');
@@ -876,6 +908,14 @@ try {
     }
   }
 } catch (e) {}
+
+if (STORES.length === 0) {
+  const source = (typeof DEFAULT_STORES !== 'undefined' && Array.isArray(DEFAULT_STORES) && DEFAULT_STORES.length > 0)
+    ? DEFAULT_STORES
+    : DEFAULT_STORES_BACKUP;
+  STORES = source.map(mapDbStoreToCard);
+  isStoresLoading = false;
+}
 
 syncStoreStatuses();
 
@@ -941,5 +981,10 @@ window.addEventListener('storage', (e) => {
     }
   }
 });
+
+window.renderStoresView = function() {
+  syncStoreStatuses();
+  renderStores();
+};
 
 

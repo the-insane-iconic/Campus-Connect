@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = 'login.html';
     return;
   }
+  document.documentElement.classList.remove('auth-checking');
 
   try {
     let meData;
@@ -90,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('unimall_admin_user');
     sessionStorage.removeItem('unimall_admin_stores');
     sessionStorage.removeItem('unimall_admin_active_store');
-    window.location.replace('/admin/login.html');
+    window.location.replace('login.html');
   }
 });
 
@@ -452,7 +453,7 @@ function setupLogout() {
         sessionStorage.removeItem('unimall_admin_user');
         sessionStorage.removeItem('unimall_admin_stores');
         sessionStorage.removeItem('unimall_admin_active_store');
-        window.location.href = '/admin/login.html';
+        window.location.href = 'login.html';
       }
     });
   }
@@ -528,7 +529,7 @@ function resetInactivityTimer() {
     sessionStorage.removeItem('unimall_admin_user');
     sessionStorage.removeItem('unimall_admin_stores');
     sessionStorage.removeItem('unimall_admin_active_store');
-    window.location.replace('/admin/login.html?reason=timeout');
+    window.location.replace('login.html?reason=timeout');
   }, INACTIVITY_TIMEOUT_MS);
 }
 

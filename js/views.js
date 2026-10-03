@@ -17,24 +17,108 @@
  * @param {Object} [params]
  */
 function navigate(viewName, params = {}) {
+  // 1. Guard against duplicate reload if already on the requested view
+  if (AppState && AppState.ui && AppState.ui.currentView === viewName) {
+    if (viewName === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    return; // ZERO REFRESH / NO RELOAD!
+  }
+
   setState({ ui: { currentView: viewName, ...params } });
   _syncNavActiveState(viewName);
 
+  // 2. Hide all view panels and display the active panel
+  const panels = document.querySelectorAll('.view-panel');
+  if (panels.length > 0) {
+    panels.forEach(p => p.style.display = 'none');
+    const targetPanel = document.getElementById(`view-${viewName}`);
+    if (targetPanel) {
+      targetPanel.style.display = 'block';
+    }
+  }
+
+  // 3. Toggle main header and search visibility (home only)
+  const mainHeader = document.getElementById('main-header');
+  if (mainHeader) {
+    mainHeader.style.display = (viewName === 'home') ? '' : 'none';
+  }
+  const mainSearch = document.querySelector('.search-section');
+  if (mainSearch) {
+    mainSearch.style.display = (viewName === 'home') ? '' : 'none';
+  }
+
+  // 4. Close fullscreen overlay if open
+  closeOverlay();
+
+  // 5. Update URL parameter silently so deep linking / refresh stays on this view without reloading
+  try {
+    const url = new URL(window.location);
+    if (viewName === 'home') {
+      url.searchParams.delete('view');
+    } else {
+      url.searchParams.set('view', viewName);
+    }
+    window.history.replaceState({ view: viewName }, '', url);
+  } catch (e) {}
+
+  // 6. Scroll to top immediately
+  window.scrollTo({ top: 0, behavior: 'instant' });
+
+  // 7. View rendering
   switch (viewName) {
-    case 'home': closeOverlay(); renderHome(); break;
-    case 'stores': window.location.href = 'stores.html'; break;
-    case 'product': _openProduct(params.selectedProductId); break;
-    case 'cart': window.location.href = 'cart.html'; break;
-    case 'checkout': window.location.href = 'cart.html'; break;
-    case 'order-confirm': _openOrderConfirmation(params.selectedOrderId); break;
-    case 'orders': window.location.href = 'orders.html'; break;
-    case 'order-detail': window.location.href = `orders.html#${params.selectedOrderId || ''}`; break;
-    case 'profile': window.location.href = 'profile.html'; break;
-    case 'notifications': _openNotifications(); break;
-    case 'request': _openRequestForm(); break;
-    default: closeOverlay();
+    case 'home':
+      renderHome();
+      break;
+    case 'stores':
+      if (typeof window.renderStoresView === 'function') {
+        window.renderStoresView();
+      } else if (typeof renderStores === 'function') {
+        renderStores();
+      }
+      break;
+    case 'orders':
+      if (typeof window.renderOrdersView === 'function') {
+        window.renderOrdersView();
+      } else if (typeof renderOrdersList === 'function') {
+        renderOrdersList();
+      }
+      break;
+    case 'cart':
+    case 'checkout':
+      if (typeof window.renderCartView === 'function') {
+        window.renderCartView();
+      }
+      break;
+    case 'profile':
+      if (typeof window.renderProfileView === 'function') {
+        window.renderProfileView();
+      } else if (typeof renderProfile === 'function') {
+        renderProfile();
+      }
+      break;
+    case 'product':
+      _openProduct(params.selectedProductId);
+      break;
+    case 'order-confirm':
+      _openOrderConfirmation(params.selectedOrderId);
+      break;
+    case 'order-detail':
+      if (typeof window.openOrderModal === 'function') {
+        window.openOrderModal(params.selectedOrderId);
+      }
+      break;
+    case 'notifications':
+      _openNotifications();
+      break;
+    case 'request':
+      _openRequestForm();
+      break;
+    default:
+      closeOverlay();
   }
 }
+window.navigate = navigate;
 
 function _syncNavActiveState(viewName) {
   const navMap = {

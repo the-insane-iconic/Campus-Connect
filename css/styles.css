@@ -67,6 +67,8 @@ html {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   background-color: #0F172A;
+  overscroll-behavior-y: none;
+  overscroll-behavior: none;
 }
 
 body {
@@ -80,6 +82,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   overscroll-behavior-y: none;
+  overscroll-behavior: none;
 }
 
 /* Seamless cross-document view transitions in WebView */
@@ -2455,22 +2458,28 @@ button:active:not(:disabled) {
 
 /* ─── 14. BOTTOM NAV (MOBILE) ────────────────────────────── */
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   width: 100%;
   max-width: 100%;
   height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
-  background: rgba(255, 255, 255, 0.96);
+  background: rgba(255, 255, 255, 0.98);
   border-top: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  z-index: 100;
+  z-index: 9999;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  contain: layout size style paint;
+  will-change: transform;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .nav-item {
@@ -3295,4 +3304,27 @@ body.overlay-open {
 }
 .btn-continue-success:hover {
   color: #0F172A;
+}
+
+/* ─── 16. VIEW PANELS (SPA NAVIGATION) ───────────────────── */
+.view-panel {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .view-panel {
+    padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 16px) + 24px);
+  }
+}
+
+@media (min-width: 768px) {
+  #storesBackButton,
+  #ordersBackButton,
+  #cartBackButton,
+  #profileBackButton {
+    display: none !important;
+  }
 }

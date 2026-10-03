@@ -4,8 +4,8 @@
 
 'use strict';
 
-const STORAGE_KEY = 'unimall_v1';
-const AUTH_KEY = 'unimall_auth';
+var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
+var AUTH_KEY = window.AUTH_KEY || 'unimall_auth';
 
 /* ─── FIREBASE CONFIG (FOR AUTH SIGN-OUT / UPGRADE) ───────── */
 const firebaseConfig = {
@@ -517,3 +517,9 @@ window.addEventListener('unimall:user_changed', () => {
   renderProfile();
   syncSidebarProfile();
 });
+
+window.renderProfileView = function() {
+  loadProfileData();
+  renderProfile();
+  syncSidebarProfile();
+};

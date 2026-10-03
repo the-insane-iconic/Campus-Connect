@@ -19,6 +19,22 @@ const ANDROID_PUBLIC = path.resolve(ROOT, 'android/app/src/main/assets/public');
   fs.mkdirSync(dir, { recursive: true });
 });
 
+// Purge any macOS iCloud duplicate conflict files in Android directory
+function cleanSyncDuplicates(dir) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      cleanSyncDuplicates(full);
+    } else if (/\s\d+\./.test(entry.name) || entry.name.startsWith('.DS_Store')) {
+      fs.rmSync(full, { force: true });
+    }
+  }
+}
+cleanSyncDuplicates(path.resolve(ROOT, 'android/app/src/main/res'));
+cleanSyncDuplicates(path.resolve(ROOT, 'android/app/src/main/assets'));
+
 function copyFileTo(srcPath, destDir) {
   if (fs.existsSync(srcPath)) {
     const base = path.basename(srcPath);
@@ -51,11 +67,7 @@ console.log('📱 Syncing web assets to www/ and Android assets...');
 
 const files = [
   'index.html',
-  'stores.html',
   'store.html',
-  'cart.html',
-  'orders.html',
-  'profile.html',
   'cart.css',
   'cart.js',
   'orders.css',

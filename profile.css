@@ -1,108 +1,23 @@
-@import url('css/fonts.css');
-
 /* ═══════════════════════════════════════════════════════════
-   UNIMALL — USER PROFILE
+   UNIMALL — USER PROFILE VIEW STYLES
    ═══════════════════════════════════════════════════════════ */
 
-:root {
-  --blue: #2563eb;
-  --blue-soft: #eff6ff;
-  --blue-dark: #1d4ed8;
-
-  --text: #17213a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-
-  --background: #f5f6f8;
-  --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e7ebf0;
-
-  --green: #087f5b;
-  --green-bg: #dcfce7;
-  --green-border: #bbf7d0;
-
-  --amber: #b45309;
-  --amber-bg: #fef3c7;
-
-  --red: #b91c1c;
-  --red-bg: #fee2e2;
-
-  --radius-card: 18px;
-  --radius-sm: 10px;
-  --radius-pill: 999px;
-
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.07);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  min-height: 100%;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  background-color: #0F172A;
-}
-
-body {
-  font-family: "DM Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--background);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none;
-}
-
-@view-transition {
-  navigation: auto;
-}
-
-button, a, [role="button"], input, select, textarea, .profile-menu-item, .setting-row {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-button:active:not(:disabled),
-.profile-menu-item:active,
-.setting-row:active,
-.nav-item:active {
-  transform: scale(0.965);
-  opacity: 0.9;
-  transition: transform 60ms ease, opacity 60ms ease;
-}
-
-button, input {
-  font: inherit;
-}
-
-button {
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.app {
+#view-profile {
   width: 100%;
-  max-width: 100%;
-  min-height: 100vh;
+  max-width: 900px;
   margin: 0 auto;
-  background: var(--background);
-  padding-bottom: calc(var(--nav-h, 68px) + env(safe-area-inset-bottom, 16px) + 36px);
-  position: relative;
   box-sizing: border-box;
 }
 
-.profile-header,
-.profile-card,
-.stats-row,
-.settings-section,
-.danger-section {
+#view-profile .profile-page-header,
+#view-profile .profile-header,
+#view-profile .profile-content-wrap,
+#view-profile .profile-card,
+#view-profile .stats-row,
+#view-profile .settings-section,
+#view-profile .danger-section {
   width: 100%;
-  max-width: 860px;
+  max-width: 900px;
   margin-left: auto;
   margin-right: auto;
   box-sizing: border-box;

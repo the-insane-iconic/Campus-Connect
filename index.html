@@ -16,6 +16,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="stores.css" />
+  <link rel="stylesheet" href="orders.css" />
+  <link rel="stylesheet" href="cart.css" />
+  <link rel="stylesheet" href="profile.css" />
 
   <!-- FIRST-TIME APP INSTALL / VISIT ONBOARDING GUARD -->
   <script>
@@ -58,27 +62,27 @@
       <nav class="sidebar-nav" aria-label="Site navigation">
         <div class="sidebar-section-label">Discover</div>
 
-        <a href="index.html" class="sidebar-item active" id="sb-home" aria-current="page">
+        <a href="#" class="sidebar-item active" id="sb-home" aria-current="page" onclick="event.preventDefault(); navigate('home');">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           Home
         </a>
-        <a href="stores.html" class="sidebar-item" id="sb-stores">
+        <a href="#" class="sidebar-item" id="sb-stores" onclick="event.preventDefault(); navigate('stores');">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Stores
         </a>
 
         <div class="sidebar-section-label">My Activity</div>
 
-        <a href="orders.html" class="sidebar-item" id="sb-orders">
+        <a href="#" class="sidebar-item" id="sb-orders" onclick="event.preventDefault(); navigate('orders');">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
           Orders
         </a>
-        <a href="cart.html" class="sidebar-item" id="sb-cart">
+        <a href="#" class="sidebar-item" id="sb-cart" onclick="event.preventDefault(); navigate('cart');">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
           Cart
           <span class="sidebar-badge" data-cart aria-label="0 items in cart" style="display:none">0</span>
         </a>
-        <a href="profile.html" class="sidebar-item" id="sb-profile">
+        <a href="#" class="sidebar-item" id="sb-profile" onclick="event.preventDefault(); navigate('profile');">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           Profile
         </a>
@@ -157,6 +161,11 @@
 
         <!-- ── PAGE BODY ────────────────────────────────────── -->
         <main class="page-body" id="page-body">
+
+          <!-- ═════════════════════════════════════════════════
+               1. HOME VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-home">
 
           <!-- ── 1. HERO BANNERS AREA (Active Order Pickup & Class to Cart) ──── -->
           <div class="hero-banners-area" id="hero-banners-area">
@@ -470,6 +479,477 @@
 
           </div><!-- /home-default-flow -->
 
+          </div><!-- /view-home -->
+
+          <!-- ═════════════════════════════════════════════════
+               2. STORES VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-stores" style="display: none;">
+            <!-- STORES HEADER -->
+            <header class="stores-header fade-up">
+              <button type="button" class="icon-button" id="storesBackButton" aria-label="Go back" onclick="navigate('home')">
+                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div class="header-title">
+                <h1>Stores</h1>
+                <p>All UniMall stores at one place.</p>
+              </div>
+              <button type="button" class="icon-button" id="searchToggle" aria-label="Search stores">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+              </button>
+            </header>
+
+            <!-- STORE SEARCH -->
+            <section class="search-section" id="storeSearchSection" style="padding: 4px 16px 8px;">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+                <input type="search" id="storeSearch" placeholder="Search stores by name, floor, category..." autocomplete="off">
+                <button type="button" id="clearStoreSearch" aria-label="Clear search">×</button>
+              </div>
+            </section>
+
+            <!-- CATEGORY FILTER -->
+            <section class="category-section fade-up delay-1" style="padding: 4px 16px 6px;">
+              <div class="category-scroll" id="categoryFilters">
+                <button type="button" class="filter-chip active" data-category="all">All</button>
+                <button type="button" class="filter-chip" data-category="food">Food</button>
+                <button type="button" class="filter-chip" data-category="stationery">Stationery</button>
+                <button type="button" class="filter-chip" data-category="fashion">Fashion</button>
+                <button type="button" class="filter-chip" data-category="sports">Sports</button>
+                <button type="button" class="filter-chip" data-category="services">Services</button>
+              </div>
+            </section>
+
+            <!-- STORE LIST -->
+            <section class="store-section fade-up delay-2" style="padding: 10px 16px 24px;">
+              <div class="section-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h2 id="resultsTitle" style="font-size: 20px; font-weight: 700; color: #17213A; margin: 0;">All Stores</h2>
+                  <span id="storeCount" style="font-size: 13px; color: #64748B;">7 stores</span>
+                </div>
+                <button type="button" class="filter-button" id="filterButton">
+                  <svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+                  Filter
+                </button>
+              </div>
+
+              <div class="store-list" id="storeList"></div>
+
+              <!-- EMPTY STATE -->
+              <div class="empty-state hidden" id="emptyState">
+                <div class="empty-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg></div>
+                <h3>No stores found</h3>
+                <p>Try a different search or clear your filters.</p>
+                <div class="empty-actions" style="margin-top: 14px; display: flex; gap: 10px; justify-content: center;">
+                  <button type="button" class="secondary-button" id="clearFilters">Clear Filters</button>
+                  <button type="button" class="primary-button" id="viewAll">View All Stores</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- FILTER BOTTOM SHEET -->
+            <div class="sheet-backdrop hidden" id="sheetBackdrop"></div>
+            <aside class="filter-sheet" id="filterSheet">
+              <div class="sheet-handle"></div>
+              <div class="sheet-header">
+                <h2>Filter & Sort</h2>
+                <button type="button" id="closeSheet" class="close-button">×</button>
+              </div>
+              <div class="filter-group">
+                <h3>Category</h3>
+                <div class="sheet-chips">
+                  <button type="button" class="sheet-chip active" data-sheet-category="all">All</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="food">Food & Beverages</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="stationery">Stationery</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="fashion">Fashion</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="electronics">Electronics</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="sports">Sports</button>
+                  <button type="button" class="sheet-chip" data-sheet-category="services">Services</button>
+                </div>
+              </div>
+              <div class="filter-group">
+                <h3>Status</h3>
+                <div class="sheet-chips">
+                  <button type="button" class="status-chip active" data-status="all">All</button>
+                  <button type="button" class="status-chip" data-status="open">Open Now</button>
+                  <button type="button" class="status-chip" data-status="closing">Closing Soon</button>
+                  <button type="button" class="status-chip" data-status="closed">Closed</button>
+                </div>
+              </div>
+              <div class="filter-group">
+                <h3>Sort by</h3>
+                <div class="sheet-chips">
+                  <button type="button" class="sort-chip active" data-sort="distance">Distance</button>
+                  <button type="button" class="sort-chip" data-sort="name">A–Z</button>
+                  <button type="button" class="sort-chip" data-sort="rating">Rating</button>
+                  <button type="button" class="sort-chip" data-sort="popular">Most Popular</button>
+                </div>
+              </div>
+              <button type="button" class="apply-button" id="applyFilters">Apply Filters</button>
+            </aside>
+          </div><!-- /view-stores -->
+
+          <!-- ═════════════════════════════════════════════════
+               3. ORDERS VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-orders" style="display: none;">
+            <!-- ORDERS HEADER -->
+            <header class="orders-header fade-up">
+              <button type="button" class="icon-button" id="ordersBackButton" aria-label="Go back" onclick="navigate('home')">
+                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div class="header-title">
+                <h1>My Orders</h1>
+                <p id="ordersSubtitle">Track & manage your orders</p>
+              </div>
+              <button type="button" class="icon-button" id="orderSearchToggle" aria-label="Search orders" onclick="document.getElementById('orderSearchSection')?.classList.toggle('hidden'); document.getElementById('orderSearch')?.focus();">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+              </button>
+            </header>
+
+            <!-- SEARCH BAR -->
+            <section class="search-section hidden" id="orderSearchSection" style="padding: 4px 16px 8px;">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/></svg>
+                <input type="search" id="orderSearch" placeholder="Search by order ID, store, or item..." autocomplete="off">
+                <button type="button" id="clearSearch" aria-label="Clear search">×</button>
+              </div>
+            </section>
+
+            <!-- STATUS TABS -->
+            <section class="tabs-section fade-up delay-1" style="padding: 6px 16px 8px;">
+              <div class="tabs-scroll" id="statusTabs">
+                <button type="button" class="tab-chip active" data-tab="all">All Orders <span class="tab-count" id="countAll">0</span></button>
+                <button type="button" class="tab-chip" data-tab="active">Active <span class="tab-count active-count" id="countActive">0</span></button>
+                <button type="button" class="tab-chip" data-tab="delivered">Completed <span class="tab-count" id="countDelivered">0</span></button>
+                <button type="button" class="tab-chip" data-tab="cancelled">Cancelled <span class="tab-count" id="countCancelled">0</span></button>
+              </div>
+            </section>
+
+            <!-- LIVE ACTIVE ORDER HIGHLIGHT (Shown if active order exists) -->
+            <section class="live-tracker-section hidden fade-up delay-2" id="liveTrackerSection" style="padding: 0 16px 10px;">
+              <div class="live-card" id="liveTrackerCard"></div>
+            </section>
+
+            <!-- ORDERS LIST CONTAINER -->
+            <section class="orders-section fade-up delay-2" style="padding: 10px 16px 24px;">
+              <div class="section-header" style="margin-bottom: 12px;">
+                <div>
+                  <h2 id="ordersSectionTitle" style="font-size: 20px; font-weight: 700; color: #17213A; margin: 0;">Recent Orders</h2>
+                  <span id="ordersSectionCount" style="font-size: 13px; color: #64748B;">Showing all orders</span>
+                </div>
+              </div>
+
+              <!-- ORDER CARDS LIST -->
+              <div class="orders-list" id="ordersList"></div>
+
+              <!-- EMPTY STATE -->
+              <div class="empty-state hidden" id="emptyState">
+                <div class="empty-icon">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </div>
+                <h3 id="emptyTitle">No orders found</h3>
+                <p id="emptySub">You have not placed any orders matching this filter yet.</p>
+                <div class="empty-actions" style="margin-top: 14px; display: flex; gap: 10px; justify-content: center;">
+                  <button type="button" class="primary-action-btn" onclick="navigate('home')">Browse Mall</button>
+                  <button type="button" class="secondary-action-btn" onclick="navigate('stores')">Explore Stores</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- ORDER DETAIL MODAL -->
+            <div class="order-modal-backdrop hidden" id="orderModalBackdrop">
+              <div class="order-modal-sheet" id="orderModalSheet" role="dialog" aria-modal="true" aria-label="Order Details">
+                <div class="modal-drag-bar"></div>
+                <div class="modal-header">
+                  <div>
+                    <div class="modal-order-id" id="modalOrderId">#UM1024</div>
+                    <div class="modal-order-date" id="modalOrderDate">Today at 2:30 PM</div>
+                  </div>
+                  <button type="button" class="modal-close-btn" id="modalCloseBtn" aria-label="Close details">×</button>
+                </div>
+                <div class="modal-body" id="modalBody"></div>
+              </div>
+            </div>
+
+            <!-- TOAST NOTIFICATION -->
+            <div class="order-toast hidden" id="orderToast">
+              <span class="toast-icon">✓</span>
+              <span class="toast-message" id="toastMessage">Action completed</span>
+            </div>
+          </div><!-- /view-orders -->
+
+          <!-- ═════════════════════════════════════════════════
+               4. CART VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-cart" style="display: none;">
+            <!-- CART HEADER -->
+            <header class="cart-header fade-up">
+              <button type="button" class="icon-button" id="cartBackButton" aria-label="Go back" onclick="navigate('home')">
+                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div class="header-title">
+                <h1>My Cart</h1>
+                <p id="cartSubtitle">Review your items & checkout</p>
+              </div>
+              <button type="button" class="clear-cart-btn" id="clearCartBtn" aria-label="Clear cart" onclick="clearCart()">
+                Clear
+              </button>
+            </header>
+
+            <!-- MAIN CART CONTENT (Shown when items exist) -->
+            <div id="cartContentWrap" class="cart-content-wrap fade-up delay-1" style="padding: 8px 16px 28px;">
+              <!-- LEFT COLUMN: Items, Fulfillment, Notes -->
+              <div class="cart-left-col">
+                <!-- CONTEXTUAL STORE RETURN BANNER -->
+                <div class="cart-store-banner-wrap" id="cartStoreBannerWrap" style="display:none; margin-bottom: 12px;">
+                  <a href="#" class="cart-store-banner-link" id="cartStoreBannerLink" onclick="event.preventDefault(); navigate('stores');">
+                    <div class="store-banner-content">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+                      <span>Continue shopping at <strong id="cartStoreBannerName">Store</strong></span>
+                    </div>
+                    <span class="store-banner-action">Back to Store →</span>
+                  </a>
+                </div>
+
+                <!-- ITEMS SECTION -->
+                <section class="cart-items-section">
+                  <div class="section-label-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span class="section-label" style="font-weight: 700; color: #17213A;">Order Items</span>
+                    <span class="item-count-text" id="itemsCountBadge">0 items</span>
+                  </div>
+                  <div class="cart-items-list" id="cartItemsList"></div>
+                </section>
+
+                <!-- FULFILLMENT METHOD: COUNTER SELF-PICKUP -->
+                <section class="cart-section fade-up delay-2" style="margin-top: 16px;">
+                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Fulfillment Method</div>
+                  <div class="pickup-card-highlight">
+                    <div class="pickup-header-row">
+                      <div class="pickup-icon-wrap">🛍️</div>
+                      <div class="pickup-main-info">
+                        <div class="pickup-title">Campus Counter Self-Pickup</div>
+                        <div class="pickup-sub">Pay for your order, get instant confirmation, and collect at counter</div>
+                      </div>
+                      <span class="pickup-free-pill">FREE</span>
+                    </div>
+                    <div class="pickup-station-row">
+                      <span class="loc-pin">📍</span>
+                      <div>
+                        <strong>Store Counter Pickup Station</strong>
+                        <p>Ground Floor, University Mall · Show your simple #ORD token to collect</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ORDER NOTES -->
+                <section class="cart-section fade-up delay-2" style="margin-top: 16px;">
+                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Instructions / Note for Store</div>
+                  <textarea class="order-notes-input" id="orderNotesInput" placeholder="Add special instructions (e.g. less ice, extra sugar)..." rows="2"></textarea>
+                </section>
+              </div>
+
+              <!-- RIGHT COLUMN: Promo, Bill Breakdown, Payment, Checkout Button -->
+              <div class="cart-right-col" style="margin-top: 16px;">
+                <!-- COUPON / PROMO CODE -->
+                <section class="cart-section fade-up delay-2">
+                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Student Coupons & Promo</div>
+                  <div class="coupon-box" id="couponBox">
+                    <div class="coupon-input-wrap">
+                      <input type="text" id="couponInput" placeholder="Enter coupon code (e.g. CAMPUS10)" autocomplete="off">
+                      <button type="button" id="applyCouponBtn">Apply</button>
+                    </div>
+                    <div class="coupon-applied hidden" id="couponAppliedTag">
+                      <span class="coupon-tag-text" id="appliedCouponText">CAMPUS10 applied (10% OFF)</span>
+                      <button type="button" class="remove-coupon-btn" id="removeCouponBtn">✕</button>
+                    </div>
+                  </div>
+                  <div class="promo-chips-row">
+                    <button type="button" class="promo-chip" data-code="CAMPUS10">🏷️ CAMPUS10 (10% Off)</button>
+                    <button type="button" class="promo-chip" data-code="FREEDEL">🏷️ FREEDEL (Free Delivery)</button>
+                    <button type="button" class="promo-chip" data-code="STUDENT20">🏷️ STUDENT20 (₹20 Off)</button>
+                  </div>
+                </section>
+
+                <!-- BILL DETAILS -->
+                <section class="cart-section bill-section fade-up delay-2" style="margin-top: 16px;">
+                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Bill Summary</div>
+                  <div class="bill-breakdown">
+                    <div class="bill-row"><span>Item Subtotal</span><span id="billSubtotal">₹0</span></div>
+                    <div class="bill-row" id="billDiscountRow" style="display:none;"><span class="discount-text">Coupon Discount</span><span class="discount-val" id="billDiscount">-₹0</span></div>
+                    <div class="bill-row"><span>Fulfillment / Delivery</span><span id="billDelivery">FREE</span></div>
+                    <div class="bill-row"><span>Packaging & Handover</span><span id="billPackaging">₹5</span></div>
+                    <div class="bill-divider"></div>
+                    <div class="bill-row grand-total-row"><span>To Pay</span><span class="total-price" id="billTotal">₹0</span></div>
+                  </div>
+                </section>
+
+                <!-- CHECKOUT ACTION BAR -->
+                <div class="checkout-footer-bar" style="margin-top: 18px;">
+                  <div class="checkout-price-preview">
+                    <span class="preview-label">Grand Total</span>
+                    <span class="preview-price" id="checkoutFooterPrice">₹0</span>
+                  </div>
+                  <button type="button" class="place-order-btn" id="placeOrderBtn">
+                    <span>Pay & Place Order</span>
+                    <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- EMPTY STATE (Shown when cart is empty) -->
+            <div class="empty-cart-state hidden fade-up" id="emptyCartState" style="padding: 40px 16px; text-align: center;">
+              <div class="empty-cart-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+              </div>
+              <h2>Your Cart is Empty</h2>
+              <p>Looks like you haven't added anything from the campus stores yet.</p>
+              <div class="empty-actions" style="margin-top: 16px; display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="browse-btn-primary" onclick="navigate('home')">Browse Mall Products</button>
+                <button type="button" class="browse-btn-secondary" onclick="navigate('stores')">Explore Campus Stores</button>
+              </div>
+            </div>
+
+            <!-- TOAST NOTIFICATION -->
+            <div class="cart-toast hidden" id="cartToast">
+              <span class="toast-icon">✓</span>
+              <span class="toast-message" id="toastMessage">Action completed</span>
+            </div>
+
+            <!-- ORDER PLACED EXCITEMENT POP-UP MODAL -->
+            <div class="order-success-overlay" id="orderSuccessModal" style="display:none;" role="dialog" aria-modal="true">
+              <div class="order-success-modal">
+                <div class="success-icon-wrap"><span class="confetti-emoji">🎉</span></div>
+                <span class="success-badge">Order Confirmed!</span>
+                <h2 class="success-title">Woohoo! Your order is in!</h2>
+                <div class="success-order-id-pill" id="successOrderIdText">Order #UM1024</div>
+                <p class="success-eta-text" id="successEtaText">🛵 Delivering to your room in ~15–20 mins</p>
+                <div class="success-modal-actions">
+                  <button type="button" class="btn-track-success" id="btnTrackSuccess" onclick="navigate('orders')">
+                    <span>Track Live Order</span>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                  <button type="button" class="btn-continue-success" onclick="navigate('home')">Back to Campus Stores</button>
+                </div>
+              </div>
+            </div>
+          </div><!-- /view-cart -->
+
+          <!-- ═════════════════════════════════════════════════
+               5. PROFILE VIEW PANEL
+               ═════════════════════════════════════════════════ -->
+          <div class="view-panel" id="view-profile" style="display: none;">
+            <!-- PROFILE HEADER -->
+            <header class="profile-page-header fade-up">
+              <button type="button" class="icon-button" id="profileBackButton" aria-label="Go back" onclick="navigate('home')">
+                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+              <div class="header-title">
+                <h1>My Profile</h1>
+                <p>Manage account & campus details</p>
+              </div>
+              <button type="button" class="icon-button" id="headerShareBtn" aria-label="Share profile">
+                <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              </button>
+            </header>
+
+            <div class="profile-content-wrap" style="padding: 8px 16px 32px;">
+              <!-- LEFT COLUMN: Hero Card, Quick Stats, Account Actions -->
+              <div class="profile-left-col">
+                <!-- PROFILE HERO CARD -->
+                <section class="profile-hero-card fade-up delay-1">
+                  <div class="avatar-wrap" id="avatarWrap" aria-label="Profile Initial Avatar">
+                    <span class="avatar-initial" id="avatarInitial">S</span>
+                    <span class="avatar-badge-dot" id="avatarBadgeDot" title="Verified Campus Student"></span>
+                  </div>
+                  <div class="profile-hero-details">
+                    <div class="name-badge-row">
+                      <h2 class="user-display-name" id="userDisplayName">Campus Student</h2>
+                      <span class="auth-status-pill verified" id="authStatusPill"><span class="auth-icon">✓</span> Verified</span>
+                    </div>
+                    <p class="user-email-text" id="userEmailText">student@campus.edu</p>
+                    <div class="user-campus-meta-row">
+                      <span class="user-hostel-sub" id="userHostelSub">Campus Resident</span>
+                      <span class="campus-resident-tag">🎓 Campus Resident</span>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- QUICK STATS BAR -->
+                <section class="quick-stats-grid fade-up delay-1" style="margin-top: 14px;">
+                  <button type="button" class="stat-box" onclick="navigate('orders')">
+                    <span class="stat-number" id="statTotalOrders">0</span>
+                    <span class="stat-label">Total Orders</span>
+                  </button>
+                  <button type="button" class="stat-box" onclick="navigate('orders')">
+                    <span class="stat-number active-stat" id="statActiveOrders">0</span>
+                    <span class="stat-label">Active Orders</span>
+                  </button>
+                  <div class="stat-box">
+                    <span class="stat-number" id="statRequests">0</span>
+                    <span class="stat-label">Item Requests</span>
+                  </div>
+                </section>
+
+                <!-- LOGOUT & ACTIONS -->
+                <div class="account-actions-wrap fade-up delay-3" style="margin-top: 16px;">
+                  <button type="button" class="logout-btn" id="logoutBtn">
+                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Log Out
+                  </button>
+                </div>
+              </div>
+
+              <!-- RIGHT COLUMN: Campus Form -->
+              <div class="profile-right-col" style="margin-top: 18px;">
+                <section class="profile-card fade-up delay-2">
+                  <div class="card-section-title" style="margin-bottom: 12px; font-weight: 700; color: #17213A;">
+                    <span>Campus Address & Contact</span>
+                  </div>
+                  <form class="profile-form" id="profileForm">
+                    <div class="form-group">
+                      <label for="profName">Full Name</label>
+                      <input type="text" id="profName" placeholder="Your full name" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="profEmail">University Email</label>
+                      <input type="email" id="profEmail" placeholder="student@university.edu" readonly class="readonly-input">
+                    </div>
+                    <div class="form-group">
+                      <label for="profPhone">Mobile / WhatsApp No.</label>
+                      <input type="tel" id="profPhone" placeholder="+91 98765 43210">
+                    </div>
+                    <div class="form-row-2col">
+                      <div class="form-group">
+                        <label for="profHostel">Hostel Block</label>
+                        <select id="profHostel">
+                          <option value="">Select hostel...</option>
+                          <option value="Hostel A">Hostel A</option>
+                          <option value="Hostel B">Hostel B</option>
+                          <option value="Hostel C">Hostel C</option>
+                          <option value="Hostel D">Hostel D</option>
+                          <option value="Hostel E">Hostel E</option>
+                          <option value="Day Scholar">Day Scholar / Off Campus</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label for="profRoom">Room No.</label>
+                        <input type="text" id="profRoom" placeholder="e.g. 204">
+                      </div>
+                    </div>
+                    <div class="form-actions" style="margin-top: 14px;">
+                      <button type="submit" class="save-profile-btn" id="saveProfileBtn">Save Profile</button>
+                    </div>
+                  </form>
+                </section>
+              </div>
+            </div>
+          </div><!-- /view-profile -->
+
         </main><!-- /page-body -->
       </div><!-- /page-scroll -->
 
@@ -480,7 +960,7 @@
       <nav class="bottom-nav" id="bottom-nav" aria-label="Main navigation">
 
         <a href="#" class="nav-item active" id="nav-home"
-           aria-label="Home" aria-current="page">
+           aria-label="Home" aria-current="page" onclick="event.preventDefault(); navigate('home');">
           <div class="nav-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -490,8 +970,8 @@
           <span class="nav-label">Home</span>
         </a>
 
-        <a href="stores.html" class="nav-item" id="nav-stores"
-           aria-label="Stores">
+        <a href="#" class="nav-item" id="nav-stores"
+           aria-label="Stores" onclick="event.preventDefault(); navigate('stores');">
           <div class="nav-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -503,8 +983,8 @@
           <span class="nav-label">Stores</span>
         </a>
 
-        <a href="orders.html" class="nav-item" id="nav-orders"
-           aria-label="Orders">
+        <a href="#" class="nav-item" id="nav-orders"
+           aria-label="Orders" onclick="event.preventDefault(); navigate('orders');">
           <div class="nav-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
@@ -515,8 +995,8 @@
           <span class="nav-label">Orders</span>
         </a>
 
-        <a href="cart.html" class="nav-item" id="nav-cart"
-           aria-label="Cart">
+        <a href="#" class="nav-item" id="nav-cart"
+           aria-label="Cart" onclick="event.preventDefault(); navigate('cart');">
           <div class="nav-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="9" cy="21" r="1"/>
@@ -528,8 +1008,8 @@
           <span class="nav-label">Cart</span>
         </a>
 
-        <a href="profile.html" class="nav-item" id="nav-profile"
-           aria-label="Profile">
+        <a href="#" class="nav-item" id="nav-profile"
+           aria-label="Profile" onclick="event.preventDefault(); navigate('profile');">
           <div class="nav-icon-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -625,7 +1105,7 @@
 
     <!-- Order Pickup Pass Actions -->
     <div class="sheet-actions-row">
-      <a href="orders.html" class="btn-sheet-action secondary">
+      <a href="#" class="btn-sheet-action secondary" onclick="event.preventDefault(); closeOrderBottomSheet(); navigate('orders');">
         <span>📦 View in Orders</span>
       </a>
       <button type="button" class="btn-sheet-action primary" id="btnSheetCloseAction" onclick="closeOrderBottomSheet()">
@@ -655,6 +1135,10 @@
 <script src="js/search.js"></script>
 <script src="js/navigation.js"></script>
 <script src="js/views.js"></script>
+<script src="stores.js"></script>
+<script src="orders.js"></script>
+<script src="cart.js"></script>
+<script src="profile.js"></script>
 <script src="js/app.js"></script>
 <script src="js/native-bridge.js"></script>
 </body>

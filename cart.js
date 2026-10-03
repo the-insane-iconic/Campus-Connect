@@ -5,7 +5,7 @@
 
 'use strict';
 
-const STORAGE_KEY = 'unimall_v1';
+var STORAGE_KEY = window.STORAGE_KEY || 'unimall_v1';
 
 /* ─── COUPON DICTIONARY ──────────────────────────────────── */
 const PROMO_CODES = {
@@ -162,14 +162,14 @@ function updateItemQty(productId, delta) {
   item.qty = Math.min(newQty, stockLimit);
 
   saveCartToStorage();
-  renderCartView();
+  renderCartContent();
   if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('pop');
 }
 
 function removeItem(productId) {
   CartState.items = CartState.items.filter(i => i.productId !== productId);
   saveCartToStorage();
-  renderCartView();
+  renderCartContent();
   if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('tap');
   showToast('Item removed from cart');
 }
@@ -178,7 +178,7 @@ function clearCart() {
   CartState.items = [];
   CartState.appliedCoupon = null;
   saveCartToStorage();
-  renderCartView();
+  renderCartContent();
   showToast('Cart has been cleared');
 }
 
@@ -627,7 +627,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
 }
 
 /* ─── RENDERING ──────────────────────────────────────────── */
-function renderCartView() {
+function renderCartContent() {
   const contentWrap = document.getElementById('cartContentWrap');
   const emptyState = document.getElementById('emptyCartState');
   const itemsList = document.getElementById('cartItemsList');
@@ -1039,8 +1039,15 @@ function initEvents() {
 document.addEventListener('DOMContentLoaded', () => {
   loadCartFromStorage();
   initEvents();
-  renderCartView();
+  renderCartContent();
   syncCartBadge();
   syncSidebarProfile();
   syncStoreNavigation();
 });
+
+function renderCartView() {
+  loadCartFromStorage();
+  renderCartContent();
+  syncCartBadge();
+}
+window.renderCartView = renderCartView;

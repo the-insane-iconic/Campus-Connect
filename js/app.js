@@ -127,9 +127,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(`Showing items from ${storeParam}`);
     }
 
-    const hash = window.location.hash.replace('#', '');
-    if (hash && ['cart', 'orders', 'profile', 'notifications', 'request'].includes(hash)) {
-      navigate(hash);
+    const viewParam = params.get('view');
+    if (viewParam && ['stores', 'orders', 'cart', 'profile'].includes(viewParam)) {
+      navigate(viewParam);
+    } else {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && ['cart', 'orders', 'profile', 'notifications', 'request'].includes(hash)) {
+        navigate(hash);
+      }
     }
   } catch (e) {}
 
