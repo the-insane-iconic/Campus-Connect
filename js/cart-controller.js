@@ -2,14 +2,17 @@
 'use strict';
 
 /* ═══════════════════════════════════════════════════════════
-   UNIMALL — CART & CHECKOUT CONTROLLER (cart.js)
-   Full functional cart frontend + backend state engine
+   UNIMALL — CART & CHECKOUT CONTROLLER (cart-controller.js)
+   Full interactive multi-step state machine:
+   Step 1: Cart (Empty | Items)
+   Step 2: Checkout (Fulfillment & Location)
+   Step 3: Payment (Order Summary & Payment Method)
+   Step 4: Order Success (Order Confirmation & Actions)
    ═══════════════════════════════════════════════════════════ */
 
 var CART_STORAGE_KEY = window.CART_STORAGE_KEY || 'unimall_v1';
 
-/* ─── COUPON DICTIONARY (fetched from DB; hardcoded as fallback) ── */
-// This map is populated on init from the DB. Hardcoded fallback for offline/dev.
+/* ─── COUPON DICTIONARY ──────────────────────────────────── */
 let _PROMO_CODES = {
   CAMPUS10: { type: 'percent', value: 10, label: '10% Campus Discount' },
   FREEDEL: { type: 'delivery', value: 20, label: 'Free Delivery' },
@@ -34,28 +37,37 @@ async function _fetchPromoCodes() {
       _PROMO_CODES = {};
       rows.forEach(r => {
         _PROMO_CODES[r.code.toUpperCase()] = {
-          type: r.discount_type,   // 'percent' | 'delivery' | 'flat'
+          type: r.discount_type,
           value: parseFloat(r.discount_value),
           label: r.label
         };
       });
     }
   } catch (e) {
-    // silently fall back to hardcoded defaults
-    console.warn('[Cart] Could not fetch promo codes from DB, using defaults.', e.message);
+    console.warn('[Cart] Using default promo codes fallback:', e.message);
   }
 }
 
-
-/* ─── CART STATE ─────────────────────────────────────────── */
+/* ─── STATE MACHINE DEFINITION ───────────────────────────── */
 const CartState = {
-  items: [], // [{ productId, qty, product }]
-  fulfillmentType: 'pickup', // Self-Pickup only at start
-  deliveryInfo: null,
-  appliedCoupon: null, // 'CAMPUS10' | 'FREEDEL' | 'STUDENT20' | null
-  orderNotes: '',
+  step: 'cart', // 'cart' | 'checkout' | 'payment' | 'success'
+  items: [],
+  fulfillmentType: 'pickup', // 'pickup' | 'delivery'
+  pickupLocation: {
+    id: 'station-main',
+    name: 'Store Counter Pickup Station',
+    desc: 'Ground Floor, University Mall'
+  },
+  deliveryInfo: {
+    hostel: 'Hostel B',
+    room: 'Room 214'
+  },
   paymentMethod: 'razorpay', // 'razorpay' | 'cod'
-  packagingFee: 5
+  appliedCoupon: null,
+  orderNotes: '',
+  packagingFee: 5,
+  lastCreatedOrder: null,
+  lastCreatedOrders: []
 };
 
 /* ─── STORAGE SYNC ───────────────────────────────────────── */
@@ -100,13 +112,12 @@ function loadCartFromStorage() {
       }
 
       if (parsed.currentUser) {
-        if (!CartState.deliveryInfo) CartState.deliveryInfo = {};
         if (parsed.currentUser.hostel) CartState.deliveryInfo.hostel = parsed.currentUser.hostel;
         if (parsed.currentUser.room) CartState.deliveryInfo.room = parsed.currentUser.room;
       }
     }
   } catch (e) {
-    console.error('Error loading cart state:', e);
+    console.error('[Cart] Error loading state from storage:', e);
   }
 }
 
@@ -134,22 +145,29 @@ function saveCartToStorage() {
         storeId: i.product.storeId || 'campus-cafe'
       }
     }));
+
     if (CartState.deliveryInfo && CartState.deliveryInfo.hostel && appData.currentUser) {
       appData.currentUser.hostel = CartState.deliveryInfo.hostel;
       appData.currentUser.room = CartState.deliveryInfo.room;
     }
+
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(appData));
+
+    // Also update AppState.cart in state.js if present
+    if (typeof AppState !== 'undefined') {
+      AppState.cart = appData.cart;
+    }
+
     syncCartBadge();
   } catch (e) {
-    console.error('Error saving cart state:', e);
+    console.error('[Cart] Error saving state:', e);
   }
 }
 
 /* ─── COMPUTED TOTALS ────────────────────────────────────── */
 function getCartTotals() {
   const subtotal = CartState.items.reduce((sum, item) => sum + (item.product.price * item.qty), 0);
-
-  let deliveryFee = 0; // Self-pickup is always 100% free
+  const deliveryFee = CartState.fulfillmentType === 'delivery' ? (subtotal > 0 ? 20 : 0) : 0;
   let discountAmount = 0;
 
   if (CartState.appliedCoupon && _PROMO_CODES[CartState.appliedCoupon]) {
@@ -159,7 +177,7 @@ function getCartTotals() {
     } else if (coupon.type === 'flat') {
       discountAmount = Math.min(coupon.value, subtotal);
     } else if (coupon.type === 'delivery') {
-      discountAmount = 0;
+      discountAmount = deliveryFee;
     }
   }
 
@@ -181,6 +199,42 @@ function fmtPrice(amount) {
 }
 
 /* ─── CART MUTATIONS ─────────────────────────────────────── */
+function addItemToCart(productId) {
+  let product = null;
+  if (typeof PRODUCTS !== 'undefined') {
+    product = PRODUCTS.find(p => p.id === productId);
+  }
+  if (!product && typeof DEFAULT_PRODUCTS !== 'undefined') {
+    product = DEFAULT_PRODUCTS.find(p => p.id === productId);
+  }
+  if (!product) return;
+
+  const existing = CartState.items.find(i => i.productId === productId);
+  if (existing) {
+    const stockLimit = product.stock || 99;
+    existing.qty = Math.min(existing.qty + 1, stockLimit);
+  } else {
+    CartState.items.push({
+      productId: product.id,
+      qty: 1,
+      product: {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image || '',
+        emoji: product.emoji || '🛍️',
+        bg: product.bg || '#EFF6FF',
+        storeId: product.storeId || 'campus-cafe'
+      }
+    });
+  }
+
+  saveCartToStorage();
+  renderCurrentStep();
+  if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('pop');
+  showToast(`Added "${product.name}" to cart`);
+}
+
 function updateItemQty(productId, delta) {
   const item = CartState.items.find(i => i.productId === productId);
   if (!item) return;
@@ -191,28 +245,29 @@ function updateItemQty(productId, delta) {
     return;
   }
 
-  // Stock limit
   const stockLimit = item.product.stock || 99;
   item.qty = Math.min(newQty, stockLimit);
 
   saveCartToStorage();
-  renderCartContent();
+  renderCurrentStep();
   if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('pop');
 }
 
 function removeItem(productId) {
+  const target = CartState.items.find(i => i.productId === productId);
+  const name = target?.product?.name || 'Item';
   CartState.items = CartState.items.filter(i => i.productId !== productId);
   saveCartToStorage();
-  renderCartContent();
+  renderCurrentStep();
   if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('tap');
-  showToast('Item removed from cart');
+  showToast(`${name} removed from cart`);
 }
 
 function clearCart() {
   CartState.items = [];
   CartState.appliedCoupon = null;
   saveCartToStorage();
-  renderCartContent();
+  setCartStep('cart');
   showToast('Cart has been cleared');
 }
 
@@ -227,24 +282,473 @@ function applyCoupon(code) {
   if (_PROMO_CODES[normalized]) {
     CartState.appliedCoupon = normalized;
     if (typeof window.UniMallSound !== 'undefined') window.UniMallSound.play('success');
-    renderBillBreakdown();
-    renderCouponSection();
+    renderCurrentStep();
     showToast(`Coupon "${normalized}" applied successfully!`);
   } else {
     const available = Object.keys(_PROMO_CODES).join(', ');
     showToast(`Invalid coupon code.${available ? ' Try: ' + available : ''}`);
-
   }
 }
 
 function removeCoupon() {
   CartState.appliedCoupon = null;
-  renderBillBreakdown();
-  renderCouponSection();
+  renderCurrentStep();
   showToast('Coupon removed');
 }
 
-/* ─── ONE UNIQUE SUBTLE SOUND FOR ORDER PLACEMENT ────────── */
+/* ─── STATE MACHINE TRANSITIONS ──────────────────────────── */
+function setCartStep(newStep) {
+  // Guard: If trying to checkout or pay with empty cart, reset to cart
+  if ((newStep === 'checkout' || newStep === 'payment') && CartState.items.length === 0) {
+    newStep = 'cart';
+  }
+
+  CartState.step = newStep;
+
+  // Sync fullscreen class on body to hide bottom navigation during checkout/payment/success
+  if (newStep === 'checkout' || newStep === 'payment' || newStep === 'success') {
+    document.body.classList.add('in-checkout-flow');
+  } else {
+    document.body.classList.remove('in-checkout-flow');
+  }
+
+  // Update header and active step DOM
+  updateHeaderForStep(newStep);
+  showActiveStepPanel(newStep);
+  renderCurrentStep();
+
+  // Scroll smoothly to top of view
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showActiveStepPanel(step) {
+  const steps = ['step-cart', 'step-checkout', 'step-payment', 'step-success'];
+  steps.forEach(sId => {
+    const el = document.getElementById(sId);
+    if (!el) return;
+    if (sId === `step-${step}`) {
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function updateHeaderForStep(step) {
+  const header = document.getElementById('cartFlowHeader');
+  const backBtn = document.getElementById('cartFlowBackBtn');
+  const titleEl = document.getElementById('cartFlowTitle');
+  const subtitleEl = document.getElementById('cartFlowSubtitle');
+  const clearBtn = document.getElementById('cartFlowClearBtn');
+
+  if (!header || !titleEl || !subtitleEl) return;
+
+  const totals = getCartTotals();
+
+  if (step === 'success') {
+    // Order Success header is minimal or embedded into the hero
+    header.style.display = 'none';
+    return;
+  }
+
+  header.style.display = 'flex';
+
+  if (step === 'cart') {
+    backBtn?.classList.remove('hidden');
+    clearBtn?.classList.remove('hidden');
+
+    if (CartState.items.length === 0) {
+      titleEl.textContent = 'My Cart';
+      subtitleEl.textContent = 'Your selected items';
+      if (clearBtn) {
+        clearBtn.disabled = true;
+        clearBtn.classList.add('disabled');
+      }
+    } else {
+      titleEl.textContent = 'My Cart';
+      subtitleEl.textContent = `${totals.itemCount} item${totals.itemCount !== 1 ? 's' : ''} • ₹${fmtPrice(totals.subtotal)}`;
+      if (clearBtn) {
+        clearBtn.disabled = false;
+        clearBtn.classList.remove('disabled');
+      }
+    }
+  } else if (step === 'checkout') {
+    backBtn?.classList.remove('hidden');
+    clearBtn?.classList.add('hidden');
+    titleEl.textContent = 'Checkout';
+    subtitleEl.textContent = `${totals.itemCount} items • ₹${fmtPrice(totals.grandTotal)}`;
+  } else if (step === 'payment') {
+    backBtn?.classList.remove('hidden');
+    clearBtn?.classList.add('hidden');
+    titleEl.textContent = 'Payment';
+    subtitleEl.textContent = `${totals.itemCount} items • ₹${fmtPrice(totals.grandTotal)}`;
+  }
+}
+
+/* ─── RENDERING ENGINE ───────────────────────────────────── */
+function renderCurrentStep() {
+  switch (CartState.step) {
+    case 'cart':
+      renderCartStep();
+      break;
+    case 'checkout':
+      renderCheckoutStep();
+      break;
+    case 'payment':
+      renderPaymentStep();
+      break;
+    case 'success':
+      renderSuccessStep();
+      break;
+  }
+  syncCartBadge();
+}
+
+/* 1. CART STEP (EMPTY OR ITEMS) */
+function renderCartStep() {
+  const emptyContainer = document.getElementById('cartEmptyContainer');
+  const itemsContainer = document.getElementById('cartItemsContainer');
+  if (!emptyContainer || !itemsContainer) return;
+
+  const totals = getCartTotals();
+  updateHeaderForStep('cart');
+
+  if (CartState.items.length === 0) {
+    emptyContainer.style.display = 'block';
+    itemsContainer.style.display = 'none';
+    renderEmptyCartContent();
+  } else {
+    emptyContainer.style.display = 'none';
+    itemsContainer.style.display = 'block';
+    renderItemsCartContent(totals);
+  }
+}
+
+function renderEmptyCartContent() {
+  // Check contextual store return
+  const returnBtn = document.getElementById('btnEmptyReturnStore');
+  const returnName = document.getElementById('btnEmptyReturnStoreName');
+  const lastStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
+  const lastStoreName = sessionStorage.getItem('unimall_active_store_name') || localStorage.getItem('unimall_last_store_name');
+
+  if (returnBtn && returnName) {
+    if (lastStoreId) {
+      returnBtn.style.display = 'flex';
+      returnName.textContent = lastStoreName || 'Stationery Hub & Book Corner';
+      returnBtn.onclick = () => {
+        if (typeof window.navigate === 'function') {
+          window.navigate('store', { id: lastStoreId });
+        } else {
+          window.location.href = `index.html?view=store&id=${encodeURIComponent(lastStoreId)}`;
+        }
+      };
+    } else {
+      returnBtn.style.display = 'flex';
+      returnName.textContent = 'Stationery Hub & Book Corner';
+      returnBtn.onclick = () => {
+        if (typeof window.navigate === 'function') {
+          window.navigate('store', { id: 'book-corner' });
+        }
+      };
+    }
+  }
+
+  // Populate "Popular on UniMall" Carousel from real PRODUCTS
+  const carousel = document.getElementById('cartPopularCarousel');
+  if (carousel) {
+    const allProds = (typeof PRODUCTS !== 'undefined' && PRODUCTS.length > 0)
+      ? PRODUCTS
+      : ((typeof DEFAULT_PRODUCTS !== 'undefined') ? DEFAULT_PRODUCTS : []);
+
+    const popular = allProds.filter(p => p.isPopular || p.rating >= 4.5).slice(0, 8);
+
+    carousel.innerHTML = popular.map(p => {
+      const storeObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === p.storeId) : null;
+      const storeName = storeObj ? storeObj.name : 'UniMall Store';
+
+      return `
+        <div class="cart-product-mini-card">
+          <div class="mini-card-thumb">
+            ${p.image
+              ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="mini-thumb-fallback" style="display:none; background:${p.bg || '#EFF6FF'};">${p.emoji || '🛍️'}</div>`
+              : `<div class="mini-thumb-fallback" style="background:${p.bg || '#EFF6FF'};">${p.emoji || '🛍️'}</div>`}
+          </div>
+          <div class="mini-card-name" title="${p.name}">${p.name}</div>
+          <div class="mini-card-store">${storeName}</div>
+          <div class="mini-card-bottom">
+            <span class="mini-card-price">₹${fmtPrice(p.price)}</span>
+            <button type="button" class="mini-card-add-btn" data-pid="${p.id}" aria-label="Add ${p.name}">+</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    carousel.querySelectorAll('.mini-card-add-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addItemToCart(btn.dataset.pid);
+      });
+    });
+  }
+}
+
+function renderItemsCartContent(totals) {
+  // Store Return Banner
+  const banner = document.getElementById('cartStoreBanner');
+  const bannerName = document.getElementById('cartStoreBannerStoreName');
+
+  let storeId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
+  let storeName = sessionStorage.getItem('unimall_active_store_name') || localStorage.getItem('unimall_last_store_name');
+
+  if (!storeId && CartState.items.length > 0) {
+    storeId = CartState.items[0]?.product?.storeId;
+    const sObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === storeId) : null;
+    storeName = sObj ? sObj.name : 'Stationery Hub & Book Corner';
+  }
+
+  if (bannerName) bannerName.textContent = storeName || 'Stationery Hub & Book Corner';
+  if (banner) {
+    banner.onclick = () => {
+      if (typeof window.navigate === 'function') {
+        window.navigate('store', { id: storeId || 'book-corner' });
+      }
+    };
+  }
+
+  // Items List
+  const listEl = document.getElementById('cartFlowItemsList');
+  if (listEl) {
+    listEl.innerHTML = CartState.items.map(item => {
+      const p = item.product;
+      const sObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === p.storeId) : null;
+      const sName = sObj ? sObj.name : 'UniMall Store';
+
+      return `
+        <div class="cart-flow-item-card" data-pid="${item.productId}">
+          <div class="flow-item-thumb">
+            ${p.image
+              ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="flow-thumb-fallback" style="display:none; background:${p.bg || '#EFF6FF'};">${p.emoji || '📦'}</div>`
+              : `<div class="flow-thumb-fallback" style="background:${p.bg || '#EFF6FF'};">${p.emoji || '📦'}</div>`}
+          </div>
+
+          <div class="flow-item-details">
+            <div class="flow-item-name" title="${p.name}">${p.name}</div>
+            <div class="flow-item-store">${sName}</div>
+            <div class="flow-item-price">₹${fmtPrice(p.price)}</div>
+          </div>
+
+          <div class="flow-item-actions">
+            <button type="button" class="flow-item-delete-btn" data-pid="${item.productId}" aria-label="Remove ${p.name}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+            <div class="flow-item-stepper">
+              <button type="button" class="flow-stepper-btn btn-dec" data-pid="${item.productId}">−</button>
+              <span class="flow-stepper-val">${item.qty}</span>
+              <button type="button" class="flow-stepper-btn btn-inc" data-pid="${item.productId}">+</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.btn-dec').forEach(btn => {
+      btn.onclick = () => updateItemQty(btn.dataset.pid, -1);
+    });
+    listEl.querySelectorAll('.btn-inc').forEach(btn => {
+      btn.onclick = () => updateItemQty(btn.dataset.pid, 1);
+    });
+    listEl.querySelectorAll('.flow-item-delete-btn').forEach(btn => {
+      btn.onclick = () => removeItem(btn.dataset.pid);
+    });
+  }
+
+  // Populate "You might also like" recommendations
+  const recsCarousel = document.getElementById('cartRecsCarousel');
+  if (recsCarousel) {
+    const existingPids = new Set(CartState.items.map(i => i.productId));
+    const allProds = (typeof PRODUCTS !== 'undefined' && PRODUCTS.length > 0)
+      ? PRODUCTS
+      : ((typeof DEFAULT_PRODUCTS !== 'undefined') ? DEFAULT_PRODUCTS : []);
+
+    const recs = allProds.filter(p => !existingPids.has(p.id)).slice(0, 6);
+
+    recsCarousel.innerHTML = recs.map(p => {
+      const sObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === p.storeId) : null;
+      const sName = sObj ? sObj.name : 'UniMall Store';
+
+      return `
+        <div class="cart-product-mini-card">
+          <div class="mini-card-thumb">
+            ${p.image
+              ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                 <div class="mini-thumb-fallback" style="display:none; background:${p.bg || '#EFF6FF'};">${p.emoji || '🛍️'}</div>`
+              : `<div class="mini-thumb-fallback" style="background:${p.bg || '#EFF6FF'};">${p.emoji || '🛍️'}</div>`}
+          </div>
+          <div class="mini-card-name" title="${p.name}">${p.name}</div>
+          <div class="mini-card-store">${sName}</div>
+          <div class="mini-card-bottom">
+            <span class="mini-card-price">₹${fmtPrice(p.price)}</span>
+            <button type="button" class="mini-card-add-btn" data-pid="${p.id}" aria-label="Add ${p.name}">+</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    recsCarousel.querySelectorAll('.mini-card-add-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addItemToCart(btn.dataset.pid);
+      });
+    });
+  }
+
+  // Sticky Bar pricing
+  const totalEl = document.getElementById('cartBarTotalPrice');
+  const countEl = document.getElementById('cartBarItemCount');
+  if (totalEl) totalEl.textContent = `₹${fmtPrice(totals.grandTotal)}`;
+  if (countEl) countEl.textContent = `${totals.itemCount} item${totals.itemCount !== 1 ? 's' : ''}`;
+}
+
+/* 2. CHECKOUT STEP */
+function renderCheckoutStep() {
+  updateHeaderForStep('checkout');
+
+  const fPickup = document.getElementById('fOptionPickup');
+  const fDelivery = document.getElementById('fOptionDelivery');
+  const secPickup = document.getElementById('sectionPickupLocation');
+  const secDelivery = document.getElementById('sectionDeliveryLocation');
+
+  if (CartState.fulfillmentType === 'pickup') {
+    fPickup?.classList.add('active');
+    fDelivery?.classList.remove('active');
+    if (secPickup) secPickup.style.display = 'block';
+    if (secDelivery) secDelivery.style.display = 'none';
+  } else {
+    fDelivery?.classList.add('active');
+    fPickup?.classList.remove('active');
+    if (secPickup) secPickup.style.display = 'none';
+    if (secDelivery) secDelivery.style.display = 'block';
+  }
+
+  const stationTitle = document.getElementById('checkoutStationTitle');
+  const stationDesc = document.getElementById('checkoutStationDesc');
+  if (stationTitle) stationTitle.textContent = CartState.pickupLocation.name;
+  if (stationDesc) stationDesc.textContent = CartState.pickupLocation.desc;
+
+  const hostelSelect = document.getElementById('checkoutHostelSelect');
+  const roomInput = document.getElementById('checkoutRoomInput');
+  if (hostelSelect && CartState.deliveryInfo.hostel) hostelSelect.value = CartState.deliveryInfo.hostel;
+  if (roomInput && CartState.deliveryInfo.room) roomInput.value = CartState.deliveryInfo.room;
+}
+
+/* 3. PAYMENT STEP */
+function renderPaymentStep() {
+  updateHeaderForStep('payment');
+  const totals = getCartTotals();
+
+  // Summary Lines
+  const subtotalEl = document.getElementById('paySummarySubtotal');
+  const discRow = document.getElementById('paySummaryDiscountRow');
+  const discCode = document.getElementById('paySummaryDiscountCode');
+  const discVal = document.getElementById('paySummaryDiscountVal');
+  const fulLabel = document.getElementById('paySummaryFulfillmentLabel');
+  const fulVal = document.getElementById('paySummaryFulfillmentVal');
+  const packVal = document.getElementById('paySummaryPackagingVal');
+  const totalVal = document.getElementById('paySummaryTotalVal');
+  const payBtnText = document.getElementById('btnPayAmountText');
+
+  if (subtotalEl) subtotalEl.textContent = `₹${fmtPrice(totals.subtotal)}`;
+
+  if (discRow && discCode && discVal) {
+    if (totals.discountAmount > 0) {
+      discRow.style.display = 'flex';
+      discCode.textContent = CartState.appliedCoupon || '';
+      discVal.textContent = `-₹${fmtPrice(totals.discountAmount)}`;
+    } else {
+      discRow.style.display = 'none';
+    }
+  }
+
+  if (fulLabel && fulVal) {
+    if (CartState.fulfillmentType === 'pickup') {
+      fulLabel.textContent = 'Fulfilment (Self-Pickup)';
+      fulVal.textContent = 'FREE';
+      fulVal.className = 'free-text';
+    } else {
+      fulLabel.textContent = 'Fulfilment (Campus Delivery)';
+      fulVal.textContent = `₹${fmtPrice(totals.deliveryFee)}`;
+      fulVal.className = '';
+    }
+  }
+
+  if (packVal) packVal.textContent = `₹${totals.packagingFee}`;
+  if (totalVal) totalVal.textContent = `₹${fmtPrice(totals.grandTotal)}`;
+  if (payBtnText) payBtnText.textContent = `Pay ₹${fmtPrice(totals.grandTotal)}`;
+
+  // Payment method selection
+  const rzpCard = document.getElementById('payOptionRazorpay');
+  const shopCard = document.getElementById('payOptionShop');
+  if (CartState.paymentMethod === 'razorpay') {
+    rzpCard?.classList.add('active');
+    shopCard?.classList.remove('active');
+  } else {
+    shopCard?.classList.add('active');
+    rzpCard?.classList.remove('active');
+  }
+
+  // Populate drawer
+  const drawerList = document.getElementById('summaryDrawerList');
+  if (drawerList) {
+    drawerList.innerHTML = CartState.items.map(item => `
+      <div class="summary-drawer-item">
+        <span class="drawer-item-title">${item.product.name} <span class="drawer-item-qty">×${item.qty}</span></span>
+        <span class="drawer-item-price">₹${fmtPrice(item.product.price * item.qty)}</span>
+      </div>
+    `).join('');
+  }
+}
+
+/* 4. ORDER SUCCESS STEP */
+function renderSuccessStep() {
+  updateHeaderForStep('success');
+
+  const orderNumEl = document.getElementById('successOrderNumText');
+  const metaEl = document.getElementById('successOrderMetaText');
+  const locTitle = document.getElementById('successLocationTitle');
+  const locSub = document.getElementById('successLocationSub');
+  const etaEl = document.getElementById('successEtaPillText');
+
+  const primaryOrder = CartState.lastCreatedOrder || {};
+  const orders = CartState.lastCreatedOrders || [primaryOrder];
+
+  if (orderNumEl) {
+    orderNumEl.textContent = `Order ${primaryOrder.order_number_display || primaryOrder.orderNumber || '#UM-2841'}`;
+  }
+
+  if (metaEl) {
+    const totalCount = orders.reduce((sum, o) => sum + (o.items ? o.items.length : 0), 0) || primaryOrder.items?.length || 1;
+    const totalAmount = orders.reduce((sum, o) => sum + (o.total || 0), 0) || primaryOrder.total || 0;
+    metaEl.textContent = `${totalCount} item${totalCount !== 1 ? 's' : ''} • ₹${fmtPrice(totalAmount)}`;
+  }
+
+  if (locTitle && locSub) {
+    if (primaryOrder.fulfillmentType === 'delivery') {
+      locTitle.textContent = 'Delivery to Campus';
+      locSub.textContent = `${primaryOrder.customer?.hostel || CartState.deliveryInfo.hostel || 'Hostel'} · ${primaryOrder.customer?.room || CartState.deliveryInfo.room || 'Room'}`;
+    } else {
+      locTitle.textContent = 'Campus Counter Pickup';
+      locSub.textContent = primaryOrder.pickupLocation || CartState.pickupLocation.desc || 'Ground Floor, University Mall';
+    }
+  }
+
+  if (etaEl) {
+    etaEl.textContent = 'Estimated ready in 10–15 minutes';
+  }
+}
+
+/* ─── ONE UNIQUE SUBTLE CHIME FOR ORDER PLACEMENT ────────── */
 function playOrderPlacedChime() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -253,30 +757,23 @@ function playOrderPlacedChime() {
     if (ctx.state === 'suspended') ctx.resume();
 
     const now = ctx.currentTime;
-    // Elegant, warm 3-note ascending luxury chime (C5 -> E5 -> G5)
     const notes = [523.25, 659.25, 783.99];
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, now + i * 0.08);
-
       gain.gain.setValueAtTime(0.08, now + i * 0.08);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.38);
-
       osc.connect(gain);
       gain.connect(ctx.destination);
-
       osc.start(now + i * 0.08);
       osc.stop(now + i * 0.08 + 0.40);
     });
-  } catch (e) {
-    // Audio policy fallback
-  }
+  } catch (e) { }
 }
 
-/* ─── PLACE ORDER (CHECKOUT ENGINE & RAZORPAY GATEWAY) ───── */
+/* ─── ORDER EXECUTION (INTEGRATED WITH NEON DB) ──────────── */
 function handlePlaceOrder() {
   if (CartState.items.length === 0) {
     showToast('Your cart is empty!');
@@ -284,50 +781,43 @@ function handlePlaceOrder() {
   }
 
   const totals = getCartTotals();
-  const placeBtn = document.getElementById('placeOrderBtn');
+  const payBtn = document.getElementById('btnExecutePayment');
 
-  function resetPlaceBtn() {
-    if (placeBtn) {
-      placeBtn.disabled = false;
-      placeBtn.innerHTML = `
-        <span>Pay & Place Order</span>
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+  function resetPayBtn() {
+    if (payBtn) {
+      payBtn.disabled = false;
+      payBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Pay ₹${fmtPrice(totals.grandTotal)}</span>
       `;
     }
   }
 
-  // Check if Razorpay is chosen
-  const isRazorpay = CartState.paymentMethod === 'razorpay' || CartState.paymentMethod === 'upi' || CartState.paymentMethod === 'card';
-
-  // Configurable Razorpay bypass flag (set to false to enable real Razorpay Checkout)
+  const isRazorpay = CartState.paymentMethod === 'razorpay';
   const bypassRazorpay = (typeof window.BYPASS_RAZORPAY !== 'undefined') ? window.BYPASS_RAZORPAY : false;
 
   if (isRazorpay) {
-    if (placeBtn) {
-      placeBtn.disabled = true;
-      placeBtn.innerHTML = `<span>Connecting to Razorpay...</span>`;
+    if (payBtn) {
+      payBtn.disabled = true;
+      payBtn.innerHTML = `<span>Connecting to Razorpay...</span>`;
     }
 
-    // Direct Instant Checkout Bypass Mode (if explicitly turned on)
     if (bypassRazorpay) {
-      console.log('[Checkout] Razorpay bypassed for testing — completing payment instantly');
       setTimeout(async () => {
         try {
           const mockPaymentId = 'rzp_test_' + Date.now();
           await executeOrderCreation(mockPaymentId, 'Instant Pay (Verified)');
         } catch (err) {
-          resetPlaceBtn();
-          showToast('Order creation failed: ' + err.message, 'error');
+          resetPayBtn();
+          showToast('Order creation failed: ' + err.message);
         }
       }, 500);
       return;
     }
 
-    const amountInPaise = Math.max(100, Math.round(totals.grandTotal * 100)); // Minimum ₹1 for test gateway
+    const amountInPaise = Math.max(100, Math.round(totals.grandTotal * 100));
     const rawStoreId = CartState.items[0]?.product?.storeId || 'campus-cafe';
-    const storeObj = (typeof STORES !== 'undefined')
-      ? STORES.find(s => s.id === rawStoreId)
-      : null;
+    const storeObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === rawStoreId) : null;
     const storeName = storeObj ? storeObj.name : 'Campus Store';
 
     let user = {};
@@ -336,11 +826,14 @@ function handlePlaceOrder() {
       if (authRaw) user = JSON.parse(authRaw);
     } catch(e) {}
 
-    // Check if Razorpay SDK is loaded
     if (typeof Razorpay === 'undefined') {
-      console.warn('Razorpay SDK not loaded — proceeding with mock secure payment test');
-      setTimeout(() => {
-        executeOrderCreation('rzp_mock_' + Date.now(), 'Razorpay Instant (Verified)');
+      setTimeout(async () => {
+        try {
+          await executeOrderCreation('rzp_mock_' + Date.now(), 'Razorpay Instant (Verified)');
+        } catch(err) {
+          resetPayBtn();
+          showToast('Order creation failed: ' + err.message);
+        }
       }, 600);
       return;
     }
@@ -350,34 +843,28 @@ function handlePlaceOrder() {
       amount: amountInPaise,
       currency: 'INR',
       name: 'UniMall · ' + storeName,
-      description: `Counter Pickup Order (${CartState.items.length} items)`,
-        image: '/favicon.png',
+      description: `${CartState.fulfillmentType === 'delivery' ? 'Campus Delivery' : 'Counter Pickup'} Order (${CartState.items.length} items)`,
+      image: '/favicon.png',
       prefill: {
         name: user.name || '',
         email: user.email || '',
         contact: user.phone || ''
       },
-      theme: {
-        color: '#2563EB'
-      },
+      theme: { color: '#2563EB' },
       modal: {
         ondismiss: function() {
-          // ATOMICITY: User closed payment window. Money NOT deducted, order NOT created, cart preserved!
-          resetPlaceBtn();
-          showToast('Payment cancelled. Your card/account was not charged.', 'info');
+          resetPayBtn();
+          showToast('Payment cancelled. Your account was not charged.');
         }
       },
       handler: async function(response) {
-        // ATOMICITY: Money successfully confirmed! NOW create and persist order
-        if (placeBtn) {
-          placeBtn.innerHTML = `<span>Payment Confirmed! Finalizing...</span>`;
-        }
+        if (payBtn) payBtn.innerHTML = `<span>Payment Confirmed! Finalizing...</span>`;
         try {
           const paymentId = response.razorpay_payment_id || ('rzp_pay_' + Date.now());
           await executeOrderCreation(paymentId, 'Razorpay Instant (Paid)');
         } catch (err) {
-          resetPlaceBtn();
-          showToast('Payment verified but order creation failed: ' + err.message, 'error');
+          resetPayBtn();
+          showToast('Payment verified but order creation failed: ' + err.message);
         }
       }
     };
@@ -385,43 +872,41 @@ function handlePlaceOrder() {
     try {
       const rzp = new Razorpay(options);
       rzp.on('payment.failed', function(resp) {
-        // ATOMICITY: Payment failed at bank/gateway level. Handle exception securely.
-        resetPlaceBtn();
+        resetPayBtn();
         const errDesc = resp.error?.description || 'Transaction declined by bank';
-        console.error('[Razorpay] Payment Failure:', resp.error);
-        showToast(`Payment failed: ${errDesc}. No money was deducted.`, 'error');
+        showToast(`Payment failed: ${errDesc}`);
       });
       rzp.open();
-    } catch(err) {
-      resetPlaceBtn();
-      console.error('[Razorpay] Gateway Init Error:', err);
-      showToast('Could not initialize payment gateway: ' + err.message, 'error');
+    } catch (err) {
+      resetPayBtn();
+      showToast('Could not open payment window: ' + err.message);
     }
   } else {
-    // Pay at Counter (Cash/UPI upon counter collection)
-    if (placeBtn) {
-      placeBtn.disabled = true;
-      placeBtn.innerHTML = `<span>Processing Order...</span>`;
+    // Pay at the Shop
+    if (payBtn) {
+      payBtn.disabled = true;
+      payBtn.innerHTML = `<span>Processing Order...</span>`;
     }
-    setTimeout(() => {
-      executeOrderCreation(null, 'Pay at Counter');
-    }, 400);
+    setTimeout(async () => {
+      try {
+        await executeOrderCreation(null, 'Pay at the Shop');
+      } catch(err) {
+        resetPayBtn();
+        showToast('Order failed: ' + err.message);
+      }
+    }, 450);
   }
 }
 
 async function executeOrderCreation(paymentId, paymentMethodLabel) {
   const totals = getCartTotals();
-  const placeBtn = document.getElementById('placeOrderBtn');
+  const payBtn = document.getElementById('btnExecutePayment');
 
   try {
     let appData = {};
     const raw = localStorage.getItem(CART_STORAGE_KEY);
-    if (raw) {
-      appData = JSON.parse(raw);
-    }
-    if (!Array.isArray(appData.orders)) {
-      appData.orders = [];
-    }
+    if (raw) appData = JSON.parse(raw);
+    if (!Array.isArray(appData.orders)) appData.orders = [];
 
     let activeUser = (typeof window.UserManager !== 'undefined' && window.UserManager.getActiveUser)
       ? window.UserManager.getActiveUser()
@@ -437,12 +922,11 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     const studentNumber = numMatch ? numMatch[0] : (String(userId).replace(/\D/g, '') || '1');
     const studentEmail = user.email || (user.profile && user.profile.email) || `student${studentNumber}@campus.edu`;
 
-    // Ensure user is synced to Neon PostgreSQL
     if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.syncUser === 'function') {
       window.UniMallDB.syncUser({ id: userId, uid: userId, name: studentName, email: studentEmail, phone: studentPhone }).catch(() => {});
     }
 
-    // 2. Multi-Store Cart Splitting: Group items by canonical store ID
+    // Multi-store grouping
     const CANONICAL_STORE_MAP = {
       'store-bakery':      'campus-cafe',
       'store-stationery':  'book-corner',
@@ -464,22 +948,18 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
     const storeIds = Object.keys(storeGroups);
     const createdOrders = [];
 
-    if (!Array.isArray(appData.orders)) {
-      appData.orders = [];
-    }
-    appData.orders = appData.orders.filter(o => o.user_id === userId || !o.user_id);
-
-    // Create an isolated, dedicated order per campus store
     for (const sId of storeIds) {
       const sItems = storeGroups[sId];
       const sSubtotal = sItems.reduce((sum, it) => sum + ((it.product?.price || 0) * it.qty), 0);
       const sDiscount = totals.subtotal > 0 ? Math.round((sSubtotal / totals.subtotal) * totals.discountAmount) : 0;
+      const sDelivery = totals.subtotal > 0 ? Math.round((sSubtotal / totals.subtotal) * totals.deliveryFee) : 0;
       const sPackaging = totals.subtotal > 0 ? Math.round((sSubtotal / totals.subtotal) * totals.packagingFee) : 0;
-      const sTotal = Math.max(0, sSubtotal - sDiscount + sPackaging);
+      const sTotal = Math.max(0, sSubtotal - sDiscount + sDelivery + sPackaging);
 
       const storeObj = (typeof STORES !== 'undefined') ? STORES.find(s => s.id === sId) : null;
       const sName = storeObj ? storeObj.name : 'Campus Store';
       const orderId = 'UM' + Math.floor(10000 + Math.random() * 90000);
+
       let displayOrderNum = '#ORD-01';
       if (typeof window.UniMallDB !== 'undefined' && typeof window.UniMallDB.getNextStoreOrderNumber === 'function') {
         displayOrderNum = await window.UniMallDB.getNextStoreOrderNumber(sId);
@@ -487,6 +967,7 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         const localStoreOrders = (appData.orders || []).filter(o => o.storeId === sId || o.store_id === sId);
         displayOrderNum = `#ORD-${String(localStoreOrders.length + 1).padStart(2, '0')}`;
       }
+
       const alreadyInBatch = createdOrders.filter(o => o.storeId === sId).length;
       if (alreadyInBatch > 0) {
         const m = displayOrderNum.match(/#?ORD-(\d+)/i);
@@ -505,7 +986,9 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         customer: {
           name: studentName,
           phone: studentPhone,
-          email: studentEmail
+          email: studentEmail,
+          hostel: CartState.deliveryInfo.hostel,
+          room: CartState.deliveryInfo.room
         },
         storeId: sId,
         storeName: sName,
@@ -519,12 +1002,12 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
           emoji: item.product.emoji || '📦'
         })),
         subtotal: sSubtotal,
-        deliveryFee: 0,
+        deliveryFee: sDelivery,
         discount: sDiscount,
         packagingFee: sPackaging,
         total: sTotal,
-        fulfillmentType: 'pickup',
-        pickupLocation: 'Ground floor, near main entrance',
+        fulfillmentType: CartState.fulfillmentType,
+        pickupLocation: CartState.pickupLocation.desc,
         otp: otp,
         orderNotes: CartState.orderNotes,
         paymentMethod: paymentMethodLabel,
@@ -532,12 +1015,12 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         paymentStatus: paymentId ? 'PAID' : 'PENDING_AT_COUNTER',
         status: 'placed',
         statusHistory: [
-          { status: 'placed', time: new Date().toISOString(), label: 'Order Placed & Paid' }
+          { status: 'placed', time: new Date().toISOString(), label: 'Order Placed & Confirmed' }
         ],
         createdAt: new Date().toISOString()
       };
 
-      // 1. Insert into Neon PostgreSQL
+      // Persist to Neon PostgreSQL
       if (typeof window.UniMallDB !== 'undefined') {
         const supabasePayload = {
           id: orderId,
@@ -546,13 +1029,13 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
           user_name: studentName,
           user_email: studentEmail,
           user_phone: studentPhone,
-          user_hostel: user.hostel || 'Counter Pickup',
-          user_room: user.room || 'Ground Floor Station',
+          user_hostel: CartState.deliveryInfo.hostel || 'Ground Floor',
+          user_room: CartState.deliveryInfo.room || 'Pickup Station',
           store_id: sId,
           status: 'placed',
-          fulfillment_type: 'pickup',
+          fulfillment_type: CartState.fulfillmentType,
           subtotal: sSubtotal,
-          delivery_fee: 0,
+          delivery_fee: sDelivery,
           total: sTotal,
           payment_method: paymentMethodLabel,
           notes: CartState.orderNotes || ''
@@ -563,11 +1046,10 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         });
       }
 
-      // Add to local state & list
       appData.orders.unshift(newOrder);
       createdOrders.push(newOrder);
 
-      // Trigger Cross-Tab Realtime storage notification for store owner
+      // Trigger cross-tab realtime notification
       try {
         localStorage.setItem('unimall_new_order_placed_event', JSON.stringify({
           orderId: newOrder.id,
@@ -580,7 +1062,6 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         }));
       } catch(e) {}
 
-      // Broadcast on BroadcastChannel for instant live sync without reload
       try {
         const bc = new BroadcastChannel('unimall_orders_channel');
         bc.postMessage({
@@ -596,217 +1077,37 @@ async function executeOrderCreation(paymentId, paymentMethodLabel) {
         bc.close();
       } catch(e) {}
 
-      // Dispatch local custom event for reactive banner & views
       try {
         window.dispatchEvent(new CustomEvent('unimall:orderPlaced', { detail: newOrder }));
       } catch(e) {}
     }
 
-    // Clear cart ONLY AFTER all store orders are registered
+    // Clear cart in local storage and state
     appData.cart = [];
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(appData));
+    CartState.items = [];
+    if (typeof AppState !== 'undefined') AppState.cart = [];
 
-    // Celebration: Subtle chime + confetti + exciting pop-up
+    // Chime & Confetti
     playOrderPlacedChime();
     if (typeof window.UniMallConfetti === 'function') window.UniMallConfetti();
 
-    const modal = document.getElementById('orderSuccessModal');
-    const idEl = document.getElementById('successOrderIdText');
-    const etaEl = document.getElementById('successEtaText');
-    const trackBtn = document.getElementById('btnTrackSuccess');
+    // Transition to ORDER SUCCESS step
+    CartState.lastCreatedOrder = createdOrders[0] || {};
+    CartState.lastCreatedOrders = createdOrders;
+    setCartStep('success');
 
-    const primaryOrder = createdOrders[0] || {};
-    if (idEl) {
-      if (createdOrders.length > 1) {
-        idEl.textContent = `${createdOrders.length} Orders Placed (${createdOrders.map(o => o.order_number_display).join(', ')})`;
-      } else {
-        idEl.textContent = `Order ${primaryOrder.order_number_display || ''}`;
-      }
-    }
-    if (etaEl) {
-      if (createdOrders.length > 1) {
-        etaEl.innerHTML = `🛍️ Split across <strong>${createdOrders.map(o => o.storeName).join(' & ')}</strong> · Collect at respective store counters`;
-      } else {
-        etaEl.innerHTML = `🛍️ Ready for counter pickup at <strong>${primaryOrder.storeName || 'Campus Store'}</strong> in ~10–15 mins · OTP: <strong>${primaryOrder.otp || '4829'}</strong>`;
-      }
-    }
-    if (trackBtn) {
-      trackBtn.onclick = () => {
-        if (modal) {
-          modal.classList.remove('show');
-          modal.style.display = 'none';
-        }
-        if (typeof window.navigate === 'function') {
-          window.navigate('orders');
-        } else {
-          window.location.href = 'index.html?view=orders';
-        }
-      };
-    }
-
-    if (modal) {
-      modal.style.display = 'flex';
-      requestAnimationFrame(() => modal.classList.add('show'));
-    } else {
-      setTimeout(() => {
-        if (typeof window.navigate === 'function') {
-          window.navigate('orders');
-        } else {
-          window.location.href = 'index.html?view=orders';
-        }
-      }, 1200);
-    }
   } catch (e) {
-    console.error('Order placement error:', e);
-    if (placeBtn) {
-      placeBtn.disabled = false;
-      placeBtn.innerHTML = `
-        <span>Pay & Place Order</span>
-        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      `;
+    console.error('[Cart] Order placement error:', e);
+    if (payBtn) {
+      payBtn.disabled = false;
+      payBtn.innerHTML = `<span>Try Again</span>`;
     }
     showToast('Error placing order. Please try again.');
   }
 }
 
-/* ─── RENDERING ──────────────────────────────────────────── */
-function renderCartContent() {
-  const contentWrap = document.getElementById('cartContentWrap');
-  const emptyState = document.getElementById('emptyCartState');
-  const itemsList = document.getElementById('cartItemsList');
-  const itemsCountBadge = document.getElementById('itemsCountBadge');
-  const cartSubtitle = document.getElementById('cartSubtitle');
-  const clearBtn = document.getElementById('clearCartBtn');
-
-  if (!contentWrap || !emptyState) return;
-
-  const totals = getCartTotals();
-
-  if (CartState.items.length === 0) {
-    contentWrap.classList.add('hidden');
-    emptyState.classList.remove('hidden');
-    if (clearBtn) clearBtn.classList.add('hidden');
-    if (cartSubtitle) cartSubtitle.textContent = 'Your cart is empty';
-    return;
-  }
-
-  contentWrap.classList.remove('hidden');
-  emptyState.classList.add('hidden');
-  if (clearBtn) clearBtn.classList.remove('hidden');
-
-  if (itemsCountBadge) {
-    itemsCountBadge.textContent = `${totals.itemCount} item${totals.itemCount !== 1 ? 's' : ''}`;
-  }
-  if (cartSubtitle) {
-    cartSubtitle.textContent = `${totals.itemCount} item${totals.itemCount !== 1 ? 's' : ''} in your cart`;
-  }
-
-  // Render items
-  if (itemsList) {
-    itemsList.innerHTML = CartState.items.map(item => {
-      const p = item.product;
-      const storeObj = (typeof STORES !== 'undefined')
-        ? STORES.find(s => s.id === p.storeId)
-        : null;
-
-      const imgHtml = p.image
-        ? `<img src="${p.image}" alt="${p.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="cart-item-fallback" style="display:none; background:${p.bg || '#EFF6FF'};">${p.emoji || '📦'}</div>`
-        : `<div class="cart-item-fallback" style="background:${p.bg || '#EFF6FF'};">${p.emoji || '📦'}</div>`;
-
-      return `
-        <div class="cart-item-card" data-pid="${item.productId}">
-          <div class="cart-item-thumb">
-            ${imgHtml}
-          </div>
-
-          <div class="cart-item-details">
-            <div class="cart-item-name">${p.name}</div>
-            <div class="cart-item-store">${storeObj ? storeObj.name : 'UniMall Store'}</div>
-            <div class="cart-item-price-unit">₹${fmtPrice(p.price)}</div>
-          </div>
-
-          <div class="cart-item-actions">
-            <button class="delete-item-btn" data-pid="${item.productId}" aria-label="Remove ${p.name}">
-              <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            </button>
-
-            <div class="qty-stepper">
-              <button class="qty-btn btn-dec" data-pid="${item.productId}">−</button>
-              <span class="qty-val">${item.qty}</span>
-              <button class="qty-btn btn-inc" data-pid="${item.productId}">+</button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    // Attach quantity event handlers
-    itemsList.querySelectorAll('.btn-dec').forEach(btn => {
-      btn.addEventListener('click', () => updateItemQty(btn.dataset.pid, -1));
-    });
-    itemsList.querySelectorAll('.btn-inc').forEach(btn => {
-      btn.addEventListener('click', () => updateItemQty(btn.dataset.pid, 1));
-    });
-    itemsList.querySelectorAll('.delete-item-btn').forEach(btn => {
-      btn.addEventListener('click', () => removeItem(btn.dataset.pid));
-    });
-  }
-
-  renderBillBreakdown();
-  renderCouponSection();
-}
-
-function renderBillBreakdown() {
-  const totals = getCartTotals();
-
-  const billSubtotal = document.getElementById('billSubtotal');
-  const billDeliveryFee = document.getElementById('billDeliveryFee') || document.getElementById('billDelivery');
-  const billDiscountRow = document.getElementById('billDiscountRow');
-  const billDiscount = document.getElementById('billDiscount');
-  const billPackaging = document.getElementById('billPackaging');
-  const billGrandTotal = document.getElementById('billGrandTotal') || document.getElementById('billTotal');
-  const checkoutFooterPrice = document.getElementById('checkoutFooterPrice');
-
-  if (billSubtotal) billSubtotal.textContent = `₹${fmtPrice(totals.subtotal)}`;
-  if (billDeliveryFee) {
-    billDeliveryFee.textContent = totals.deliveryFee > 0 ? `₹${fmtPrice(totals.deliveryFee)}` : 'FREE';
-  }
-  if (billPackaging) {
-    billPackaging.textContent = `₹${totals.packagingFee}`;
-  }
-
-  if (billDiscountRow && billDiscount) {
-    if (totals.discountAmount > 0) {
-      billDiscountRow.classList.remove('hidden');
-      billDiscountRow.style.display = 'flex';
-      billDiscount.textContent = `-₹${fmtPrice(totals.discountAmount)}`;
-    } else {
-      billDiscountRow.classList.add('hidden');
-      billDiscountRow.style.display = 'none';
-    }
-  }
-
-  if (billGrandTotal) billGrandTotal.textContent = `₹${fmtPrice(totals.grandTotal)}`;
-  if (checkoutFooterPrice) checkoutFooterPrice.textContent = `₹${fmtPrice(totals.grandTotal)}`;
-}
-
-function renderCouponSection() {
-  const couponAppliedTag = document.getElementById('couponAppliedTag');
-  const appliedCouponText = document.getElementById('appliedCouponText');
-  const couponInput = document.getElementById('couponInput');
-
-  if (!couponAppliedTag || !appliedCouponText) return;
-
-  if (CartState.appliedCoupon && _PROMO_CODES[CartState.appliedCoupon]) {
-    couponAppliedTag.classList.remove('hidden');
-    appliedCouponText.textContent = `${CartState.appliedCoupon} applied (${_PROMO_CODES[CartState.appliedCoupon].label})`;
-    if (couponInput) couponInput.value = '';
-  } else {
-    couponAppliedTag.classList.add('hidden');
-  }
-}
-
-/* ─── TOAST ──────────────────────────────────────────────── */
+/* ─── TOAST NOTIFICATION ─────────────────────────────────── */
 let toastTimeout = null;
 function showToast(message) {
   const toast = document.getElementById('cartToast');
@@ -819,25 +1120,7 @@ function showToast(message) {
   if (toastTimeout) clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => {
     toast.classList.add('hidden');
-  }, 2800);
-}
-
-/* ─── DYNAMIC DELIVERY ESTIMATE ─────────────────────────── */
-function updateDeliveryEstimate() {
-  const estText = document.getElementById('deliveryEstimateText');
-  const hostelInput = document.getElementById('hostelInput');
-  if (!estText) return;
-
-  const hostelName = (hostelInput && hostelInput.value.trim()) || 'your hostel';
-  const hour = new Date().getHours();
-
-  if (hour >= 22 || hour < 5) {
-    estText.innerHTML = `<strong>🌙 Late Night Delivery:</strong> ~25–35 mins to ${hostelName} · Campus runner active`;
-  } else if (hour >= 12 && hour <= 14) {
-    estText.innerHTML = `<strong>⚡ Lunch Rush:</strong> ~20–25 mins to ${hostelName} · Direct room drop`;
-  } else {
-    estText.innerHTML = `<strong>⚡ Express Delivery:</strong> ~15–20 mins to ${hostelName} · Direct room drop`;
-  }
+  }, 2600);
 }
 
 /* ─── CART BADGE SYNC ────────────────────────────────────── */
@@ -848,6 +1131,8 @@ function syncCartBadge() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed.cart)) items = parsed.cart;
+    } else {
+      items = CartState.items;
     }
     const totalCount = items.reduce((sum, item) => sum + (item.qty || 1), 0);
     const badges = document.querySelectorAll('.nav-badge, .cart-badge, .sidebar-badge');
@@ -861,251 +1146,221 @@ function syncCartBadge() {
   } catch (e) { }
 }
 
-function syncSidebarProfile() {
-  try {
-    let user = null;
-    const v1 = localStorage.getItem(CART_STORAGE_KEY);
-    if (v1) {
-      const parsed = JSON.parse(v1);
-      if (parsed.currentUser) user = parsed.currentUser;
-    }
-    const auth = localStorage.getItem('unimall_auth');
-    if (auth) {
-      const parsedAuth = JSON.parse(auth);
-      user = { ...(user || {}), ...parsedAuth };
-    }
-    if (!user) return;
-
-    const nameEl = document.querySelector('.sidebar-profile-name');
-    const roleEl = document.querySelector('.sidebar-profile-role');
-    const avatarEl = document.querySelector('.sidebar-avatar');
-
-    if (nameEl) nameEl.textContent = user.name || 'Campus Student';
-    if (roleEl) {
-      if (user.hostel && user.room) {
-        roleEl.textContent = `${user.hostel} · ${user.room}`;
-      } else {
-        roleEl.textContent = user.email || 'Campus Account';
-      }
-    }
-    if (avatarEl) {
-      const initial = (user.name && user.name.trim()) ? user.name.trim().charAt(0).toUpperCase() : 'U';
-      avatarEl.innerHTML = `<span style="font-weight:800;font-size:14px;color:#ffffff;line-height:1;">${initial}</span>`;
-      avatarEl.style.background = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
-      avatarEl.style.display = 'flex';
-      avatarEl.style.alignItems = 'center';
-      avatarEl.style.justifyContent = 'center';
-      avatarEl.style.borderRadius = '50%';
-    }
-  } catch (e) { }
-}
-
-/* ─── CONTEXTUAL STORE NAVIGATION ────────────────────────── */
-function syncStoreNavigation() {
-  try {
-    let targetStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
-    let targetStoreName = sessionStorage.getItem('unimall_active_store_name') || localStorage.getItem('unimall_last_store_name');
-
-    // If not in storage, detect store from cart items
-    if (!targetStoreId && CartState.items.length > 0) {
-      const itemWithStore = CartState.items.find(i => i.product && (i.product.storeId || i.storeId));
-      if (itemWithStore) {
-        targetStoreId = itemWithStore.product?.storeId || itemWithStore.storeId;
-        targetStoreName = itemWithStore.product?.storeName || itemWithStore.storeName;
-      }
-    }
-
-    // Map store ID to catalog ID if using dataId
-    const storeMap = {
-      'campus-cafe': 'store-bakery',
-      'book-corner': 'store-stationery',
-      'campus-mart': 'store-sports',
-      'tech-hub': 'store-electronics',
-      'fashion-point': 'store-fashion'
-    };
-    if (storeMap[targetStoreId]) {
-      targetStoreId = storeMap[targetStoreId];
-    }
-
-    if (targetStoreId) {
-      const targetUrl = `index.html?view=store&id=${encodeURIComponent(targetStoreId)}`;
-
-      // 1. Bottom nav "Stores" option takes user back to that particular store
-      const navStores = document.getElementById('nav-stores');
-      if (navStores) {
-        navStores.href = targetUrl;
-        navStores.setAttribute('aria-label', targetStoreName ? `Return to ${targetStoreName}` : 'Store');
-        const navLabel = navStores.querySelector('.nav-label');
-        if (navLabel) navLabel.textContent = 'Store';
-      }
-
-      // 2. Sidebar "Stores" option takes user back to that particular store
-      const sbStores = document.getElementById('sb-stores');
-      if (sbStores) {
-        sbStores.href = targetUrl;
-        sbStores.setAttribute('title', targetStoreName ? `Return to ${targetStoreName}` : 'Store');
-      }
-
-      // 3. Contextual banner at top of cart
-      const bannerWrap = document.getElementById('cartStoreBannerWrap');
-      const bannerLink = document.getElementById('cartStoreBannerLink');
-      const bannerName = document.getElementById('cartStoreBannerName');
-      if (bannerWrap && bannerLink && bannerName) {
-        bannerWrap.style.display = 'block';
-        bannerLink.href = targetUrl;
-        bannerName.textContent = targetStoreName || 'Campus Store';
-      }
-
-      // 4. Empty state button
-      const emptyStoreBtn = document.querySelector('.browse-btn-secondary');
-      if (emptyStoreBtn) {
-        emptyStoreBtn.href = targetUrl;
-        emptyStoreBtn.textContent = `Return to ${targetStoreName || 'Campus Store'}`;
-      }
-    }
-  } catch (e) {
-    console.warn('Store nav sync note:', e);
-  }
-}
-
-/* ─── EVENT LISTENERS ────────────────────────────────────── */
-function initEvents() {
-  // Back button returns to specific store if available, else browser back
-  document.getElementById('backButton')?.addEventListener('click', () => {
-    let targetStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
-    const storeMap = {
-      'campus-cafe': 'store-bakery',
-      'book-corner': 'store-stationery',
-      'campus-mart': 'store-sports',
-      'tech-hub': 'store-electronics',
-      'fashion-point': 'store-fashion'
-    };
-    if (storeMap[targetStoreId]) targetStoreId = storeMap[targetStoreId];
-
-    if (targetStoreId) {
-      if (typeof window.navigate === 'function') {
-        window.navigate('store', { id: targetStoreId });
-      } else {
-        window.location.href = `index.html?view=store&id=${encodeURIComponent(targetStoreId)}`;
-      }
-    } else if (typeof window.navigate === 'function') {
-      window.navigate('home');
-    } else if (window.history.length > 1 && document.referrer.includes(window.location.host)) {
-      window.history.back();
+/* ─── EVENT BINDINGS ─────────────────────────────────────── */
+function initCartFlowEvents() {
+  // 1. Back button (adapts to current step)
+  const backBtn = document.getElementById('cartFlowBackBtn');
+  backBtn?.addEventListener('click', () => {
+    if (CartState.step === 'payment') {
+      setCartStep('checkout');
+    } else if (CartState.step === 'checkout') {
+      setCartStep('cart');
+    } else if (CartState.step === 'success') {
+      if (typeof window.navigate === 'function') window.navigate('home');
     } else {
-      window.location.href = 'index.html';
+      // Cart step back
+      const lastStoreId = sessionStorage.getItem('unimall_active_store_id') || localStorage.getItem('unimall_last_store_id');
+      if (lastStoreId && typeof window.navigate === 'function') {
+        window.navigate('store', { id: lastStoreId });
+      } else if (typeof window.navigate === 'function') {
+        window.navigate('home');
+      } else if (window.history.length > 1) {
+        window.history.back();
+      }
     }
   });
 
-  // Clear Cart
-  document.getElementById('clearCartBtn')?.addEventListener('click', () => {
+  // 2. Clear Cart button
+  const clearBtn = document.getElementById('cartFlowClearBtn');
+  clearBtn?.addEventListener('click', () => {
+    if (CartState.items.length === 0) return;
     if (confirm('Are you sure you want to clear your cart?')) {
       clearCart();
     }
   });
 
-  // Fulfillment toggle
-  const btnPickup = document.getElementById('btnPickup');
-  const btnDelivery = document.getElementById('btnDelivery');
-  const hostelForm = document.getElementById('hostelDeliveryForm');
-  const pickupInfo = document.getElementById('pickupInfoBox');
+  // 3. Empty cart action buttons
+  document.getElementById('btnEmptyBrowseStores')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') window.navigate('stores');
+  });
 
-  btnPickup?.addEventListener('click', () => {
+  document.getElementById('btnEmptyExploreItems')?.addEventListener('click', () => {
+    const sec = document.getElementById('cartPopularSection');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  document.getElementById('btnSeeAllPopular')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') window.navigate('stores');
+  });
+
+  document.getElementById('btnSeeAllRecs')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') window.navigate('stores');
+  });
+
+  // 4. Cart with items -> Proceed to Checkout
+  document.getElementById('btnProceedToCheckout')?.addEventListener('click', () => {
+    if (CartState.items.length === 0) {
+      showToast('Your cart is empty!');
+      return;
+    }
+    setCartStep('checkout');
+  });
+
+  // 5. Checkout fulfillment options
+  const fPickup = document.getElementById('fOptionPickup');
+  const fDelivery = document.getElementById('fOptionDelivery');
+
+  fPickup?.addEventListener('click', () => {
     CartState.fulfillmentType = 'pickup';
-    btnPickup.classList.add('active');
-    btnDelivery?.classList.remove('active');
-    hostelForm?.classList.add('hidden');
-    pickupInfo?.classList.remove('hidden');
-    renderBillBreakdown();
+    renderCheckoutStep();
   });
 
-  btnDelivery?.addEventListener('click', () => {
+  fDelivery?.addEventListener('click', () => {
     CartState.fulfillmentType = 'delivery';
-    btnDelivery.classList.add('active');
-    btnPickup?.classList.remove('active');
-    hostelForm?.classList.remove('hidden');
-    pickupInfo?.classList.add('hidden');
-    updateDeliveryEstimate();
-    renderBillBreakdown();
+    renderCheckoutStep();
   });
 
-  const hostelInput = document.getElementById('hostelInput');
-  hostelInput?.addEventListener('input', updateDeliveryEstimate);
-
-  // Coupon apply & remove
-  const applyCouponBtn = document.getElementById('applyCouponBtn');
-  const couponInput = document.getElementById('couponInput');
-  const removeCouponBtn = document.getElementById('removeCouponBtn');
-
-  applyCouponBtn?.addEventListener('click', () => {
-    if (couponInput) applyCoupon(couponInput.value);
+  // 6. Checkout delivery inputs
+  const hostelSelect = document.getElementById('checkoutHostelSelect');
+  const roomInput = document.getElementById('checkoutRoomInput');
+  hostelSelect?.addEventListener('change', (e) => {
+    CartState.deliveryInfo.hostel = e.target.value;
+  });
+  roomInput?.addEventListener('input', (e) => {
+    CartState.deliveryInfo.room = e.target.value;
   });
 
-  couponInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      applyCoupon(couponInput.value);
+  // 7. Station change modal
+  const stationModal = document.getElementById('pickupStationModal');
+  document.getElementById('btnChangeStation')?.addEventListener('click', () => {
+    if (stationModal) stationModal.style.display = 'flex';
+  });
+  document.getElementById('btnCloseStationModal')?.addEventListener('click', () => {
+    if (stationModal) stationModal.style.display = 'none';
+  });
+  stationModal?.addEventListener('click', (e) => {
+    if (e.target === stationModal) stationModal.style.display = 'none';
+  });
+
+  document.querySelectorAll('.station-option-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.station-option-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      const stDetails = item.querySelector('.st-opt-details');
+      if (stDetails) {
+        CartState.pickupLocation.name = stDetails.querySelector('strong')?.textContent || 'Store Counter Pickup Station';
+        CartState.pickupLocation.desc = stDetails.querySelector('p')?.textContent || 'Ground Floor, University Mall';
+      }
+      renderCheckoutStep();
+      if (stationModal) stationModal.style.display = 'none';
+    });
+  });
+
+  // 8. Campus Map Modal
+  const mapModal = document.getElementById('campusMapModal');
+  document.getElementById('btnViewOnMap')?.addEventListener('click', () => {
+    if (mapModal) mapModal.style.display = 'flex';
+  });
+  document.getElementById('btnCloseMapModal')?.addEventListener('click', () => {
+    if (mapModal) mapModal.style.display = 'none';
+  });
+  document.getElementById('btnMapGotIt')?.addEventListener('click', () => {
+    if (mapModal) mapModal.style.display = 'none';
+  });
+  mapModal?.addEventListener('click', (e) => {
+    if (e.target === mapModal) mapModal.style.display = 'none';
+  });
+
+  // 9. Continue to Payment
+  document.getElementById('btnContinueToPayment')?.addEventListener('click', () => {
+    if (CartState.fulfillmentType === 'delivery') {
+      const room = document.getElementById('checkoutRoomInput')?.value.trim();
+      if (!room) {
+        showToast('Please enter your room / location for delivery');
+        return;
+      }
+    }
+    setCartStep('payment');
+  });
+
+  // 10. Payment methods
+  document.getElementById('payOptionRazorpay')?.addEventListener('click', () => {
+    CartState.paymentMethod = 'razorpay';
+    renderPaymentStep();
+  });
+
+  document.getElementById('payOptionShop')?.addEventListener('click', () => {
+    CartState.paymentMethod = 'cod';
+    renderPaymentStep();
+  });
+
+  // 11. Toggle summary items drawer
+  const toggleBtn = document.getElementById('btnToggleSummaryItems');
+  const itemsDrawer = document.getElementById('summaryItemsDrawer');
+  const toggleText = document.getElementById('summaryToggleText');
+  toggleBtn?.addEventListener('click', () => {
+    if (!itemsDrawer) return;
+    const isClosed = itemsDrawer.style.display === 'none';
+    itemsDrawer.style.display = isClosed ? 'block' : 'none';
+    if (toggleText) toggleText.textContent = isClosed ? 'Hide Items' : 'View Items';
+  });
+
+  // 12. Execute Payment
+  document.getElementById('btnExecutePayment')?.addEventListener('click', handlePlaceOrder);
+
+  // 13. Order Success Actions
+  document.getElementById('btnSuccessViewDetails')?.addEventListener('click', () => {
+    const pOrder = CartState.lastCreatedOrder;
+    if (pOrder && pOrder.id && typeof window.openOrderModal === 'function') {
+      window.openOrderModal(pOrder.id);
+    } else if (typeof window.navigate === 'function') {
+      window.navigate('orders');
     }
   });
 
-  removeCouponBtn?.addEventListener('click', removeCoupon);
-
-  // Promo chip click
-  document.querySelectorAll('.promo-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      applyCoupon(chip.dataset.code);
-    });
+  document.getElementById('btnSuccessTrackOrder')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') {
+      window.navigate('orders');
+    }
   });
 
-  // Order notes
-  const notesInput = document.getElementById('orderNotesInput');
-  notesInput?.addEventListener('input', (e) => {
-    CartState.orderNotes = e.target.value;
+  document.getElementById('btnSuccessContinueShopping')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') {
+      window.navigate('home');
+    }
   });
 
-  // Payment methods
-  document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      CartState.paymentMethod = e.target.value;
-      document.querySelectorAll('.payment-method-card').forEach(card => card.classList.remove('active'));
-      radio.closest('.payment-method-card')?.classList.add('active');
-    });
+  document.getElementById('btnSuccessWhileYouWait')?.addEventListener('click', () => {
+    if (typeof window.navigate === 'function') {
+      window.navigate('stores');
+    }
   });
-
-  // Place Order
-  document.getElementById('placeOrderBtn')?.addEventListener('click', handlePlaceOrder);
-
-  // Order success modal backdrop click → go to home to track from banner
-  const successModal = document.getElementById('orderSuccessModal');
-  if (successModal) {
-    successModal.addEventListener('click', (e) => {
-      if (e.target === successModal) {
-        window.location.href = 'index.html';
-      }
-    });
-  }
 }
 
 /* ─── INITIALIZATION ─────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   loadCartFromStorage();
-  initEvents();
-  renderCartContent();
+  initCartFlowEvents();
+  renderCurrentStep();
   syncCartBadge();
-  syncSidebarProfile();
-  syncStoreNavigation();
-  // Fetch live promo codes from DB (async - fallback to defaults if unavailable)
   _fetchPromoCodes();
 });
 
-function renderCartView() {
+// Global Bridge
+window.renderCartView = function(step) {
   loadCartFromStorage();
-  renderCartContent();
-  syncCartBadge();
-}
-window.renderCartView = renderCartView;
+  if (step) {
+    setCartStep(step);
+  } else {
+    setCartStep(CartState.items.length === 0 ? 'cart' : (CartState.step || 'cart'));
+  }
+};
+
+window.setCartStep = setCartStep;
 window.clearCart = clearCart;
 window.applyCoupon = applyCoupon;
 window.removeCoupon = removeCoupon;
+window.addItemToCart = addItemToCart;
+window.getCartState = () => CartState;
 
 })();

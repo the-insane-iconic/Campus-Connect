@@ -32,10 +32,15 @@ function navigate(viewName, params = {}) {
   const panels = document.querySelectorAll('.view-panel');
   if (panels.length > 0) {
     panels.forEach(p => p.style.display = 'none');
-    const targetPanel = document.getElementById(`view-${viewName}`);
+    const panelId = (viewName === 'checkout') ? 'view-cart' : `view-${viewName}`;
+    const targetPanel = document.getElementById(panelId);
     if (targetPanel) {
       targetPanel.style.display = 'block';
     }
+  }
+
+  if (viewName !== 'checkout' && viewName !== 'cart') {
+    document.body.classList.remove('in-checkout-flow');
   }
 
   // 3. Toggle main header and search visibility (home only)
@@ -97,9 +102,13 @@ function navigate(viewName, params = {}) {
       }
       break;
     case 'cart':
+      if (typeof window.renderCartView === 'function') {
+        window.renderCartView('cart');
+      }
+      break;
     case 'checkout':
       if (typeof window.renderCartView === 'function') {
-        window.renderCartView();
+        window.renderCartView('checkout');
       }
       break;
     case 'profile':

@@ -1035,27 +1035,124 @@ window.UniMallDB = {
   async syncUser(user) {
     if (!user) return false;
     try {
-      const uid = user.uid || user.id || user.guestId || ('usr_guest_' + Date.now());
+      const uid = String(user.uid || user.id || user.guestId || ('usr_guest_' + Date.now())).trim();
       const userName = user.name || 'Campus Student';
       const numMatch = (userName || '').match(/\d+/);
       const studentNum = numMatch ? numMatch[0] : (String(uid).replace(/\D/g, '') || '1');
       const email = user.email || `student${studentNum}@campus.edu`;
       const phone = user.phone || '';
+      const hostel = user.hostel || '';
+      const room = user.room || '';
+      const avatar = user.avatar || user.avatar_url || '';
+      const preferences = JSON.stringify(user.preferences || { orderNotifications: true, promotionalAlerts: true, language: 'en', soundFx: true });
+
       await this.neonSql(`
-        INSERT INTO users (id, name, email, phone, role)
-        VALUES ($1, $2, $3, $4, 'student')
+        INSERT INTO users (id, name, email, phone, role, hostel, room, avatar, avatar_url, preferences)
+        VALUES ($1, $2, $3, $4, 'student', $5, $6, $7, $7, $8::jsonb)
         ON CONFLICT (id) DO UPDATE SET
           name = EXCLUDED.name,
           email = EXCLUDED.email,
           phone = EXCLUDED.phone,
+          hostel = EXCLUDED.hostel,
+          room = EXCLUDED.room,
+          avatar = EXCLUDED.avatar,
+          avatar_url = EXCLUDED.avatar_url,
+          preferences = EXCLUDED.preferences,
           updated_at = NOW();
-      `, [uid, userName, email, phone]);
+      `, [uid, userName, email, phone, hostel, room, avatar, preferences]);
+
+      this.invalidateCache('user_profile:' + uid);
       console.log(`[UniMallDB] User synced to Neon: ${userName} (${uid})`);
       return true;
     } catch (e) {
-      console.warn('[UniMallDB] syncUser Neon warning:', e.message);
-      return false;
+      try {
+        const uid = String(user.uid || user.id || user.guestId || ('usr_guest_' + Date.now())).trim();
+        const userName = user.name || 'Campus Student';
+        const email = user.email || `student@campus.edu`;
+        const phone = user.phone || '';
+        const hostel = user.hostel || '';
+        const room = user.room || '';
+        await this.neonSql(`
+          INSERT INTO users (id, name, email, phone, role, hostel, room)
+          VALUES ($1, $2, $3, $4, 'student', $5, $6)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            phone = EXCLUDED.phone,
+            hostel = EXCLUDED.hostel,
+            room = EXCLUDED.room,
+            updated_at = NOW();
+        `, [uid, userName, email, phone, hostel, room]);
+        this.invalidateCache('user_profile:' + uid);
+        return true;
+      } catch (err2) {
+        console.warn('[UniMallDB] syncUser Neon fallback warning:', err2.message);
+        return false;
+      }
     }
+  },
+
+  /* ── Get User Profile from Neon PostgreSQL ── */
+  async getUserProfile(userId, forceRefresh = false) {
+    if (!userId) return null;
+    const cacheKey = 'user_profile:' + String(userId).trim();
+    if (forceRefresh) this.invalidateCache(cacheKey);
+
+    return this._swr(cacheKey, 15000, async () => {
+      try {
+        const rows = await this.neonSql(`
+          SELECT id, name, email, phone, role, hostel, room, 
+                 COALESCE(avatar, avatar_url, '') AS avatar,
+                 COALESCE(avatar_url, avatar, '') AS avatar_url,
+                 preferences, created_at, updated_at
+          FROM users
+          WHERE id = $1
+          LIMIT 1;
+        `, [userId]);
+        if (rows && rows.length > 0) {
+          return rows[0];
+        }
+      } catch (e) {
+        console.warn('[UniMallDB] getUserProfile fallback:', e.message);
+      }
+      return null;
+    });
+  },
+
+  /* ── Get Real User Profile Stats from Neon PostgreSQL ── */
+  async getUserStats(userId, forceRefresh = false) {
+    if (!userId) return { totalOrders: 0, activeOrders: 0, itemRequests: 0 };
+    const cacheKey = 'user_stats:' + String(userId).trim();
+    if (forceRefresh) this.invalidateCache(cacheKey);
+
+    return this._swr(cacheKey, 5000, async () => {
+      try {
+        const [ordersRes, requestsRes] = await Promise.all([
+          this.neonSql(`
+            SELECT 
+              COUNT(*) AS total_orders,
+              COUNT(CASE WHEN status IN ('placed', 'preparing', 'ready') THEN 1 END) AS active_orders
+            FROM unimall_orders
+            WHERE user_id = $1;
+          `, [userId]).catch(() => []),
+          this.neonSql(`
+            SELECT COUNT(*) AS total_requests
+            FROM unimall_demand_requests
+            WHERE student_phone = (SELECT phone FROM users WHERE id = $1)
+               OR student_name = (SELECT name FROM users WHERE id = $1);
+          `, [userId]).catch(() => [])
+        ]);
+
+        const totalOrders = (ordersRes && ordersRes[0]) ? parseInt(ordersRes[0].total_orders, 10) || 0 : 0;
+        const activeOrders = (ordersRes && ordersRes[0]) ? parseInt(ordersRes[0].active_orders, 10) || 0 : 0;
+        const itemRequests = (requestsRes && requestsRes[0]) ? parseInt(requestsRes[0].total_requests, 10) || 0 : 0;
+
+        return { totalOrders, activeOrders, itemRequests };
+      } catch (e) {
+        console.warn('[UniMallDB] getUserStats fallback:', e.message);
+        return { totalOrders: 0, activeOrders: 0, itemRequests: 0 };
+      }
+    });
   },
 
   /* ── Get Next Global Sequential Guest Number from Neon PostgreSQL ── */
@@ -1469,11 +1566,22 @@ window.UniMallDB = {
         ADD COLUMN IF NOT EXISTS is_restocked BOOLEAN NOT NULL DEFAULT FALSE;
     `).catch(() => {});
 
-    // 4. Invalidate SWR cache so the fresh schema is used on next fetch
+    // 4. Users: add avatar, hostel, room, and preferences columns
+    await window.UniMallDB.neonSql(`
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+        ADD COLUMN IF NOT EXISTS avatar TEXT,
+        ADD COLUMN IF NOT EXISTS hostel TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS room TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{"orderNotifications":true,"promotionalAlerts":true,"language":"en"}'::jsonb;
+    `).catch(() => {});
+
+    // 5. Invalidate SWR cache so the fresh schema is used on next fetch
     window.UniMallDB.invalidateCache('stores');
     window.UniMallDB.invalidateCache('stores:all');
     window.UniMallDB.invalidateCache('products:all');
     window.UniMallDB.invalidateCache('store_filters');
+    window.UniMallDB.invalidateCache('user_profile:');
 
     console.log('[UniMall] DB migrations applied ✓');
   } catch (e) {

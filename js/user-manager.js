@@ -229,17 +229,19 @@
         }
 
         const cleanUser = {
-          id:       uid,
-          uid:      uid,
-          guestId:  uid,
-          name:     userData.name,
-          email:    email,
-          avatar:   userData.avatar    || '',
-          phone:    userData.phone     || '',
-          hostel:   userData.hostel    || '',
-          room:     userData.room      || '',
-          isGuest:  Boolean(userData.isGuest),
-          provider: userData.provider  || (userData.isGuest ? 'guest' : 'google')
+          id:          uid,
+          uid:         uid,
+          guestId:     uid,
+          name:        userData.name,
+          email:       email,
+          avatar:      userData.avatar || userData.avatar_url || '',
+          avatar_url:  userData.avatar_url || userData.avatar || '',
+          phone:       userData.phone  || '',
+          hostel:      userData.hostel || '',
+          room:        userData.room   || '',
+          preferences: userData.preferences || { orderNotifications: true, promotionalAlerts: true, language: 'en', soundFx: true },
+          isGuest:     Boolean(userData.isGuest),
+          provider:    userData.provider || (userData.isGuest ? 'guest' : 'google')
         };
 
         let appData = {};

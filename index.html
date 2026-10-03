@@ -794,134 +794,456 @@
                4. CART VIEW PANEL
                ═════════════════════════════════════════════════ -->
           <div class="view-panel" id="view-cart" style="display: none;">
-            <!-- CART HEADER -->
-            <header class="cart-header fade-up">
-              <button type="button" class="icon-button" id="cartBackButton" aria-label="Go back" onclick="navigate('home')">
-                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            <!-- DYNAMIC TOP HEADER (Adapts across flow: Cart, Checkout, Payment) -->
+            <header class="cart-flow-header" id="cartFlowHeader">
+              <button type="button" class="cart-nav-back-btn" id="cartFlowBackBtn" aria-label="Go back">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
               </button>
-              <div class="header-title">
-                <h1>My Cart</h1>
-                <p id="cartSubtitle">Review your items & checkout</p>
+              <div class="cart-flow-header-text">
+                <h1 id="cartFlowTitle">My Cart</h1>
+                <p id="cartFlowSubtitle">Your selected items</p>
               </div>
-              <button type="button" class="clear-cart-btn" id="clearCartBtn" aria-label="Clear cart" onclick="clearCart()">
-                Clear
+              <button type="button" class="cart-flow-clear-btn" id="cartFlowClearBtn" aria-label="Clear cart">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <span>Clear</span>
               </button>
             </header>
 
-            <!-- MAIN CART CONTENT (Shown when items exist) -->
-            <div id="cartContentWrap" class="cart-content-wrap fade-up delay-1" style="padding: 8px 16px 28px;">
-              <!-- LEFT COLUMN: Items, Fulfillment, Notes -->
-              <div class="cart-left-col">
-                <!-- CONTEXTUAL STORE RETURN BANNER -->
-                <div class="cart-store-banner-wrap" id="cartStoreBannerWrap" style="display:none; margin-bottom: 12px;">
-                  <a href="#" class="cart-store-banner-link" id="cartStoreBannerLink" onclick="event.preventDefault(); navigate('stores');">
-                    <div class="store-banner-content">
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-                      <span>Continue shopping at <strong id="cartStoreBannerName">Store</strong></span>
+            <!-- ── STEP 1: CART (EMPTY OR WITH ITEMS) ── -->
+            <div class="cart-flow-step" id="step-cart">
+              <!-- 1A: EMPTY CART STATE -->
+              <div class="cart-empty-container" id="cartEmptyContainer" style="display: none;">
+                <div class="cart-empty-card">
+                  <div class="cart-empty-illustration-wrap">
+                    <div class="cart-sparkle sparkle-1">✦</div>
+                    <div class="cart-sparkle sparkle-2">✦</div>
+                    <div class="cart-sparkle sparkle-3">✦</div>
+                    <div class="cart-empty-blob">
+                      <svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="21" r="1.2"/>
+                        <circle cx="20" cy="21" r="1.2"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                      </svg>
                     </div>
-                    <span class="store-banner-action">Back to Store →</span>
-                  </a>
+                  </div>
+                  <h2 class="cart-empty-title">Your cart is empty</h2>
+                  <p class="cart-empty-subtitle">Add items from campus stores to get started.</p>
+
+                  <div class="cart-empty-actions">
+                    <button type="button" class="btn-empty-primary" id="btnEmptyBrowseStores">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                      <span>Browse Stores</span>
+                    </button>
+                    <button type="button" class="btn-empty-secondary" id="btnEmptyExploreItems">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      <span>Explore Popular Items</span>
+                    </button>
+                    <button type="button" class="btn-empty-return-store" id="btnEmptyReturnStore" style="display: none;">
+                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+                      <span>Return to <strong id="btnEmptyReturnStoreName">Stationery Hub & Book Corner</strong></span>
+                    </button>
+                  </div>
                 </div>
 
-                <!-- ITEMS SECTION -->
-                <section class="cart-items-section">
-                  <div class="section-label-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span class="section-label" style="font-weight: 700; color: #17213A;">Order Items</span>
-                    <span class="item-count-text" id="itemsCountBadge">0 items</span>
+                <!-- POPULAR ON UNIMALL CAROUSEL -->
+                <div class="cart-popular-section" id="cartPopularSection">
+                  <div class="cart-section-header">
+                    <h3 class="cart-section-title">Popular on UniMall</h3>
+                    <button type="button" class="cart-see-all-btn" id="btnSeeAllPopular">See All</button>
                   </div>
-                  <div class="cart-items-list" id="cartItemsList"></div>
-                </section>
-
-                <!-- FULFILLMENT METHOD: COUNTER SELF-PICKUP -->
-                <section class="cart-section fade-up delay-2" style="margin-top: 16px;">
-                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Fulfillment Method</div>
-                  <div class="pickup-card-highlight">
-                    <div class="pickup-header-row">
-                      <div class="pickup-icon-wrap">🛍️</div>
-                      <div class="pickup-main-info">
-                        <div class="pickup-title">Campus Counter Self-Pickup</div>
-                        <div class="pickup-sub">Pay for your order, get instant confirmation, and collect at counter</div>
-                      </div>
-                      <span class="pickup-free-pill">FREE</span>
-                    </div>
-                    <div class="pickup-station-row">
-                      <span class="loc-pin">📍</span>
-                      <div>
-                        <strong>Store Counter Pickup Station</strong>
-                        <p>Ground Floor, University Mall · Show your simple #ORD token to collect</p>
-                      </div>
-                    </div>
+                  <div class="cart-carousel-row" id="cartPopularCarousel">
+                    <!-- Populated dynamically from real PRODUCTS -->
                   </div>
-                </section>
-
-                <!-- ORDER NOTES -->
-                <section class="cart-section fade-up delay-2" style="margin-top: 16px;">
-                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Instructions / Note for Store</div>
-                  <textarea class="order-notes-input" id="orderNotesInput" placeholder="Add special instructions (e.g. less ice, extra sugar)..." rows="2"></textarea>
-                </section>
+                </div>
               </div>
 
-              <!-- RIGHT COLUMN: Promo, Bill Breakdown, Payment, Checkout Button -->
-              <div class="cart-right-col" style="margin-top: 16px;">
-                <!-- COUPON / PROMO CODE -->
-                <section class="cart-section fade-up delay-2">
-                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Student Coupons & Promo</div>
-                  <div class="coupon-box" id="couponBox">
-                    <div class="coupon-input-wrap">
-                      <input type="text" id="couponInput" placeholder="Enter coupon code (e.g. CAMPUS10)" autocomplete="off">
-                      <button type="button" id="applyCouponBtn">Apply</button>
+              <!-- 1B: CART WITH ITEMS STATE -->
+              <div class="cart-items-container" id="cartItemsContainer" style="display: none;">
+                <!-- Store Return Banner -->
+                <div class="cart-store-banner" id="cartStoreBanner">
+                  <div class="store-banner-left">
+                    <div class="store-banner-icon">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     </div>
-                    <div class="coupon-applied hidden" id="couponAppliedTag">
-                      <span class="coupon-tag-text" id="appliedCouponText">CAMPUS10 applied (10% OFF)</span>
-                      <button type="button" class="remove-coupon-btn" id="removeCouponBtn">✕</button>
-                    </div>
+                    <span class="store-banner-text">Continue shopping at <strong id="cartStoreBannerStoreName">Stationery Hub & Book Corner</strong></span>
                   </div>
-                  <div class="promo-chips-row">
-                    <button type="button" class="promo-chip" data-code="CAMPUS10">🏷️ CAMPUS10 (10% Off)</button>
-                    <button type="button" class="promo-chip" data-code="FREEDEL">🏷️ FREEDEL (Free Delivery)</button>
-                    <button type="button" class="promo-chip" data-code="STUDENT20">🏷️ STUDENT20 (₹20 Off)</button>
-                  </div>
-                </section>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
 
-                <!-- BILL DETAILS -->
-                <section class="cart-section bill-section fade-up delay-2" style="margin-top: 16px;">
-                  <div class="section-label" style="font-weight: 700; color: #17213A; margin-bottom: 8px;">Bill Summary</div>
-                  <div class="bill-breakdown">
-                    <div class="bill-row"><span>Item Subtotal</span><span id="billSubtotal">₹0</span></div>
-                    <div class="bill-row" id="billDiscountRow" style="display:none;"><span class="discount-text">Coupon Discount</span><span class="discount-val" id="billDiscount">-₹0</span></div>
-                    <div class="bill-row"><span>Fulfillment / Delivery</span><span id="billDelivery">FREE</span></div>
-                    <div class="bill-row"><span>Packaging & Handover</span><span id="billPackaging">₹5</span></div>
-                    <div class="bill-divider"></div>
-                    <div class="bill-row grand-total-row"><span>To Pay</span><span class="total-price" id="billTotal">₹0</span></div>
-                  </div>
-                </section>
+                <!-- Items List -->
+                <div class="cart-items-card-list" id="cartFlowItemsList">
+                  <!-- Populated dynamically -->
+                </div>
 
-                <!-- CHECKOUT ACTION BAR -->
-                <div class="checkout-footer-bar" style="margin-top: 18px;">
-                  <div class="checkout-price-preview">
-                    <span class="preview-label">Grand Total</span>
-                    <span class="preview-price" id="checkoutFooterPrice">₹0</span>
+                <!-- You Might Also Like Section -->
+                <div class="cart-recommendations-section" id="cartRecsSection">
+                  <div class="cart-section-header">
+                    <h3 class="cart-section-title">You might also like</h3>
+                    <button type="button" class="cart-see-all-btn" id="btnSeeAllRecs">See All</button>
                   </div>
-                  <button type="button" class="place-order-btn" id="placeOrderBtn">
-                    <span>Pay & Place Order</span>
-                    <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <div class="cart-carousel-row" id="cartRecsCarousel">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+                <!-- Sticky Footer Bar (Cart Step) -->
+                <div class="cart-sticky-bottom-bar" id="cartBottomCheckoutBar">
+                  <div class="cart-bar-pricing">
+                    <div class="cart-bar-total" id="cartBarTotalPrice">₹0</div>
+                    <div class="cart-bar-count" id="cartBarItemCount">0 items</div>
+                  </div>
+                  <button type="button" class="cart-bar-proceed-btn" id="btnProceedToCheckout">
+                    <span>Proceed to Checkout</span>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </button>
+                </div>
+              </div>
+            </div><!-- /step-cart -->
+
+            <!-- ── STEP 2: CHECKOUT ── -->
+            <div class="cart-flow-step" id="step-checkout" style="display: none;">
+              <!-- Fulfilment Method -->
+              <div class="checkout-section">
+                <h3 class="checkout-section-title">Fulfilment Method</h3>
+                
+                <div class="fulfillment-options-list">
+                  <!-- Self-Pickup Option -->
+                  <div class="fulfillment-card active" id="fOptionPickup" data-method="pickup">
+                    <div class="f-radio-dot">
+                      <div class="f-radio-inner"></div>
+                    </div>
+                    <div class="f-icon-wrap f-icon-pickup">
+                      🛍️
+                    </div>
+                    <div class="f-card-content">
+                      <div class="f-title-row">
+                        <span class="f-card-title">Campus Counter Self-Pickup</span>
+                        <span class="f-badge f-badge-free">FREE</span>
+                      </div>
+                      <p class="f-card-desc">Pay for your order, get instant confirmation, and collect at the counter.</p>
+                    </div>
+                  </div>
+
+                  <!-- Delivery Option -->
+                  <div class="fulfillment-card" id="fOptionDelivery" data-method="delivery">
+                    <div class="f-radio-dot">
+                      <div class="f-radio-inner"></div>
+                    </div>
+                    <div class="f-icon-wrap f-icon-delivery">
+                      🛵
+                    </div>
+                    <div class="f-card-content">
+                      <div class="f-title-row">
+                        <span class="f-card-title">Delivery to Campus</span>
+                        <span class="f-badge f-badge-price">₹20</span>
+                      </div>
+                      <p class="f-card-desc">Get it delivered to your selected campus location.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pickup Location Details (Shown when pickup is active) -->
+              <div class="checkout-section" id="sectionPickupLocation">
+                <h3 class="checkout-section-title">Pickup Location</h3>
+                <div class="pickup-station-card">
+                  <div class="station-icon-wrap">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2563EB" stroke-width="2.5"><path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </div>
+                  <div class="station-info">
+                    <div class="station-title" id="checkoutStationTitle">Store Counter Pickup Station</div>
+                    <div class="station-desc" id="checkoutStationDesc">Ground Floor, University Mall</div>
+                  </div>
+                  <button type="button" class="station-change-btn" id="btnChangeStation">Change</button>
+                </div>
+
+                <!-- Mini Map Preview -->
+                <div class="campus-mini-map-card" id="campusMiniMapCard">
+                  <div class="map-visual">
+                    <div class="map-grid-pattern"></div>
+                    <div class="map-road map-road-h"></div>
+                    <div class="map-road map-road-v"></div>
+                    <div class="map-zone map-zone-academic">Academic Block</div>
+                    <div class="map-zone map-zone-mall">University Mall</div>
+                    <div class="map-pin-pulse">
+                      <div class="map-pulse-ring"></div>
+                      <div class="map-pin-dot">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="#EF4444"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="map-view-link" id="btnViewOnMap">
+                    <span>View on map</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Campus Delivery Address Details (Shown when delivery is active) -->
+              <div class="checkout-section" id="sectionDeliveryLocation" style="display: none;">
+                <h3 class="checkout-section-title">Delivery Location</h3>
+                <div class="delivery-address-card">
+                  <div class="delivery-input-group">
+                    <label for="checkoutHostelSelect">Campus Hostel / Building</label>
+                    <select id="checkoutHostelSelect" class="checkout-input-select">
+                      <option value="Hostel A">Hostel A (Boys)</option>
+                      <option value="Hostel B" selected>Hostel B (Boys)</option>
+                      <option value="Hostel C">Hostel C (Boys)</option>
+                      <option value="Hostel D">Hostel D (Boys)</option>
+                      <option value="Girls Hostel 1">Girls Hostel 1</option>
+                      <option value="Girls Hostel 2">Girls Hostel 2</option>
+                      <option value="Central Library">Central Library Reading Hall</option>
+                      <option value="Tech Park">Tech Block / Labs</option>
+                    </select>
+                  </div>
+                  <div class="delivery-input-group" style="margin-top: 10px;">
+                    <label for="checkoutRoomInput">Room / Flat / Landmark</label>
+                    <input type="text" id="checkoutRoomInput" class="checkout-input-text" placeholder="e.g. Room 214, 2nd Floor" value="Room 214">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sticky Continue to Payment Button -->
+              <div class="checkout-sticky-bar">
+                <button type="button" class="btn-checkout-primary" id="btnContinueToPayment">
+                  <span>Continue to Payment</span>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            </div><!-- /step-checkout -->
+
+            <!-- ── STEP 3: PAYMENT ── -->
+            <div class="cart-flow-step" id="step-payment" style="display: none;">
+              <!-- Order Summary Card -->
+              <div class="payment-section">
+                <div class="payment-section-header">
+                  <h3 class="payment-section-title">Order Summary</h3>
+                  <button type="button" class="payment-toggle-items-btn" id="btnToggleSummaryItems">
+                    <span id="summaryToggleText">View Items</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                  </button>
+                </div>
+
+                <div class="order-summary-card">
+                  <!-- Collapsible Items Preview -->
+                  <div class="summary-items-drawer" id="summaryItemsDrawer" style="display: none;">
+                    <div class="summary-items-list" id="summaryDrawerList"></div>
+                    <div class="summary-divider"></div>
+                  </div>
+
+                  <div class="summary-row">
+                    <span>Item Subtotal</span>
+                    <span id="paySummarySubtotal">₹0</span>
+                  </div>
+                  <div class="summary-row" id="paySummaryDiscountRow" style="display: none;">
+                    <span class="discount-label">Coupon Discount (<strong id="paySummaryDiscountCode"></strong>)</span>
+                    <span class="discount-val" id="paySummaryDiscountVal">-₹0</span>
+                  </div>
+                  <div class="summary-row">
+                    <span id="paySummaryFulfillmentLabel">Fulfilment (Self-Pickup)</span>
+                    <span class="free-text" id="paySummaryFulfillmentVal">FREE</span>
+                  </div>
+                  <div class="summary-row">
+                    <span>Packaging & Handover</span>
+                    <span id="paySummaryPackagingVal">₹5</span>
+                  </div>
+                  <div class="summary-divider"></div>
+                  <div class="summary-row total-row">
+                    <span>Total Amount</span>
+                    <span class="total-val" id="paySummaryTotalVal">₹0</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Payment Method Section -->
+              <div class="payment-section" style="margin-top: 20px;">
+                <h3 class="payment-section-title">Payment Method</h3>
+
+                <div class="payment-methods-list">
+                  <!-- Razorpay Online -->
+                  <div class="payment-method-option active" id="payOptionRazorpay" data-method="razorpay">
+                    <div class="f-radio-dot">
+                      <div class="f-radio-inner"></div>
+                    </div>
+                    <div class="pay-method-icon pay-icon-bolt">
+                      ⚡
+                    </div>
+                    <div class="pay-method-content">
+                      <div class="pay-method-title">Razorpay (UPI / Cards / NetBanking)</div>
+                      <div class="pay-method-sub">Pay securely with Razorpay</div>
+                      <div class="pay-logos-row">
+                        <span class="pay-logo-badge gpay">GPay</span>
+                        <span class="pay-logo-badge phonepe">PhonePe</span>
+                        <span class="pay-logo-badge paytm">Paytm</span>
+                        <span class="pay-logo-badge upi">UPI</span>
+                        <span class="pay-logo-badge cards">Cards</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Pay at the Shop -->
+                  <div class="payment-method-option" id="payOptionShop" data-method="cod">
+                    <div class="f-radio-dot">
+                      <div class="f-radio-inner"></div>
+                    </div>
+                    <div class="pay-method-icon pay-icon-shop">
+                      🏬
+                    </div>
+                    <div class="pay-method-content">
+                      <div class="pay-method-title">Pay at the Shop</div>
+                      <div class="pay-method-sub">Pay via UPI QR or cash at the counter</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sticky Pay Button + Secure Footer -->
+              <div class="payment-sticky-bar">
+                <button type="button" class="btn-pay-primary" id="btnExecutePayment">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <span id="btnPayAmountText">Pay ₹0</span>
+                </button>
+                <div class="secure-payments-note">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <span>Secure payments powered by Razorpay</span>
+                </div>
+              </div>
+            </div><!-- /step-payment -->
+
+            <!-- ── STEP 4: ORDER SUCCESS ── -->
+            <div class="cart-flow-step" id="step-success" style="display: none;">
+              <div class="success-screen-wrap">
+                <!-- Checkmark Badge with Confetti Accents -->
+                <div class="success-checkmark-hero">
+                  <div class="success-confetti-particle p1"></div>
+                  <div class="success-confetti-particle p2"></div>
+                  <div class="success-confetti-particle p3"></div>
+                  <div class="success-confetti-particle p4"></div>
+                  <div class="success-confetti-particle p5"></div>
+                  <div class="success-checkmark-circle">
+                    <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <h2 class="success-main-title">Order Placed Successfully!</h2>
+                <p class="success-main-subtitle">Your order has been confirmed.</p>
+
+                <!-- Order Confirmation Card -->
+                <div class="success-order-card">
+                  <div class="s-card-top-row">
+                    <span class="s-card-order-id" id="successOrderNumText">Order #UM-2841</span>
+                    <button type="button" class="s-card-view-details" id="btnSuccessViewDetails">View Details &gt;</button>
+                  </div>
+                  <div class="s-card-items-meta" id="successOrderMetaText">4 items • ₹325</div>
+
+                  <div class="s-card-location-row">
+                    <div class="s-location-icon">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#16A34A" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    </div>
+                    <div class="s-location-text">
+                      <div class="s-location-title" id="successLocationTitle">Campus Counter Pickup</div>
+                      <div class="s-location-sub" id="successLocationSub">Ground Floor, University Mall</div>
+                    </div>
+                  </div>
+
+                  <div class="s-card-eta-pill">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span id="successEtaPillText">Estimated ready in 10–15 minutes</span>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="success-actions">
+                  <button type="button" class="btn-track-order" id="btnSuccessTrackOrder">
+                    Track Order
+                  </button>
+                  <button type="button" class="btn-continue-shopping" id="btnSuccessContinueShopping">
+                    Continue Shopping
+                  </button>
+                </div>
+
+                <!-- While You Wait Card -->
+                <div class="success-while-you-wait" id="btnSuccessWhileYouWait">
+                  <div class="while-wait-left">
+                    <div class="while-wait-icon">
+                      🛍️
+                    </div>
+                    <div class="while-wait-text">
+                      <div class="while-wait-title">While you wait</div>
+                      <div class="while-wait-sub">Explore more from UniMall</div>
+                    </div>
+                  </div>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#64748B" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+              </div>
+            </div><!-- /step-success -->
+
+            <!-- ── MODAL: Pickup Station Picker ── -->
+            <div class="cart-modal-backdrop" id="pickupStationModal" style="display: none;">
+              <div class="cart-modal-sheet">
+                <div class="cart-sheet-handle"></div>
+                <div class="cart-sheet-header">
+                  <h3>Select Pickup Station</h3>
+                  <button type="button" class="cart-sheet-close" id="btnCloseStationModal">✕</button>
+                </div>
+                <div class="station-options-list">
+                  <div class="station-option-item active" data-station-id="station-main">
+                    <div class="st-opt-icon">📍</div>
+                    <div class="st-opt-details">
+                      <strong>Store Counter Pickup Station</strong>
+                      <p>Ground Floor, University Mall</p>
+                    </div>
+                    <span class="st-opt-check">✓</span>
+                  </div>
+                  <div class="station-option-item" data-station-id="station-food">
+                    <div class="st-opt-icon">📍</div>
+                    <div class="st-opt-details">
+                      <strong>Food Court Pickup Station</strong>
+                      <p>Block A, Ground Floor Counter</p>
+                    </div>
+                    <span class="st-opt-check"></span>
+                  </div>
+                  <div class="station-option-item" data-station-id="station-academic">
+                    <div class="st-opt-icon">📍</div>
+                    <div class="st-opt-details">
+                      <strong>Academic Wing Station</strong>
+                      <p>Block B, Near Book Corner</p>
+                    </div>
+                    <span class="st-opt-check"></span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- EMPTY STATE (Shown when cart is empty) -->
-            <div class="empty-cart-state hidden fade-up" id="emptyCartState" style="padding: 40px 16px; text-align: center;">
-              <div class="empty-cart-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                </svg>
-              </div>
-              <h2>Your Cart is Empty</h2>
-              <p>Looks like you haven't added anything from the campus stores yet.</p>
-              <div class="empty-actions" style="margin-top: 16px; display: flex; gap: 10px; justify-content: center;">
-                <button type="button" class="browse-btn-primary" onclick="navigate('home')">Browse Mall Products</button>
-                <button type="button" class="browse-btn-secondary" onclick="navigate('stores')">Explore Campus Stores</button>
+            <!-- ── MODAL: Campus Map Modal ── -->
+            <div class="cart-modal-backdrop" id="campusMapModal" style="display: none;">
+              <div class="cart-modal-sheet map-sheet">
+                <div class="cart-sheet-handle"></div>
+                <div class="cart-sheet-header">
+                  <h3>Campus Counter Location</h3>
+                  <button type="button" class="cart-sheet-close" id="btnCloseMapModal">✕</button>
+                </div>
+                <div class="map-modal-content">
+                  <div class="interactive-campus-map">
+                    <div class="map-canvas-mock">
+                      <div class="map-road-network"></div>
+                      <div class="map-building b-mall">🏬 UniMall Ground Floor</div>
+                      <div class="map-building b-academic">📚 Academic Wing</div>
+                      <div class="map-building b-hostels">🏢 Student Hostels</div>
+                      <div class="map-marker-pin">
+                        <span class="pin-badge">Counter Here</span>
+                        <div class="pin-point"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="map-walking-directions">
+                    <p>📍 <strong>Pickup Station:</strong> Ground Floor, University Mall (Central Atrium)</p>
+                    <p>🚶 <strong>Walking time:</strong> ~2–3 minutes from Academic Wing & Food Court</p>
+                  </div>
+                  <button type="button" class="btn-map-got-it" id="btnMapGotIt">Got It</button>
+                </div>
               </div>
             </div>
 
@@ -931,20 +1253,16 @@
               <span class="toast-message" id="toastMessage">Action completed</span>
             </div>
 
-            <!-- ORDER PLACED EXCITEMENT POP-UP MODAL -->
+            <!-- LEGACY MODAL BACKWARD COMPAT (Hidden) -->
             <div class="order-success-overlay" id="orderSuccessModal" style="display:none;" role="dialog" aria-modal="true">
               <div class="order-success-modal">
                 <div class="success-icon-wrap"><span class="confetti-emoji">🎉</span></div>
                 <span class="success-badge">Order Confirmed!</span>
                 <h2 class="success-title">Woohoo! Your order is in!</h2>
                 <div class="success-order-id-pill" id="successOrderIdText">Order #UM1024</div>
-                <p class="success-eta-text" id="successEtaText">🛵 Delivering to your room in ~15–20 mins</p>
+                <p class="success-eta-text" id="successEtaText">Ready for pickup in ~10–15 mins</p>
                 <div class="success-modal-actions">
-                  <button type="button" class="btn-track-success" id="btnTrackSuccess" onclick="navigate('orders')">
-                    <span>Track Live Order</span>
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </button>
-                  <button type="button" class="btn-continue-success" onclick="navigate('home')">Back to Campus Stores</button>
+                  <button type="button" class="btn-track-success" id="btnTrackSuccess">Track Order</button>
                 </div>
               </div>
             </div>
@@ -954,111 +1272,743 @@
                5. PROFILE VIEW PANEL
                ═════════════════════════════════════════════════ -->
           <div class="view-panel" id="view-profile" style="display: none;">
-            <!-- PROFILE HEADER -->
-            <header class="profile-page-header fade-up">
-              <button type="button" class="icon-button" id="profileBackButton" aria-label="Go back" onclick="navigate('home')">
-                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-              </button>
-              <div class="header-title">
-                <h1>My Profile</h1>
-                <p>Manage account & campus details</p>
-              </div>
-              <button type="button" class="icon-button" id="headerShareBtn" aria-label="Share profile">
-                <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              </button>
-            </header>
 
-            <div class="profile-content-wrap" style="padding: 8px 16px 32px;">
-              <!-- LEFT COLUMN: Hero Card, Quick Stats, Account Actions -->
-              <div class="profile-left-col">
-                <!-- PROFILE HERO CARD -->
-                <section class="profile-hero-card fade-up delay-1">
-                  <div class="avatar-wrap" id="avatarWrap" aria-label="Profile Initial Avatar">
-                    <span class="avatar-initial" id="avatarInitial">S</span>
-                    <span class="avatar-badge-dot" id="avatarBadgeDot" title="Verified Campus Student"></span>
-                  </div>
-                  <div class="profile-hero-details">
-                    <div class="name-badge-row">
-                      <h2 class="user-display-name" id="userDisplayName">Campus Student</h2>
-                      <span class="auth-status-pill verified" id="authStatusPill"><span class="auth-icon">✓</span> Verified</span>
-                    </div>
-                    <p class="user-email-text" id="userEmailText">student@campus.edu</p>
-                    <div class="user-campus-meta-row">
-                      <span class="user-hostel-sub" id="userHostelSub">Campus Resident</span>
-                      <span class="campus-resident-tag">🎓 Campus Resident</span>
+            <!-- ═════════════════════════════════════════════════
+                 SUBVIEW 1: MAIN PROFILE SCREEN
+                 ═════════════════════════════════════════════════ -->
+            <div class="profile-subview active" id="profileViewMain">
+              <!-- PROFILE HEADER -->
+              <header class="profile-page-header">
+                <div class="header-title">
+                  <h1 class="profile-main-title">My Profile</h1>
+                  <p class="profile-main-sub">Manage your account &amp; campus details</p>
+                </div>
+                <button type="button" class="profile-icon-btn profile-gear-btn" id="profileSettingsGearBtn" aria-label="Account Settings" onclick="setProfileSubView('settings')">
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                  </svg>
+                </button>
+              </header>
+
+              <div class="profile-scroll-body">
+                <!-- USER HERO CARD -->
+                <div class="profile-user-card" id="profileUserHeroCard" role="button" tabindex="0" onclick="setProfileSubView('edit')" aria-label="Edit Profile">
+                  <div class="profile-avatar-container">
+                    <div class="profile-avatar-circle" id="profileMainAvatar">
+                      <span class="profile-avatar-letter" id="profileMainInitial">U</span>
+                      <img class="profile-avatar-img hidden" id="profileMainPhoto" src="" alt="Profile Photo">
                     </div>
                   </div>
-                </section>
-
-                <!-- QUICK STATS BAR -->
-                <section class="quick-stats-grid fade-up delay-1" style="margin-top: 14px;">
-                  <button type="button" class="stat-box" onclick="navigate('orders')">
-                    <span class="stat-number" id="statTotalOrders">0</span>
-                    <span class="stat-label">Total Orders</span>
-                  </button>
-                  <button type="button" class="stat-box" onclick="navigate('orders')">
-                    <span class="stat-number active-stat" id="statActiveOrders">0</span>
-                    <span class="stat-label">Active Orders</span>
-                  </button>
-                  <div class="stat-box">
-                    <span class="stat-number" id="statRequests">0</span>
-                    <span class="stat-label">Item Requests</span>
+                  <div class="profile-user-meta">
+                    <div class="profile-user-name-row">
+                      <h2 class="profile-user-name" id="profileMainName">Campus Student</h2>
+                      <span class="profile-user-tag" id="profileMainHandle">#1</span>
+                    </div>
+                    <div class="profile-badges-row">
+                      <span class="profile-badge-status" id="profileMainBadge">Guest Account</span>
+                      <span class="profile-badge-hostel" id="profileMainHostelBadge">
+                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        <span id="profileMainHostelText">Campus Resident</span>
+                      </span>
+                    </div>
                   </div>
-                </section>
+                  <div class="profile-card-arrow">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </div>
+                </div>
 
-                <!-- LOGOUT & ACTIONS -->
-                <div class="account-actions-wrap fade-up delay-3" style="margin-top: 16px;">
-                  <button type="button" class="logout-btn" id="logoutBtn" onclick="const m = document.getElementById('logoutModal'); if(m) m.classList.remove('hidden'); else if(typeof handleLogout === 'function') handleLogout(); else window.performDirectLogout();">
-                    <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Log Out
+                <!-- STATS ROW (3 REAL DATA COLUMNS) -->
+                <div class="profile-stats-card">
+                  <button type="button" class="profile-stat-col" onclick="navigate('orders')" aria-label="View Total Orders">
+                    <div class="profile-stat-icon-wrap icon-blue">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                      </svg>
+                    </div>
+                    <div class="profile-stat-value" id="profileStatTotalOrders">0</div>
+                    <div class="profile-stat-label">Total Orders</div>
+                  </button>
+
+                  <div class="profile-stat-divider"></div>
+
+                  <button type="button" class="profile-stat-col" onclick="navigate('orders')" aria-label="View Active Orders">
+                    <div class="profile-stat-icon-wrap icon-blue">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
+                    </div>
+                    <div class="profile-stat-value" id="profileStatActiveOrders">0</div>
+                    <div class="profile-stat-label">Active Orders</div>
+                  </button>
+
+                  <div class="profile-stat-divider"></div>
+
+                  <button type="button" class="profile-stat-col" onclick="openProfileRequestsModal()" aria-label="View Item Requests">
+                    <div class="profile-stat-icon-wrap icon-red">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                      </svg>
+                    </div>
+                    <div class="profile-stat-value" id="profileStatItemRequests">0</div>
+                    <div class="profile-stat-label">Item Requests</div>
+                  </button>
+                </div>
+
+                <!-- MENU ACTION CARDS -->
+                <div class="profile-menu-list">
+                  <div class="profile-menu-row" role="button" tabindex="0" onclick="setProfileSubView('edit', 'personal')">
+                    <div class="profile-menu-icon-circle">
+                      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                    <div class="profile-menu-info">
+                      <div class="profile-menu-title">Personal Information</div>
+                      <div class="profile-menu-sub">Name, email, phone</div>
+                    </div>
+                    <div class="profile-menu-chevron">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-menu-row" role="button" tabindex="0" onclick="setProfileSubView('edit', 'campus')">
+                    <div class="profile-menu-icon-circle">
+                      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                        <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                        <line x1="15" y1="22" x2="15" y2="22.01"></line>
+                        <line x1="9" y1="6" x2="9" y2="6.01"></line>
+                        <line x1="15" y1="6" x2="15" y2="6.01"></line>
+                        <line x1="9" y1="10" x2="9" y2="10.01"></line>
+                        <line x1="15" y1="10" x2="15" y2="10.01"></line>
+                        <line x1="9" y1="14" x2="9" y2="14.01"></line>
+                        <line x1="15" y1="14" x2="15" y2="14.01"></line>
+                        <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                        <line x1="15" y1="18" x2="15" y2="18.01"></line>
+                      </svg>
+                    </div>
+                    <div class="profile-menu-info">
+                      <div class="profile-menu-title">Campus Details</div>
+                      <div class="profile-menu-sub">Hostel, room, campus info</div>
+                    </div>
+                    <div class="profile-menu-chevron">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfilePreferencesModal()">
+                    <div class="profile-menu-icon-circle">
+                      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="4" y1="21" x2="4" y2="14"></line>
+                        <line x1="4" y1="10" x2="4" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12" y2="3"></line>
+                        <line x1="20" y1="21" x2="20" y2="16"></line>
+                        <line x1="20" y1="12" x2="20" y2="3"></line>
+                        <line x1="1" y1="14" x2="7" y2="14"></line>
+                        <line x1="9" y1="8" x2="15" y2="8"></line>
+                        <line x1="17" y1="16" x2="23" y2="16"></line>
+                      </svg>
+                    </div>
+                    <div class="profile-menu-info">
+                      <div class="profile-menu-title">Preferences</div>
+                      <div class="profile-menu-sub">Notifications, language</div>
+                    </div>
+                    <div class="profile-menu-chevron">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfileHelpModal()">
+                    <div class="profile-menu-icon-circle">
+                      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                      </svg>
+                    </div>
+                    <div class="profile-menu-info">
+                      <div class="profile-menu-title">Help &amp; Support</div>
+                      <div class="profile-menu-sub">FAQs, contact support</div>
+                    </div>
+                    <div class="profile-menu-chevron">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfileAboutModal()">
+                    <div class="profile-menu-icon-circle">
+                      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                      </svg>
+                    </div>
+                    <div class="profile-menu-info">
+                      <div class="profile-menu-title">About UniMall</div>
+                      <div class="profile-menu-sub">Version, terms &amp; privacy</div>
+                    </div>
+                    <div class="profile-menu-chevron">
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LOG OUT BUTTON -->
+                <div class="profile-logout-wrap">
+                  <button type="button" class="profile-logout-btn" id="profileMainLogoutBtn" onclick="showProfileLogoutModal()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Log Out</span>
                   </button>
                 </div>
               </div>
+            </div>
 
-              <!-- RIGHT COLUMN: Campus Form -->
-              <div class="profile-right-col" style="margin-top: 18px;">
-                <section class="profile-card fade-up delay-2">
-                  <div class="card-section-title" style="margin-bottom: 12px; font-weight: 700; color: #17213A;">
-                    <span>Campus Address & Contact</span>
+            <!-- ═════════════════════════════════════════════════
+                 SUBVIEW 2: EDIT PROFILE SCREEN
+                 ═════════════════════════════════════════════════ -->
+            <div class="profile-subview" id="profileViewEdit" style="display: none;">
+              <!-- EDIT PROFILE HEADER -->
+              <header class="profile-page-header">
+                <button type="button" class="profile-icon-btn" aria-label="Back to Profile" onclick="setProfileSubView('main')">
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                </button>
+                <div class="header-title">
+                  <h1 class="profile-main-title">Edit Profile</h1>
+                  <p class="profile-main-sub">Update your information</p>
+                </div>
+                <div style="width: 40px;"></div>
+              </header>
+
+              <div class="profile-scroll-body">
+                <!-- PROFILE PHOTO SECTION -->
+                <div class="profile-edit-section">
+                  <div class="profile-section-heading">Profile Photo</div>
+                  <div class="profile-photo-row">
+                    <div class="profile-photo-avatar-wrap">
+                      <div class="profile-avatar-circle edit-size" id="profileEditAvatar">
+                        <span class="profile-avatar-letter" id="profileEditInitial">U</span>
+                        <img class="profile-avatar-img hidden" id="profileEditPhoto" src="" alt="Profile Avatar">
+                      </div>
+                      <button type="button" class="profile-camera-badge" onclick="document.getElementById('profilePhotoInput').click()" aria-label="Change photo">
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="#ffffff" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                          <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="profile-photo-actions">
+                      <input type="file" id="profilePhotoInput" accept="image/jpeg,image/png,image/webp" style="display: none;">
+                      <button type="button" class="profile-change-photo-btn" id="profileChangePhotoBtn" onclick="document.getElementById('profilePhotoInput').click()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                          <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Change Photo</span>
+                      </button>
+                      <div class="profile-photo-hint">JPG, PNG up to 2MB</div>
+                    </div>
                   </div>
-                  <form class="profile-form" id="profileForm">
-                    <div class="form-group">
-                      <label for="profName">Full Name</label>
-                      <input type="text" id="profName" placeholder="Your full name" required>
+                </div>
+
+                <!-- EDIT FORM -->
+                <form class="profile-edit-form" id="profileEditForm" onsubmit="event.preventDefault(); saveProfileEditChanges();">
+                  <!-- PERSONAL INFORMATION -->
+                  <div class="profile-edit-section">
+                    <div class="profile-section-heading">Personal Information</div>
+
+                    <div class="profile-form-group">
+                      <label class="profile-form-label" for="editProfFullName">Full Name</label>
+                      <input type="text" class="profile-form-input" id="editProfFullName" placeholder="e.g. Campus Student" required>
                     </div>
-                    <div class="form-group">
-                      <label for="profEmail">University Email</label>
-                      <input type="email" id="profEmail" placeholder="student@university.edu" readonly class="readonly-input">
+
+                    <div class="profile-form-group">
+                      <label class="profile-form-label" for="editProfEmail">University Email</label>
+                      <input type="email" class="profile-form-input readonly" id="editProfEmail" placeholder="student@campus.edu" readonly tabindex="-1">
                     </div>
-                    <div class="form-group">
-                      <label for="profPhone">Mobile / WhatsApp No.</label>
-                      <input type="tel" id="profPhone" placeholder="+91 98765 43210">
-                    </div>
-                    <div class="form-row-2col">
-                      <div class="form-group">
-                        <label for="profHostel">Hostel Block</label>
-                        <select id="profHostel">
-                          <option value="">Select hostel...</option>
-                          <option value="Hostel A">Hostel A</option>
-                          <option value="Hostel B">Hostel B</option>
-                          <option value="Hostel C">Hostel C</option>
-                          <option value="Hostel D">Hostel D</option>
-                          <option value="Hostel E">Hostel E</option>
-                          <option value="Day Scholar">Day Scholar / Off Campus</option>
-                        </select>
+
+                    <div class="profile-form-group">
+                      <label class="profile-form-label" for="editProfPhone">Mobile / WhatsApp No.</label>
+                      <div class="profile-phone-input-wrap">
+                        <div class="profile-phone-country-code">
+                          <span>+91</span>
+                          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </div>
+                        <input type="tel" class="profile-form-input phone-number" id="editProfPhone" placeholder="98765 43210" maxlength="15">
                       </div>
-                      <div class="form-group">
-                        <label for="profRoom">Room No.</label>
-                        <input type="text" id="profRoom" placeholder="e.g. 204">
+                    </div>
+                  </div>
+
+                  <!-- CAMPUS DETAILS -->
+                  <div class="profile-edit-section">
+                    <div class="profile-section-heading">Campus Details</div>
+
+                    <div class="profile-form-row-2col">
+                      <div class="profile-form-group">
+                        <label class="profile-form-label" for="editProfHostel">Hostel Block</label>
+                        <div class="profile-select-wrap">
+                          <select class="profile-form-select" id="editProfHostel">
+                            <option value="">Select Hostel...</option>
+                            <option value="Campus Quad">Campus Quad</option>
+                            <option value="Hostel Alpha">Hostel Alpha</option>
+                            <option value="Hostel Beta">Hostel Beta</option>
+                            <option value="Aryabhatta Hall">Aryabhatta Hall</option>
+                            <option value="Sarabhai Hall">Sarabhai Hall</option>
+                            <option value="Kalam Hall">Kalam Hall</option>
+                            <option value="Gargi Hall">Gargi Hall</option>
+                            <option value="Maitreyi Hall">Maitreyi Hall</option>
+                            <option value="Day Scholar">Day Scholar / Off-Campus</option>
+                          </select>
+                          <svg class="select-chevron" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div class="profile-form-group">
+                        <label class="profile-form-label" for="editProfRoom">Room No.</label>
+                        <input type="text" class="profile-form-input" id="editProfRoom" placeholder="e.g. 204">
                       </div>
                     </div>
-                    <div class="form-actions" style="margin-top: 14px;">
-                      <button type="submit" class="save-profile-btn" id="saveProfileBtn">Save Profile</button>
+
+                    <!-- TIP BANNER -->
+                    <div class="profile-tip-banner">
+                      <div class="profile-tip-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="#0284c7" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                          <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                      </div>
+                      <div class="profile-tip-text">Your campus details help us provide better delivery and pickup options.</div>
                     </div>
-                  </form>
-                </section>
+                  </div>
+
+                  <!-- SAVE CHANGES BUTTON -->
+                  <div class="profile-save-action">
+                    <button type="submit" class="profile-primary-btn" id="editProfileSaveBtn">
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
+
+            <!-- ═════════════════════════════════════════════════
+                 SUBVIEW 3: PROFILE SETTINGS & MORE
+                 ═════════════════════════════════════════════════ -->
+            <div class="profile-subview" id="profileViewSettings" style="display: none;">
+              <!-- SETTINGS HEADER -->
+              <header class="profile-page-header">
+                <button type="button" class="profile-icon-btn" aria-label="Back to Profile" onclick="setProfileSubView('main')">
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                  </svg>
+                </button>
+                <div class="header-title">
+                  <h1 class="profile-main-title">Profile</h1>
+                  <p class="profile-main-sub">Account settings &amp; more</p>
+                </div>
+                <div style="width: 40px;"></div>
+              </header>
+
+              <div class="profile-scroll-body">
+                <!-- GROUP 1: ACCOUNT -->
+                <div class="profile-settings-group">
+                  <div class="profile-group-label">Account</div>
+                  <div class="profile-menu-list">
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="setProfileSubView('edit', 'personal')">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                          <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Personal Information</div>
+                        <div class="profile-menu-sub">Name, email, phone</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="setProfileSubView('edit', 'campus')">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                          <line x1="9" y1="22" x2="9" y2="22.01"></line>
+                          <line x1="15" y1="22" x2="15" y2="22.01"></line>
+                          <line x1="9" y1="6" x2="9" y2="6.01"></line>
+                          <line x1="15" y1="6" x2="15" y2="6.01"></line>
+                          <line x1="9" y1="10" x2="9" y2="10.01"></line>
+                          <line x1="15" y1="10" x2="15" y2="10.01"></line>
+                          <line x1="9" y1="14" x2="9" y2="14.01"></line>
+                          <line x1="15" y1="14" x2="15" y2="14.01"></line>
+                          <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                          <line x1="15" y1="18" x2="15" y2="18.01"></line>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Campus Details</div>
+                        <div class="profile-menu-sub">Hostel, room, campus info</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfilePreferencesModal()">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="4" y1="21" x2="4" y2="14"></line>
+                          <line x1="4" y1="10" x2="4" y2="3"></line>
+                          <line x1="12" y1="21" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12" y2="3"></line>
+                          <line x1="20" y1="21" x2="20" y2="16"></line>
+                          <line x1="20" y1="12" x2="20" y2="3"></line>
+                          <line x1="1" y1="14" x2="7" y2="14"></line>
+                          <line x1="9" y1="8" x2="15" y2="8"></line>
+                          <line x1="17" y1="16" x2="23" y2="16"></line>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Preferences</div>
+                        <div class="profile-menu-sub">Notifications, language</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- GROUP 2: ORDERS & ACTIVITY -->
+                <div class="profile-settings-group">
+                  <div class="profile-group-label">Orders &amp; Activity</div>
+                  <div class="profile-menu-list">
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="navigate('orders')">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                          <line x1="3" y1="6" x2="21" y2="6"></line>
+                          <path d="M16 10a4 4 0 0 1-8 0"></path>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">My Orders</div>
+                        <div class="profile-menu-sub">View your order history</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfileRequestsModal()">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Item Requests</div>
+                        <div class="profile-menu-sub">Track requested items</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- GROUP 3: SUPPORT -->
+                <div class="profile-settings-group">
+                  <div class="profile-group-label">Support</div>
+                  <div class="profile-menu-list">
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfileHelpModal()">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Help &amp; Support</div>
+                        <div class="profile-menu-sub">FAQs, contact support</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="handleProfileShareApp()">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="18" cy="5" r="3"></circle>
+                          <circle cx="6" cy="12" r="3"></circle>
+                          <circle cx="18" cy="19" r="3"></circle>
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">Share App</div>
+                        <div class="profile-menu-sub">Share UniMall with friends</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- GROUP 4: ABOUT -->
+                <div class="profile-settings-group">
+                  <div class="profile-group-label">About</div>
+                  <div class="profile-menu-list">
+                    <div class="profile-menu-row" role="button" tabindex="0" onclick="openProfileAboutModal()">
+                      <div class="profile-menu-icon-circle">
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="16" x2="12" y2="12"></line>
+                          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                      </div>
+                      <div class="profile-menu-info">
+                        <div class="profile-menu-title">About UniMall</div>
+                        <div class="profile-menu-sub">Version, terms &amp; privacy</div>
+                      </div>
+                      <div class="profile-menu-chevron">
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- LOG OUT BUTTON -->
+                <div class="profile-logout-wrap">
+                  <button type="button" class="profile-logout-btn" onclick="showProfileLogoutModal()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                      <polyline points="16 17 21 12 16 7"></polyline>
+                      <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Log Out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ═════════════════════════════════════════════════
+                 PROFILE MODALS: PREFERENCES, HELP, ABOUT, REQUESTS
+                 ═════════════════════════════════════════════════ -->
+
+            <!-- PREFERENCES MODAL -->
+            <div class="profile-modal-overlay" id="profilePreferencesModal" onclick="if(event.target===this) closeProfileModals()">
+              <div class="profile-modal-sheet">
+                <div class="profile-modal-drag-bar"></div>
+                <div class="profile-modal-header">
+                  <div>
+                    <h3 class="profile-modal-title">Preferences</h3>
+                    <p class="profile-modal-sub">Customize notifications and experience</p>
+                  </div>
+                  <button type="button" class="profile-modal-close-btn" onclick="closeProfileModals()" aria-label="Close">✕</button>
+                </div>
+                <div class="profile-modal-body">
+                  <div class="pref-toggle-list">
+                    <label class="pref-toggle-item" for="prefOrderNotifs">
+                      <div class="pref-toggle-info">
+                        <div class="pref-toggle-title">Order Status Alerts</div>
+                        <div class="pref-toggle-desc">Instant alerts when orders are placed, prepared, and ready</div>
+                      </div>
+                      <input type="checkbox" id="prefOrderNotifs" class="pref-switch-input" checked>
+                      <span class="pref-switch-slider"></span>
+                    </label>
+
+                    <label class="pref-toggle-item" for="prefPromoAlerts">
+                      <div class="pref-toggle-info">
+                        <div class="pref-toggle-title">Campus Restock &amp; Offers</div>
+                        <div class="pref-toggle-desc">Flash sales, store discounts, and fresh campus inventory</div>
+                      </div>
+                      <input type="checkbox" id="prefPromoAlerts" class="pref-switch-input" checked>
+                      <span class="pref-switch-slider"></span>
+                    </label>
+
+                    <label class="pref-toggle-item" for="prefSoundFx">
+                      <div class="pref-toggle-info">
+                        <div class="pref-toggle-title">App Tactile Sounds</div>
+                        <div class="pref-toggle-desc">Play gentle feedback sounds for cart and navigation actions</div>
+                      </div>
+                      <input type="checkbox" id="prefSoundFx" class="pref-switch-input" checked>
+                      <span class="pref-switch-slider"></span>
+                    </label>
+
+                    <div class="pref-select-item">
+                      <div class="pref-toggle-info">
+                        <div class="pref-toggle-title">App Language</div>
+                        <div class="pref-toggle-desc">Select preferred display language</div>
+                      </div>
+                      <select id="prefLanguage" class="pref-select-box">
+                        <option value="en">English (US)</option>
+                        <option value="hi">हिन्दी (Hindi)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="profile-modal-actions">
+                  <button type="button" class="profile-primary-btn" onclick="saveProfilePreferences()">Save Preferences</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- HELP & SUPPORT MODAL -->
+            <div class="profile-modal-overlay" id="profileHelpModal" onclick="if(event.target===this) closeProfileModals()">
+              <div class="profile-modal-sheet">
+                <div class="profile-modal-drag-bar"></div>
+                <div class="profile-modal-header">
+                  <div>
+                    <h3 class="profile-modal-title">Help &amp; Support</h3>
+                    <p class="profile-modal-sub">UniMall student campus assistance</p>
+                  </div>
+                  <button type="button" class="profile-modal-close-btn" onclick="closeProfileModals()" aria-label="Close">✕</button>
+                </div>
+                <div class="profile-modal-body">
+                  <div class="support-action-card">
+                    <div class="support-card-icon">💬</div>
+                    <div class="support-card-content">
+                      <div class="support-card-title">Campus WhatsApp Support</div>
+                      <div class="support-card-desc">Instant resolution from student coordinators &amp; managers</div>
+                    </div>
+                    <a href="https://wa.me/919876543210?text=Hi%20UniMall%20Support%2C%20I%20need%20help%20with%20my%20order" target="_blank" rel="noopener noreferrer" class="support-connect-btn">Connect</a>
+                  </div>
+
+                  <div class="faq-list">
+                    <div class="faq-title-heading">Frequently Asked Questions</div>
+                    <details class="faq-accordion-item">
+                      <summary class="faq-question">How does campus delivery work?</summary>
+                      <div class="faq-answer">Orders are brought directly to your hostel block reception or designated floor drop-point by student couriers.</div>
+                    </details>
+                    <details class="faq-accordion-item">
+                      <summary class="faq-question">Where do I collect counter pickup orders?</summary>
+                      <div class="faq-answer">Present your 4-digit order token or QR code at the physical counter inside the student center.</div>
+                    </details>
+                    <details class="faq-accordion-item">
+                      <summary class="faq-question">What if an item is out of stock?</summary>
+                      <div class="faq-answer">Merchants update real-time stock. If unavailable, you are immediately notified and refunded or offered a replacement.</div>
+                    </details>
+                    <details class="faq-accordion-item">
+                      <summary class="faq-question">How can I request items not listed in stores?</summary>
+                      <div class="faq-answer">Use the "Item Requests" feature from your profile. Store managers review requests weekly to stock demanded items.</div>
+                    </details>
+                  </div>
+                </div>
+                <div class="profile-modal-actions">
+                  <button type="button" class="profile-secondary-btn" onclick="closeProfileModals()">Got It</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ABOUT UNIMALL MODAL -->
+            <div class="profile-modal-overlay" id="profileAboutModal" onclick="if(event.target===this) closeProfileModals()">
+              <div class="profile-modal-sheet">
+                <div class="profile-modal-drag-bar"></div>
+                <div class="profile-modal-header">
+                  <div>
+                    <h3 class="profile-modal-title">About UniMall</h3>
+                    <p class="profile-modal-sub">Campus Connect Digital Initiative</p>
+                  </div>
+                  <button type="button" class="profile-modal-close-btn" onclick="closeProfileModals()" aria-label="Close">✕</button>
+                </div>
+                <div class="profile-modal-body text-center">
+                  <div class="about-logo-badge">🏫</div>
+                  <h4 class="about-app-name">UniMall Campus Connect</h4>
+                  <div class="about-version-badge">Version 2.4.0 (Build 2026.10)</div>
+                  <p class="about-desc">
+                    UniMall is an integrated campus marketplace connecting university students with on-campus stores, stationery shops, eateries, and essentials with zero delivery delays.
+                  </p>
+                  <div class="about-info-rows">
+                    <div class="about-row"><span>Architecture</span><strong>Neon PostgreSQL Serverless</strong></div>
+                    <div class="about-row"><span>Authentication</span><strong>Student ID &amp; Google Auth</strong></div>
+                    <div class="about-row"><span>Data Security</span><strong>Scoped Row Isolation</strong></div>
+                    <div class="about-row"><span>Privacy</span><strong>No third-party trackers</strong></div>
+                  </div>
+                </div>
+                <div class="profile-modal-actions">
+                  <button type="button" class="profile-secondary-btn" onclick="closeProfileModals()">Close</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ITEM REQUESTS MODAL -->
+            <div class="profile-modal-overlay" id="profileRequestsModal" onclick="if(event.target===this) closeProfileModals()">
+              <div class="profile-modal-sheet">
+                <div class="profile-modal-drag-bar"></div>
+                <div class="profile-modal-header">
+                  <div>
+                    <h3 class="profile-modal-title">Item Requests</h3>
+                    <p class="profile-modal-sub">Items you have requested campus stores to stock</p>
+                  </div>
+                  <button type="button" class="profile-modal-close-btn" onclick="closeProfileModals()" aria-label="Close">✕</button>
+                </div>
+                <div class="profile-modal-body">
+                  <div id="profileRequestsListWrap">
+                    <!-- Populated dynamically from real user item requests -->
+                  </div>
+                </div>
+                <div class="profile-modal-actions">
+                  <button type="button" class="profile-primary-btn" onclick="closeProfileModals(); navigate('request');">
+                    <span>+ Request an Item</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div><!-- /view-profile -->
 
         </main><!-- /page-body -->
