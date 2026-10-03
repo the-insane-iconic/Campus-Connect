@@ -471,6 +471,7 @@ async function loadMerchantDashOrders(storeId) {
 
     // Filter active orders
     const activeOrders = fetchedOrders.filter(o => {
+      if (typeof window.isOrderFinalized === 'function' && window.isOrderFinalized(o.id)) return false;
       const s = (o.status || '').toUpperCase();
       return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
     });

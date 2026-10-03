@@ -237,11 +237,12 @@ function setupNavigation() {
       e.preventDefault();
       const view = item.getAttribute('data-view');
       switchView(view);
+      closeMobileDrawer();
     });
   });
 
-  // Mobile bottom bar links if present
-  document.querySelectorAll('.mob-nav-item[data-view]').forEach(item => {
+  // Mobile bottom bar links
+  document.querySelectorAll('.admin-mobile-nav .mobile-nav-item[data-view], .mobile-nav-item[data-view], .mob-nav-item[data-view]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
       const view = item.getAttribute('data-view');
@@ -256,7 +257,8 @@ function switchView(viewName) {
   document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
   });
-  document.querySelectorAll('.mob-nav-item').forEach(item => {
+  // 1b. Update mobile bottom nav active item
+  document.querySelectorAll('.admin-mobile-nav .mobile-nav-item, .mobile-nav-item, .mob-nav-item').forEach(item => {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
   });
 
@@ -305,18 +307,29 @@ function setupMobileDrawer() {
   const btnMenu = document.getElementById('btn-mobile-menu');
   const btnClose = document.getElementById('btn-close-drawer');
   const backdrop = document.getElementById('drawer-backdrop');
-  const sidebar = document.getElementById('admin-sidebar') || document.getElementById('merchant-sidebar');
+  const sidebar = document.getElementById('merchant-sidebar') || document.getElementById('admin-sidebar');
 
   if (btnMenu && sidebar) {
-    btnMenu.addEventListener('click', () => {
-      sidebar.classList.add('drawer-open');
-      if (backdrop) backdrop.classList.add('visible');
+    btnMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sidebar.classList.toggle('open');
+      sidebar.classList.toggle('drawer-open');
+      if (backdrop) {
+        backdrop.classList.toggle('open');
+        backdrop.classList.toggle('visible');
+      }
     });
   }
 
   function closeMobileDrawer() {
-    if (sidebar) sidebar.classList.remove('drawer-open');
-    if (backdrop) backdrop.classList.remove('visible');
+    if (sidebar) {
+      sidebar.classList.remove('open');
+      sidebar.classList.remove('drawer-open');
+    }
+    if (backdrop) {
+      backdrop.classList.remove('open');
+      backdrop.classList.remove('visible');
+    }
   }
   window.closeMobileDrawer = closeMobileDrawer;
 

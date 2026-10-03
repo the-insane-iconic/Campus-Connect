@@ -70,7 +70,7 @@ const files = [
 ];
 files.forEach(f => copyFile(f));
 
-const dirs = ['assets', 'css', 'js', 'admin', 'vendor'];
+const dirs = ['assets', 'css', 'js', 'admin', 'merchant', 'vendor'];
 dirs.forEach(d => copyDir(d));
 
 // Remove any stale www folder inside Android assets if present

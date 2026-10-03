@@ -348,32 +348,38 @@ async function handleClientAdminRequest(endpoint, options = {}) {
               } catch (e) {}
             }
 
-            return {
-              id: o.id,
-              order_number: o.order_number || o.id,
-              order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-4)}`),
-              user_name: (o.user_name || o.customerName || o.customer_name || 'Student').trim(),
-              user_phone: o.user_phone || '',
-              store_id: o.store_id,
-              subtotal: parseFloat(o.subtotal || o.total || 0),
-              store_subtotal: parseFloat(o.subtotal || o.total || 0),
-              delivery_fee: parseFloat(o.delivery_fee || 0),
-              total_amount: parseFloat(o.total || 0),
-              total: parseFloat(o.total || 0),
-              status: (o.status || 'placed').toUpperCase(),
-              fulfillment_type: o.fulfillment_type || 'counter-pickup',
-              delivery_location: o.delivery_location || 'Campus Counter',
-              created_at: createdAtIso,
-              items: (o.items || []).map(i => ({
-                product_name: i.product_name || i.name,
-                name: i.product_name || i.name,
-                quantity: i.quantity || i.qty || 1,
-                qty: i.quantity || i.qty || 1,
-                price: parseFloat(i.price || 0),
-                emoji: i.emoji || '📦',
-                image: i.image || ''
-              }))
-            };
+              let rawItems = o.items;
+              if (typeof rawItems === 'string') {
+                try { rawItems = JSON.parse(rawItems); } catch (e) { rawItems = []; }
+              }
+              if (!Array.isArray(rawItems)) rawItems = [];
+
+              return {
+                id: o.id,
+                order_number: o.order_number || o.id,
+                order_number_display: o.order_number || (`#ORD-${String(o.id).slice(-4)}`),
+                user_name: (o.user_name || o.customerName || o.customer_name || 'Student').trim(),
+                user_phone: o.user_phone || '',
+                store_id: o.store_id,
+                subtotal: parseFloat(o.subtotal || o.total || 0),
+                store_subtotal: parseFloat(o.subtotal || o.total || 0),
+                delivery_fee: parseFloat(o.delivery_fee || 0),
+                total_amount: parseFloat(o.total || 0),
+                total: parseFloat(o.total || 0),
+                status: (o.status || 'placed').toUpperCase(),
+                fulfillment_type: o.fulfillment_type || 'counter-pickup',
+                delivery_location: o.delivery_location || 'Campus Counter',
+                created_at: createdAtIso,
+                items: rawItems.map(i => ({
+                  product_name: i.product_name || i.name,
+                  name: i.product_name || i.name,
+                  quantity: i.quantity || i.qty || 1,
+                  qty: i.quantity || i.qty || 1,
+                  price: parseFloat(i.price || 0),
+                  emoji: i.emoji || '📦',
+                  image: i.image || ''
+                }))
+              };
           });
         }
       } catch (err) {

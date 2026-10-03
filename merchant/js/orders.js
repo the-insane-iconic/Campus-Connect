@@ -10,6 +10,26 @@ let currentOrdersViewMode = 'active'; // 'active' | 'table'
 let currentOrderStatusFilter = 'ALL';
 let ordersPollInterval = null;
 const knownOrderIds = new Set();
+const finalizedOrderIds = new Set();
+const pendingOrderTransitions = new Set();
+
+window.isOrderFinalized = function(id) {
+  return finalizedOrderIds.has(String(id));
+};
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getActiveOrdersCardsContainer() {
+  return document.getElementById('active-orders-cards-container') || document.getElementById('dashboard-active-orders-grid');
+}
 
 /* ─── WEB AUDIO API ORDER CHIME SYNTHESIZER ──────────────── */
 let audioCtx = null;
@@ -507,7 +527,7 @@ async function loadOrders(storeId, silent = false) {
   const effectiveStoreId = storeId || (typeof window.getActiveStoreId === 'function' ? window.getActiveStoreId() : 'all');
   if (!effectiveStoreId) return;
 
-  const cardsContainer = document.getElementById('active-orders-cards-container');
+  const cardsContainer = getActiveOrdersCardsContainer();
   const tbody = document.getElementById('orders-tbody');
 
   if (!silent) {
@@ -582,6 +602,7 @@ async function loadOrders(storeId, silent = false) {
 
 function updateOrderBadges() {
   const activeOrders = currentOrdersList.filter(o => {
+    if (finalizedOrderIds.has(String(o.id))) return false;
     const s = (o.status || '').toUpperCase();
     return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
   });
@@ -612,11 +633,12 @@ function updateOrderBadges() {
 }
 
 function renderActiveOrdersBoard() {
-  const container = document.getElementById('active-orders-cards-container');
+  const container = getActiveOrdersCardsContainer();
   if (!container) return;
 
-  // Filter active orders that require action or pickup
+  // Filter active orders that require action or pickup (excluding finalized orders)
   let activeOrders = currentOrdersList.filter(o => {
+    if (finalizedOrderIds.has(String(o.id))) return false;
     const s = (o.status || '').toUpperCase();
     return ['PLACED', 'ACCEPTED', 'PREPARING', 'READY'].includes(s);
   });
@@ -638,6 +660,10 @@ function renderActiveOrdersBoard() {
   activeOrders.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
 
   if (activeOrders.length === 0) {
+    // If an order transition is currently in flight, don't wipe it with empty state
+    if (pendingOrderTransitions.size > 0 && container.querySelector('.active-order-card')) {
+      return;
+    }
     container.innerHTML = `
       <div class="empty-active-orders">
         <div class="empty-icon">☕</div>
@@ -654,6 +680,7 @@ function renderActiveOrdersBoard() {
       try {
         return renderActiveOrderCard(o, idx, activeOrders);
       } catch (e) {
+        console.error('[Orders] Failed to render order card:', e);
         return '';
       }
     }).join('');
@@ -669,9 +696,10 @@ function renderActiveOrdersBoard() {
 
   const activeIds = new Set(activeOrders.map(o => String(o.id)));
 
-  // 1. Remove stale or completed cards
+  // 1. Remove stale or completed cards (DO NOT REMOVE if animated transition is in flight!)
   existingCards.forEach((cardEl, id) => {
     if (!activeIds.has(id)) {
+      if (pendingOrderTransitions.has(id)) return;
       cardEl.remove();
     }
   });
@@ -683,6 +711,9 @@ function renderActiveOrdersBoard() {
     const status = (o.status || 'PLACED').toUpperCase();
 
     if (existingCard) {
+      // If currently undergoing transition, protect it from re-render/flicker
+      if (pendingOrderTransitions.has(safeId)) return;
+
       // In-place updates: check if status changed
       const currentStatus = existingCard.getAttribute('data-status');
       if (currentStatus !== status) {
@@ -893,7 +924,8 @@ function renderActiveOrderCard(o, index, allOrders) {
     'campus-wear': { bg: '#F3E8FF', color: '#6B21A8', label: 'Campus Wear' },
     'health-hub':  { bg: '#FEE2E2', color: '#991B1B', label: 'Health Hub' },
   };
-  const storeTag = STORE_COLOR_MAP[o.store_id] || { bg: '#F1F5F9', color: '#334155', label: o.store_id || 'Campus Store' };
+  const storeLabel = o.store_name || o.storeName || (window.merchantStoreData && window.merchantStoreData.name) || o.store_id || 'Campus Store';
+  const storeTag = STORE_COLOR_MAP[o.store_id] || { bg: '#F1F5F9', color: '#334155', label: storeLabel };
 
   // Status Classes & Tag labels
   let statusClass = 'placed';
@@ -967,7 +999,16 @@ function renderActiveOrderCard(o, index, allOrders) {
   // Items in clean, consistent 2-column grid with strict truncation rule:
   // If > 4 products: show first 3 products, and 4th slot displays "+X others"
   // If <= 4 products: show up to 4 products
-  const items = Array.isArray(o.items) && o.items.length > 0 ? o.items : [];
+  let items = [];
+  if (Array.isArray(o.items)) {
+    items = o.items;
+  } else if (typeof o.items === 'string') {
+    try {
+      items = JSON.parse(o.items);
+    } catch (e) {
+      items = [];
+    }
+  }
   let visibleItems = [];
   let moreCount = 0;
 
@@ -1099,11 +1140,25 @@ window.renderActiveOrderCard = renderActiveOrderCard;
  * Click 3: READY -> DELIVERED (User receives order: 2s hold + smooth fade out)
  */
 async function progressOrderStep(orderId, nextStatus) {
+  const safeId = String(orderId || '').replace(/[^a-zA-Z0-9_\-#]/g, '');
+  if (!safeId) return;
+
+  // Prevent duplicate concurrent requests or clicks on finalized orders
+  if (pendingOrderTransitions.has(safeId)) {
+    console.log('[Orders] Transition already in flight for order', safeId);
+    return;
+  }
+  if (finalizedOrderIds.has(safeId)) {
+    showToast('Order is already delivered and finalized.', 'info');
+    return;
+  }
+
   // State Machine Integrity Guard (CIA Integrity)
-  const ord = currentOrdersList.find(o => String(o.id) === String(orderId));
+  const ord = currentOrdersList.find(o => String(o.id) === safeId);
   if (ord) {
     const curStatus = (ord.status || 'PLACED').toUpperCase();
     if (curStatus === 'DELIVERED' || curStatus === 'COMPLETED') {
+      finalizedOrderIds.add(safeId);
       showToast('Order is already delivered and finalized.', 'info');
       return;
     }
@@ -1125,54 +1180,48 @@ async function progressOrderStep(orderId, nextStatus) {
     }
   }
 
+  // Lock transition so background polls or listeners never interfere
+  pendingOrderTransitions.add(safeId);
+
+  // Provide immediate disabled button feedback so user knows step is being processed
+  const cardEl = document.getElementById(`order-card-${safeId}`) || document.querySelector(`.order-card-${safeId}`);
+  let actionBtn = null;
+  let prevBtnHtml = '';
+  if (cardEl) {
+    actionBtn = cardEl.querySelector('.btn-order-step');
+    if (actionBtn) {
+      prevBtnHtml = actionBtn.innerHTML;
+      actionBtn.disabled = true;
+      actionBtn.style.pointerEvents = 'none';
+      actionBtn.style.opacity = '0.75';
+      const label = nextStatus === 'PREPARING' ? 'Accepting...' : (nextStatus === 'READY' ? 'Packing...' : 'Delivering...');
+      actionBtn.innerHTML = `<span>⏳</span> <span>${label}</span>`;
+    }
+  }
+
   try {
-    const cardEl = document.getElementById(`order-card-${orderId}`);
-    if (cardEl) {
-      cardEl.style.opacity = '0.75';
-      const btn = cardEl.querySelector('.btn-order-step');
-      if (btn) btn.innerHTML = '<span>⏳</span> <span>Updating...</span>';
-    }
-
-    if (nextStatus === 'DELIVERED') {
-      if (cardEl) {
-        cardEl.style.transition = 'all 0.35s ease';
-        cardEl.style.borderColor = '#10B981';
-        cardEl.style.background = '#F0FDF4';
-        const actionRow = cardEl.querySelector('.order-action-row');
-        if (actionRow) {
-          actionRow.innerHTML = `
-            <div class="order-step-completed">
-              <span class="step-icon">✅</span>
-              <span class="step-text">Order Delivered & Completed ✓</span>
-            </div>
-          `;
-        }
-      }
-    }
-
+    // 1. Submit authoritative status update to backend / DB
     await apiRequest(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: nextStatus })
     });
 
-    let statusMsg = '';
-    if (nextStatus === 'PREPARING') {
-      statusMsg = `Order accepted! Kitchen preparation started.`;
-    } else if (nextStatus === 'READY') {
-      statusMsg = `Order packed! Ready for counter pickup 🛍️`;
-    } else if (nextStatus === 'DELIVERED') {
-      statusMsg = `Order DELIVERED! Customer confirmed.`;
-    }
-
-    showToast(statusMsg, 'success');
-
-    // Update in-memory data without wiping whole page
-    const ord = currentOrdersList.find(o => o.id === orderId);
+    // 2. Step is now finalised on the backend! Update in-memory order model
     if (ord) {
       ord.status = nextStatus.toUpperCase();
     }
 
-    // Broadcast across windows
+    let statusMsg = '';
+    if (nextStatus === 'PREPARING') {
+      statusMsg = 'Order accepted! Kitchen preparation started.';
+    } else if (nextStatus === 'READY') {
+      statusMsg = 'Order packed! Ready for counter pickup 🛍️';
+    } else if (nextStatus === 'DELIVERED') {
+      statusMsg = 'Order DELIVERED! Customer confirmed.';
+    }
+    showToast(statusMsg, 'success');
+
+    // 3. Broadcast across tabs and windows
     try {
       const bc = new BroadcastChannel('unimall_orders_channel');
       bc.postMessage({
@@ -1188,51 +1237,101 @@ async function progressOrderStep(orderId, nextStatus) {
       detail: { orderId, status: nextStatus }
     }));
 
-    // Update order badges without wiping DOM
+    // Update badges and table immediately
     updateOrderBadges();
+    renderOrdersTable();
 
+    // 4. Handle UI Card advancement smoothly
     if (nextStatus === 'DELIVERED') {
-      // Hold for 2 seconds for visual confirmation, then smoothly fade out
-      setTimeout(() => {
-        if (cardEl) {
-          cardEl.style.transition = 'all 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
-          cardEl.style.opacity = '0';
-          cardEl.style.transform = 'translateY(-12px) scale(0.98)';
-          cardEl.style.maxHeight = '0px';
-          cardEl.style.paddingTop = '0px';
-          cardEl.style.paddingBottom = '0px';
-          cardEl.style.marginTop = '0px';
-          cardEl.style.marginBottom = '0px';
-          cardEl.style.borderWidth = '0px';
-          cardEl.style.overflow = 'hidden';
+      // Mark permanently finalized so background polls never resurrect it
+      finalizedOrderIds.add(safeId);
 
-          setTimeout(() => {
-            if (cardEl && cardEl.parentNode) {
-              cardEl.parentNode.removeChild(cardEl);
-            }
-            // Check if dashboard urgent orders is now empty
-            const dashUrgent = document.getElementById('dash-urgent-orders');
-            if (dashUrgent && dashUrgent.querySelectorAll('.active-order-card').length === 0) {
-              dashUrgent.innerHTML = `
-                <div style="text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13.5px;">
-                  ✨ All caught up! No active orders requiring preparation or pickup.
-                </div>
-              `;
-            }
-            // Also refresh orders board if in React
-            if (typeof window.mountAdminActiveOrdersBoard === 'function') {
-              window.mountAdminActiveOrdersBoard();
-            }
-          }, 450);
+      if (cardEl) {
+        cardEl.className = `active-order-card status-completed order-card-${safeId}`;
+        cardEl.setAttribute('data-status', 'DELIVERED');
+        cardEl.style.transition = 'all 0.35s ease';
+        cardEl.style.borderColor = '#10B981';
+        cardEl.style.background = 'linear-gradient(145deg, #F0FDF4 0%, #DCFCE7 100%)';
+
+        const topBanner = cardEl.querySelector('.order-top-banner');
+        if (topBanner) {
+          const nextTag = topBanner.querySelector('.order-next-tag');
+          if (nextTag) {
+            nextTag.className = 'order-next-tag tag-completed';
+            nextTag.innerHTML = '<span class="tag-icon">✅</span><span class="tag-label">COMPLETED</span>';
+          }
+          const waitTag = topBanner.querySelector('.order-waiting-tag');
+          if (waitTag) {
+            waitTag.className = 'order-waiting-tag tag-completed';
+            waitTag.innerHTML = '<span class="wait-icon">✓</span><span class="wait-text">Delivered</span>';
+          }
         }
-      }, 2000);
-    } else {
-      // Trigger reactive React component update for seamless diff
-      if (typeof window.mountAdminActiveOrdersBoard === 'function') {
-        window.mountAdminActiveOrdersBoard();
+
+        const actionRow = cardEl.querySelector('.order-action-row');
+        if (actionRow) {
+          actionRow.innerHTML = `
+            <div class="order-step-completed">
+              <span class="step-icon">✅</span>
+              <span class="step-text">Order Delivered & Completed ✓</span>
+            </div>
+          `;
+        }
+
+        // Hold for 1.8 seconds so merchant sees clean green confirmation, then smoothly collapse
+        setTimeout(() => {
+          if (cardEl && cardEl.parentNode) {
+            cardEl.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+            cardEl.style.opacity = '0';
+            cardEl.style.transform = 'translateY(-10px) scale(0.98)';
+            cardEl.style.maxHeight = '0px';
+            cardEl.style.paddingTop = '0px';
+            cardEl.style.paddingBottom = '0px';
+            cardEl.style.marginTop = '0px';
+            cardEl.style.marginBottom = '0px';
+            cardEl.style.borderWidth = '0px';
+            cardEl.style.overflow = 'hidden';
+
+            setTimeout(() => {
+              if (cardEl && cardEl.parentNode) {
+                cardEl.parentNode.removeChild(cardEl);
+              }
+              pendingOrderTransitions.delete(safeId);
+
+              const container = getActiveOrdersCardsContainer();
+              if (container && container.querySelectorAll('.active-order-card').length === 0) {
+                renderActiveOrdersBoard();
+              }
+            }, 400);
+          } else {
+            pendingOrderTransitions.delete(safeId);
+          }
+        }, 1800);
+      } else {
+        pendingOrderTransitions.delete(safeId);
       }
+    } else {
+      // Step advanced to PREPARING or READY: update card in place with next step button
+      if (cardEl && ord) {
+        const temp = document.createElement('div');
+        temp.innerHTML = renderActiveOrderCard(ord, 0, currentOrdersList);
+        const newCard = temp.firstElementChild;
+        if (newCard) {
+          cardEl.replaceWith(newCard);
+        }
+      }
+      pendingOrderTransitions.delete(safeId);
     }
+
   } catch (err) {
+    console.error('[Orders] Failed to progress step:', err);
+    // Restore previous button state on error
+    if (actionBtn) {
+      actionBtn.disabled = false;
+      actionBtn.style.pointerEvents = '';
+      actionBtn.style.opacity = '';
+      actionBtn.innerHTML = prevBtnHtml;
+    }
+    pendingOrderTransitions.delete(safeId);
     showToast(`Failed to update order: ${err.message}`, 'error');
   }
 }
